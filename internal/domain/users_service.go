@@ -534,9 +534,9 @@ func (s *UserService) List(ctx context.Context, f UserFilter) ([]User, int, erro
 	return s.R.Users.List(ctx, f)
 }
 
-// PendingCount returns how many applications wait for review.
-func (s *UserService) PendingCount(ctx context.Context) (int, error) {
-	return s.R.Users.CountByStatus(ctx, StatusPendingApproval)
+// CountByStatus returns how many users have status st.
+func (s *UserService) CountByStatus(ctx context.Context, st UserStatus) (int, error) {
+	return s.R.Users.CountByStatus(ctx, st)
 }
 
 // AuditLog lists audit entries, newest first.

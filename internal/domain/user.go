@@ -63,8 +63,10 @@ type UserFilter struct {
 	Status     *UserStatus
 	IsAdmin    *bool
 	IsResident *bool
-	Limit      int
-	Offset     int
+	// NewestFirst orders by creation time, newest first, instead of by name.
+	NewestFirst bool
+	Limit       int
+	Offset      int
 }
 
 // UserRepo stores users.

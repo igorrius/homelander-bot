@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
 import { qk } from './public'
-import type { AdminUser, AuditEntry, House, HouseStats, Locale, LocalizedText, Me, Page, Residency, ResidencyStatus, Site, UserCard, UserStatus } from './types'
+import type { AdminUser, AuditEntry, House, HouseStats, Locale, LocalizedText, Me, Page, Residency, ResidencyStatus, Site, Summary, UserCard, UserStatus } from './types'
 
 /** Query keys of the admin API; all start with 'admin' so logout can drop them together. */
 export const qka = {
@@ -23,6 +23,8 @@ export interface UserQuery {
   status?: UserStatus
   isAdmin?: boolean
   isResident?: boolean
+  /** "newest" orders by application time, newest first; the default is by name. */
+  sort?: 'newest'
   page?: number
   pageSize?: number
 }
@@ -40,7 +42,7 @@ export function queryString(q: object): string {
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) })
 
 export function useSummary() {
-  return useQuery({ queryKey: qka.summary, queryFn: () => api<{ pendingApplications: number }>('/admin/summary') })
+  return useQuery({ queryKey: qka.summary, queryFn: () => api<Summary>('/admin/summary') })
 }
 
 export function useUsers(q: UserQuery) {

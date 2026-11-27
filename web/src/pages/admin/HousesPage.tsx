@@ -1,11 +1,13 @@
-import { Alert, Anchor, Badge, Button, Group, Loader, Modal, Stack, Switch, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Loader, Modal, Stack, Switch, Table, Text } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useState } from 'react'
+import { IconBuildingCommunity, IconPlus } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { useCreateHouse, useHouses } from '../../api/admin'
 import { errorText } from '../../lib/errors'
 import { HouseForm } from './HouseForm'
+import { PageHeader } from '../../components/PageHeader'
 
 export function HousesPage() {
   const { t } = useTranslation()
@@ -16,15 +18,15 @@ export function HousesPage() {
   const [adding, { open, close }] = useDisclosure(false)
   return (
     <Stack>
-      <Group justify="space-between">
-        <Title order={2}>{t('admin.houses.title')}</Title>
-        <Button onClick={() => {
-          create.reset()
-          open()
-        }}>
-          {t('admin.houses.add')}
-        </Button>
-      </Group>
+      <PageHeader icon={IconBuildingCommunity} title={t('admin.houses.title')}
+        actions={
+          <Button leftSection={<IconPlus size={16} />} onClick={() => {
+            create.reset()
+            open()
+          }}>
+            {t('admin.houses.add')}
+          </Button>
+        } />
       <Switch label={t('admin.houses.showArchived')} checked={showArchived} onChange={(e) => setShowArchived(e.currentTarget.checked)} />
       {houses.isPending ? (
         <Loader />

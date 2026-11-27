@@ -61,12 +61,11 @@ describe('SitePage', () => {
     expect(await screen.findByRole('img', { name: uk.home.illustration })).toBeInTheDocument()
   })
 
-  it('shows the registration link with copy button and QR', async () => {
+  it('no longer shows the registration link (it lives on the overview)', async () => {
     mockApi(routes)
     renderApp('/admin/site')
-    expect(await screen.findByText('http://localhost/register')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: uk.common.copy })).toBeInTheDocument()
-    expect(screen.getByTitle(uk.qr.title)).toBeInTheDocument()
+    await screen.findByText(uk.admin.site.picture)
+    expect(screen.queryByText('http://localhost/register')).toBeNull()
   })
 
   it('refuses a picture over 5 MB without uploading it', async () => {

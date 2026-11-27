@@ -56,7 +56,8 @@
       "houses": "Houses",
       "statuses": "Residency statuses",
       "site": "Site",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "overview": "Overview"
     },
     "applications": {
       "title": "Applications",
@@ -183,9 +184,37 @@
       "upload": "Upload a picture",
       "pictureHint": "PNG, JPEG or WebP, up to 5 MB",
       "removePicture": "Remove picture",
-      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration.",
-      "registerLink": "Registration link",
-      "registerLinkHint": "Pin this link in the community chat. Residents apply with it; you approve each application."
+      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration."
+    },
+    "navGroup": {
+      "people": "People",
+      "community": "Community",
+      "settings": "Settings"
+    },
+    "invite": {
+      "title": "Invite residents",
+      "hint": "Pin this link in the community chat or print the QR code. Residents apply with it; you approve each application.",
+      "download": "Download QR",
+      "open": "Registration link"
+    },
+    "overview": {
+      "title": "Overview",
+      "hint": "What matters today: new applications and the registration link.",
+      "stats": {
+        "pending": "New applications",
+        "awaiting": "Waiting for the bot",
+        "active": "Active accounts",
+        "houses": "Houses"
+      },
+      "latest": "Latest applications",
+      "allApplications": "All applications",
+      "setup": {
+        "title": "Set up your community",
+        "hint": "Registration opens once there is at least one house and one residency status.",
+        "house": "Add a house",
+        "status": "Add a residency status",
+        "community": "Fill in the community name"
+      }
     }
   },
   "notFound": {

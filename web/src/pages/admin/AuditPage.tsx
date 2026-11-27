@@ -1,9 +1,11 @@
-import { Alert, Button, Group, Loader, Pagination, Stack, Title } from '@mantine/core'
+import { Alert, Button, Loader, Pagination, Stack } from '@mantine/core'
+import { IconHistory } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { useAudit } from '../../api/admin'
 import { errorText } from '../../lib/errors'
 import { AuditTable } from './AuditTable'
+import { PageHeader } from '../../components/PageHeader'
 
 const pageSize = 25
 
@@ -22,14 +24,12 @@ export function AuditPage() {
     })
   return (
     <Stack>
-      <Group justify="space-between">
-        <Title order={2}>{t('admin.audit.title')}</Title>
-        {userId && (
+      <PageHeader icon={IconHistory} title={t('admin.audit.title')}
+        actions={userId && (
           <Button variant="light" size="xs" onClick={() => setParams({})}>
             {t('admin.audit.clearFilter')}
           </Button>
-        )}
-      </Group>
+        )} />
       {audit.isPending ? <Loader /> : audit.isError ? <Alert color="red">{errorText(t, audit.error)}</Alert> : <AuditTable entries={audit.data.items} />}
       {total > pageSize && <Pagination total={Math.ceil(total / pageSize)} value={page} onChange={setPage} />}
     </Stack>

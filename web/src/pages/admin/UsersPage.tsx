@@ -1,6 +1,7 @@
-import { Alert, Anchor, Badge, Button, Group, Loader, Pagination, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Group, Loader, Pagination, Select, Stack, Table, Text, TextInput } from '@mantine/core'
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks'
 import { useState } from 'react'
+import { IconUserPlus, IconUsers } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { useHouses, useUsers, type UserQuery } from '../../api/admin'
@@ -9,6 +10,7 @@ import { errorText } from '../../lib/errors'
 import { fullName } from '../../lib/format'
 import { AddUserModal } from './AddUserModal'
 import { StatusBadge } from './StatusBadge'
+import { PageHeader } from '../../components/PageHeader'
 
 const pageSize = 25
 const boolParam = (v: string | null) => (v === 'true' ? true : v === 'false' ? false : undefined)
@@ -56,10 +58,8 @@ export function UsersPage() {
   const total = users.data?.total ?? 0
   return (
     <Stack>
-      <Group justify="space-between">
-        <Title order={2}>{t('admin.users.title')}</Title>
-        <Button onClick={open}>{t('admin.users.add')}</Button>
-      </Group>
+      <PageHeader icon={IconUsers} title={t('admin.users.title')}
+        actions={<Button leftSection={<IconUserPlus size={16} />} onClick={open}>{t('admin.users.add')}</Button>} />
       <Group align="flex-end">
         <TextInput label={t('admin.users.search')} placeholder={t('admin.users.searchHint')} value={search}
           onChange={(e) => {

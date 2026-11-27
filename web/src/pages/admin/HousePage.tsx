@@ -1,6 +1,7 @@
 import { Alert, Anchor, Button, Card, Drawer, List, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState } from 'react'
+import { IconBuilding } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import { useApartment, useHouse, useStatuses, useUpdateHouse } from '../../api/admin'
@@ -10,6 +11,7 @@ import { fullName } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
 import { HouseForm } from './HouseForm'
 import { StatusBadge } from './StatusBadge'
+import { PageHeader } from '../../components/PageHeader'
 
 function Stats({ stats }: { stats: HouseStats }) {
   const { t } = useTranslation()
@@ -109,7 +111,7 @@ export function HousePage() {
       <Anchor component={Link} to="/admin/houses" size="sm">
         ← {t('admin.nav.houses')}
       </Anchor>
-      <Title order={2}>{house.name}</Title>
+      <PageHeader icon={IconBuilding} title={house.name} description={house.address || undefined} />
       <Stats stats={stats} />
       <Card withBorder>
         <Stack>

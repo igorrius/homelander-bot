@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Route, Routes } from 'react-router'
 import { SessionWatcher } from './components/SessionWatcher'
 import { SiteLocale } from './components/SiteLocale'
 import { HomePage } from './pages/HomePage'
@@ -10,6 +10,7 @@ import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
+import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
 import { StatusesPage } from './pages/admin/StatusesPage'
 import { UserCardPage } from './pages/admin/UserCardPage'
@@ -25,7 +26,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="applications" replace />} />
+          <Route index element={<OverviewPage />} />
           <Route path="applications" element={<ApplicationsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="users/:id" element={<UserCardPage />} />

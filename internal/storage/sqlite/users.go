@@ -152,8 +152,12 @@ func (r Users) List(ctx context.Context, f domain.UserFilter) ([]domain.User, in
 	if limit <= 0 {
 		limit = -1
 	}
+	order := `last_name, first_name, id`
+	if f.NewestFirst {
+		order = `created_at DESC, id DESC`
+	}
 	rows, err := q.QueryContext(ctx, `SELECT `+userColumns+` FROM users WHERE `+cond+
-		` ORDER BY last_name, first_name, id LIMIT ? OFFSET ?`, append(args, limit, f.Offset)...)
+		` ORDER BY `+order+` LIMIT ? OFFSET ?`, append(args, limit, f.Offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
