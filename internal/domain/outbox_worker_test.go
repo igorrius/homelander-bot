@@ -235,3 +235,59 @@ func TestWorkerRunStopsAndWakes(t *testing.T) {
 		t.Fatal("Run did not stop")
 	}
 }
+
+func TestWorkerKeepsOrderAfterOutage(t *testing.T) {
+	c := newChatEnv(t)
+	w := c.worker()
+	var ids []int64
+	for i := 0; i < 5; i++ {
+		ids = append(ids, c.enqueue(superGroup, "").ID)
+		for j := 0; j < 6; j++ { // Telegram is down for a while between notices
+			c.msgr.sendErrs = []error{sendErr(domain.SendRetry), sendErr(domain.SendRetry), sendErr(domain.SendRetry)}
+			c.runOnce(w)
+			c.clock.Advance(7 * time.Minute)
+		}
+	}
+	c.msgr.sendErrs = nil
+	// The oldest row may still wait out its backoff (capped at 30 minutes);
+	// the others follow it, in order, a few seconds apart.
+	for i := 0; i < 700 && len(c.msgr.delivered()) < 5; i++ {
+		c.runOnce(w)
+		c.clock.Advance(3 * time.Second)
+	}
+	d := c.msgr.delivered()
+	if len(d) != 5 {
+		t.Fatalf("delivered %d of 5 within 35 minutes of recovery", len(d))
+	}
+	for i, id := range ids {
+		if got := c.row(id); got.State != domain.OutboxSent {
+			t.Fatalf("row %d = %+v", i, got)
+		}
+	}
+	var order []int64
+	rows, _ := c.db.Query(`SELECT id FROM outbox ORDER BY sent_at, id`)
+	for rows.Next() {
+		var id int64
+		_ = rows.Scan(&id)
+		order = append(order, id)
+	}
+	_ = rows.Close()
+	for i := range ids {
+		if order[i] != ids[i] {
+			t.Fatalf("sent in order %v; want %v", order, ids)
+		}
+	}
+}
+
+func TestWorkerBacklogDoesNotStarveOtherChats(t *testing.T) {
+	c := newChatEnv(t)
+	w := c.worker()
+	for i := 0; i < 60; i++ {
+		c.enqueue(superGroup, "")
+	}
+	other := c.enqueue(oldGroup, "")
+	c.runOnce(w)
+	if got := c.row(other.ID); got.State != domain.OutboxSent {
+		t.Fatalf("other chat starved: %+v", got)
+	}
+}

@@ -254,6 +254,12 @@ func (s *UserService) validToken(ctx context.Context, token string) (Registratio
 	return t, err
 }
 
+// CleanRegistrationTokens deletes expired registration links (and the phones
+// they hold).
+func (s *UserService) CleanRegistrationTokens(ctx context.Context) (int, error) {
+	return s.R.RegTokens.DeleteExpiredBefore(ctx, s.Now())
+}
+
 // PrefillRegistration returns the proven phone of a valid registration link.
 func (s *UserService) PrefillRegistration(ctx context.Context, token string) (string, error) {
 	if token == "" || len(s.Secret) == 0 {

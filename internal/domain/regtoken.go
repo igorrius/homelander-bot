@@ -22,4 +22,7 @@ type RegTokenRepo interface {
 	MarkUsed(ctx context.Context, id int64, at time.Time) error
 	// InvalidateFor marks every unused token of a messenger account used.
 	InvalidateFor(ctx context.Context, channelType, externalID string, at time.Time) error
+	// DeleteExpiredBefore removes tokens that expired before t; they hold
+	// proven phones of people who may never apply.
+	DeleteExpiredBefore(ctx context.Context, t time.Time) (int, error)
 }

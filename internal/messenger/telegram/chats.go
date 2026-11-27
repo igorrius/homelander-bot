@@ -61,22 +61,27 @@ func (b *Bot) handleMyChatMember(ctx context.Context, u *gotgbot.ChatMemberUpdat
 	}
 }
 
-// topicName is the topic's name when this message carries it.
-func topicName(m *gotgbot.Message) string {
+// topicName is the topic's name when this message carries it. It is
+// authoritative for the topic-created and topic-edited service messages; the
+// creation message attached as reply_to_message holds the original name only.
+func topicName(m *gotgbot.Message) (string, bool) {
 	switch {
 	case m.ForumTopicCreated != nil:
-		return m.ForumTopicCreated.Name
+		return m.ForumTopicCreated.Name, true
 	case m.ForumTopicEdited != nil:
-		return m.ForumTopicEdited.Name
+		return m.ForumTopicEdited.Name, m.ForumTopicEdited.Name != ""
 	case m.ReplyToMessage != nil && m.ReplyToMessage.ForumTopicCreated != nil:
-		return m.ReplyToMessage.ForumTopicCreated.Name
+		return m.ReplyToMessage.ForumTopicCreated.Name, false
 	}
-	return ""
+	return "", false
 }
 
 // handleGroup records the chat (and topic) a group message came from and
 // passes messages from accepted chats to the sink.
 func (b *Bot) handleGroup(ctx context.Context, m *gotgbot.Message) {
+	if m.LeftChatMember != nil && m.LeftChatMember.Id == b.botID {
+		return // the bot's own removal arrives as my_chat_member; this message says nothing more
+	}
 	info := chatInfo(m.Chat)
 	switch {
 	case m.MigrateToChatId != 0:
@@ -95,7 +100,8 @@ func (b *Bot) handleGroup(ctx context.Context, m *gotgbot.Message) {
 		b.fetchRights(ctx, m.Chat)
 	}
 	if m.MessageThreadId != 0 && (m.IsTopicMessage || m.ForumTopicCreated != nil) {
-		if err := b.chats.TopicSeen(ctx, info, strconv.FormatInt(m.MessageThreadId, 10), topicName(m)); err != nil {
+		name, authoritative := topicName(m)
+		if err := b.chats.TopicSeen(ctx, info, strconv.FormatInt(m.MessageThreadId, 10), name, authoritative); err != nil {
 			b.log.Error("telegram topic not recorded", "chat", info.ExternalID, "err", err)
 		}
 	}

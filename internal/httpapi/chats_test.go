@@ -21,7 +21,7 @@ func (e *apiEnv) seenChat(ext, title string) domain.Chat {
 	if _, err := e.api.Chats.ChatSeen(ctx, info); err != nil {
 		e.t.Fatal(err)
 	}
-	if err := e.api.Chats.TopicSeen(ctx, info, "9", "News"); err != nil {
+	if err := e.api.Chats.TopicSeen(ctx, info, "9", "News", true); err != nil {
 		e.t.Fatal(err)
 	}
 	c, err := e.r.Chats.GetByExternal(ctx, "telegram", ext)

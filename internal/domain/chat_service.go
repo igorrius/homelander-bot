@@ -22,7 +22,10 @@ type ChatEvents interface {
 	BotRightsChanged(ctx context.Context, c ChatInfo, r BotRights) error
 	BotRemoved(ctx context.Context, c ChatInfo) error
 	ChatSeen(ctx context.Context, c ChatInfo) (created bool, err error)
-	TopicSeen(ctx context.Context, c ChatInfo, threadID, name string) error
+	// TopicSeen records a forum topic. An authoritative name is Telegram's
+	// current one (topic created or renamed); otherwise name is a hint that
+	// only fills a topic without a name.
+	TopicSeen(ctx context.Context, c ChatInfo, threadID, name string, authoritative bool) error
 	ChatMoved(ctx context.Context, messenger, oldID, newID string) error
 	IsAccepted(ctx context.Context, messenger, externalID string) (bool, error)
 }
@@ -165,9 +168,9 @@ func (s *ChatService) BotRightsChanged(ctx context.Context, c ChatInfo, r BotRig
 			return err
 		}
 		applyInfo(&ch, c)
-		ch.BotStatus, ch.CanSend, ch.LastSeenAt = r.Status, r.CanSend, s.Now()
-		if ch.State == ChatLeft {
-			ch.State, ch.LeftAt = ChatNew, nil
+		ch.LastSeenAt = s.Now()
+		if ch.State != ChatLeft { // a late update must not revive a chat the bot left
+			ch.BotStatus, ch.CanSend = r.Status, r.CanSend
 		}
 		return s.R.Chats.Update(ctx, &ch)
 	})
@@ -212,16 +215,18 @@ func (s *ChatService) seen(ctx context.Context, c ChatInfo) (bool, error) {
 	if err != nil || created {
 		return created, err
 	}
+	// A left chat stays left: only a real add (BotAdded) brings it back, so a
+	// late or redelivered message cannot put it into the "new" list.
 	applyInfo(&ch, c)
 	ch.LastSeenAt = s.Now()
-	if ch.State == ChatLeft {
-		ch.State, ch.LeftAt = ChatNew, nil
-	}
 	return false, s.R.Chats.Update(ctx, &ch)
 }
 
-// TopicSeen records a forum topic; a non-empty name is Telegram's current one.
-func (s *ChatService) TopicSeen(ctx context.Context, c ChatInfo, threadID, name string) error {
+// TopicSeen records a forum topic. An authoritative name (topic created or
+// renamed) replaces the title, an admin's included; a hint (the creation
+// message Telegram attaches to every plain topic message) only names a topic
+// that has no name yet.
+func (s *ChatService) TopicSeen(ctx context.Context, c ChatInfo, threadID, name string, authoritative bool) error {
 	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
 		if _, err := s.seen(ctx, c); err != nil {
 			return err
@@ -238,8 +243,11 @@ func (s *ChatService) TopicSeen(ctx context.Context, c ChatInfo, threadID, name 
 		} else if err != nil {
 			return err
 		}
-		if name != "" {
+		switch {
+		case name != "" && authoritative:
 			t.Title, t.TitleSetByAdmin = name, false
+		case name != "" && t.Title == "":
+			t.Title = name
 		}
 		t.Gone, t.LastSeenAt = false, now
 		return s.R.Topics.Update(ctx, &t)
@@ -263,6 +271,9 @@ func (s *ChatService) ChatMoved(ctx context.Context, messenger, oldID, newID str
 		nw, err := s.R.Chats.GetByExternal(ctx, messenger, newID)
 		if errors.Is(err, ErrNotFound) {
 			old.ExternalID, old.Kind = newID, ChatKindSupergroup
+			if s.leftForUpgrade(old) {
+				old.State, old.LeftAt = ChatAccepted, nil
+			}
 			if err := s.R.Chats.Update(ctx, &old); err != nil {
 				return err
 			}
@@ -275,6 +286,16 @@ func (s *ChatService) ChatMoved(ctx context.Context, messenger, oldID, newID str
 		}
 		return s.audit(ctx, Actor{}, ActChatMoved, ChatTarget(nw.ID), details)
 	})
+}
+
+// upgradeWindow is how long before a migration a "bot left" of an accepted
+// chat is taken as part of the upgrade itself.
+const upgradeWindow = 5 * time.Minute
+
+// leftForUpgrade reports whether an accepted chat was reported left just
+// before it moved: Telegram may announce the old group gone during an upgrade.
+func (s *ChatService) leftForUpgrade(c Chat) bool {
+	return c.State == ChatLeft && c.AcceptedAt != nil && c.LeftAt != nil && s.Now().Sub(*c.LeftAt) <= upgradeWindow
 }
 
 // merge folds old into nw and deletes old.
@@ -298,7 +319,7 @@ func (s *ChatService) merge(ctx context.Context, old Chat, nw *Chat) error {
 	if err := s.R.Labels.Retarget(ctx, LabelTarget{TargetChat, old.ID}, LabelTarget{TargetChat, nw.ID}); err != nil {
 		return err
 	}
-	if old.State == ChatAccepted && nw.State != ChatAccepted {
+	if (old.State == ChatAccepted || s.leftForUpgrade(old)) && nw.State != ChatAccepted {
 		nw.State, nw.AcceptedBy, nw.AcceptedAt = ChatAccepted, old.AcceptedBy, old.AcceptedAt
 	}
 	if nw.Title == "" {

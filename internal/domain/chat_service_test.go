@@ -176,14 +176,54 @@ func TestSeenWithoutAddIsNew(t *testing.T) {
 	}
 }
 
-func TestSeenAfterLeftBecomesNew(t *testing.T) {
+func TestSeenAfterLeftStaysLeft(t *testing.T) {
+	// A message processed after the bot left (a redelivery, a late update)
+	// does not bring the chat back: only a real add does.
 	c := newChatEnv(t)
 	c.must(c.chats.BotAdded(ctx, group(oldGroup), adminTG, member))
 	c.must(c.chats.BotRemoved(ctx, group(oldGroup)))
 	if _, err := c.chats.ChatSeen(ctx, group(oldGroup)); err != nil {
 		t.Fatal(err)
 	}
-	if ch := c.chat(oldGroup); ch.State != domain.ChatNew {
+	c.must(c.chats.BotRightsChanged(ctx, group(oldGroup), member))
+	if ch := c.chat(oldGroup); ch.State != domain.ChatLeft {
+		t.Fatalf("chat = %+v", ch)
+	}
+	if n, _ := c.chats.NewCount(ctx); n != 0 {
+		t.Fatalf("NewCount = %d", n)
+	}
+}
+
+func TestUpgradeWhenOldGroupReportedLeft(t *testing.T) {
+	// Telegram may report the bot gone from the old group during an upgrade.
+	for _, order := range []string{"added-then-moved", "moved-then-added"} {
+		t.Run(order, func(t *testing.T) {
+			c := newChatEnv(t)
+			c.must(c.chats.BotAdded(ctx, group(oldGroup), adminTG, member))
+			c.must(c.chats.BotRemoved(ctx, group(oldGroup)))
+			added := func() { c.must(c.chats.BotAdded(ctx, forum(superGroup), strangerTG, member)) }
+			moved := func() { c.must(c.chats.ChatMoved(ctx, "telegram", oldGroup, superGroup)) }
+			if order == "added-then-moved" {
+				added()
+				moved()
+			} else {
+				moved()
+				added()
+			}
+			if ch := c.chat(superGroup); ch.State != domain.ChatAccepted || ch.LeaveAt != nil {
+				t.Fatalf("chat = %+v", ch)
+			}
+		})
+	}
+}
+
+func TestMovedLongAfterLeavingStaysLeft(t *testing.T) {
+	c := newChatEnv(t)
+	c.must(c.chats.BotAdded(ctx, group(oldGroup), adminTG, member))
+	c.must(c.chats.BotRemoved(ctx, group(oldGroup)))
+	c.clock.Advance(time.Hour)
+	c.must(c.chats.ChatMoved(ctx, "telegram", oldGroup, superGroup))
+	if ch := c.chat(superGroup); ch.State != domain.ChatLeft {
 		t.Fatalf("chat = %+v", ch)
 	}
 }
@@ -333,23 +373,23 @@ func TestChatMovedRepointsPendingOutbox(t *testing.T) {
 func TestTopicNaming(t *testing.T) {
 	c := newChatEnv(t)
 	f := forum(superGroup)
-	c.must(c.chats.TopicSeen(ctx, f, "9", ""))
+	c.must(c.chats.TopicSeen(ctx, f, "9", "", true))
 	ch := c.chat(superGroup)
 	tp, err := c.r.Topics.GetByExternal(ctx, ch.ID, "9")
 	if err != nil || tp.Title != "" {
 		t.Fatalf("unnamed topic = %+v, %v", tp, err)
 	}
-	c.must(c.chats.TopicSeen(ctx, f, "9", "News"))
+	c.must(c.chats.TopicSeen(ctx, f, "9", "News", true))
 	c.must(c.chats.RenameTopic(ctx, tp.ID, "  Announcements  ", actor(c.admin)))
 	tp, _ = c.r.Topics.Get(ctx, tp.ID)
 	if tp.Title != "Announcements" || !tp.TitleSetByAdmin {
 		t.Fatalf("after admin rename = %+v", tp)
 	}
-	c.must(c.chats.TopicSeen(ctx, f, "9", "")) // a message without a name keeps the admin's
+	c.must(c.chats.TopicSeen(ctx, f, "9", "", true)) // a message without a name keeps the admin's
 	if tp, _ = c.r.Topics.Get(ctx, tp.ID); tp.Title != "Announcements" {
 		t.Fatalf("unnamed message overwrote the title: %+v", tp)
 	}
-	c.must(c.chats.TopicSeen(ctx, f, "9", "Notices")) // a Telegram rename wins
+	c.must(c.chats.TopicSeen(ctx, f, "9", "Notices", true)) // a Telegram rename wins
 	if tp, _ = c.r.Topics.Get(ctx, tp.ID); tp.Title != "Notices" || tp.TitleSetByAdmin {
 		t.Fatalf("after Telegram rename = %+v", tp)
 	}
@@ -368,7 +408,7 @@ func TestChatSeenAndTopicSeenAreIdempotent(t *testing.T) {
 		if _, err := c.chats.ChatSeen(ctx, forum(superGroup)); err != nil {
 			t.Fatal(err)
 		}
-		c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News"))
+		c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News", true))
 	}
 	list, err := c.chats.List(ctx)
 	if err != nil || len(list) != 1 || len(list[0].Topics) != 1 {
@@ -399,17 +439,38 @@ func TestIsAcceptedOnlyForAccepted(t *testing.T) {
 func TestMarkGoneAndTopicGone(t *testing.T) {
 	c := newChatEnv(t)
 	c.must(c.chats.BotAdded(ctx, forum(superGroup), adminTG, member))
-	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News"))
+	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News", true))
 	c.must(c.chats.MarkTopicGone(ctx, "telegram", superGroup, "9"))
 	if tp, _ := c.r.Topics.GetByExternal(ctx, c.chat(superGroup).ID, "9"); !tp.Gone {
 		t.Fatal("topic not gone")
 	}
-	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", ""))
+	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "", true))
 	if tp, _ := c.r.Topics.GetByExternal(ctx, c.chat(superGroup).ID, "9"); tp.Gone {
 		t.Fatal("a topic seen again must not stay gone")
 	}
 	c.must(c.chats.MarkGone(ctx, "telegram", superGroup))
 	if ch := c.chat(superGroup); ch.State != domain.ChatLeft {
 		t.Fatalf("chat = %+v", ch)
+	}
+}
+
+func TestTopicNameHintOnlyFillsEmptyTitle(t *testing.T) {
+	c := newChatEnv(t)
+	f := forum(superGroup)
+	c.must(c.chats.TopicSeen(ctx, f, "9", "Parking", false)) // first message: the hint names it
+	ch := c.chat(superGroup)
+	tp, _ := c.r.Topics.GetByExternal(ctx, ch.ID, "9")
+	if tp.Title != "Parking" {
+		t.Fatalf("hint did not name an unnamed topic: %+v", tp)
+	}
+	c.must(c.chats.RenameTopic(ctx, tp.ID, "Mine", actor(c.admin)))
+	c.must(c.chats.TopicSeen(ctx, f, "9", "Parking", false)) // a plain message carries the creation name again
+	if tp, _ = c.r.Topics.Get(ctx, tp.ID); tp.Title != "Mine" || !tp.TitleSetByAdmin {
+		t.Fatalf("plain message reverted the admin's name: %+v", tp)
+	}
+	c.must(c.chats.TopicSeen(ctx, f, "9", "Cars", true)) // Telegram rename
+	c.must(c.chats.TopicSeen(ctx, f, "9", "Parking", false))
+	if tp, _ = c.r.Topics.Get(ctx, tp.ID); tp.Title != "Cars" {
+		t.Fatalf("plain message reverted Telegram's rename: %+v", tp)
 	}
 }

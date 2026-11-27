@@ -268,7 +268,8 @@
       "addedBy": "Added by Telegram user {{id}}",
       "emptyTitle": "The bot is not in any chat yet",
       "emptyText": "A chat appears here when an administrator adds the bot to it, or when someone writes in a chat the bot is already in.",
-      "setupGuide": "Bot setup guide"
+      "setupGuide": "Bot setup guide",
+      "leftWarning": "The bot is not in this chat: it receives nothing, whatever labels it has. Add the bot again to bring it back."
     },
     "labels": {
       "title": "Labels",

@@ -161,3 +161,20 @@ func TestNotificationsDefaultAndSave(t *testing.T) {
 		t.Fatalf("after clearing = %+v", got)
 	}
 }
+
+func TestRegTokenDeleteExpiredBefore(t *testing.T) {
+	r := sqlite.RegTokens{DB: sqlitetest.New(t)}
+	for i, exp := range []time.Time{t0.Add(-time.Minute), t0.Add(time.Minute)} {
+		tok := domain.RegistrationToken{TokenHash: []byte{byte(i)}, ChannelType: "telegram", ExternalID: "1", ChatID: "1",
+			Phone: "+380500000001", ExpiresAt: exp, CreatedAt: t0.Add(-time.Hour)}
+		if err := r.Create(ctx, &tok); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, err := r.DeleteExpiredBefore(ctx, t0); err != nil || n != 1 {
+		t.Fatalf("DeleteExpiredBefore = %d, %v", n, err)
+	}
+	if _, err := r.GetByHash(ctx, []byte{1}); err != nil {
+		t.Fatalf("live token deleted: %v", err)
+	}
+}

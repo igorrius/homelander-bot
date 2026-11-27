@@ -94,6 +94,7 @@ function ChatCard({ chat, labels, onLabels, onRename }: { chat: Chat; labels: La
         {chat.state === 'new' && chat.leaveAt && (
           <Text size="sm" c="orange">{t('admin.chats.leaveSoon', { time: formatDateTime(chat.leaveAt, i18n.language) })}</Text>
         )}
+        {left && <Text size="sm" c="dimmed">{t('admin.chats.leftWarning')}</Text>}
         {chat.state !== 'left' && !chat.canSend && chat.botStatus !== 'unknown' && (
           <Alert color="orange" icon={<IconAlertTriangle size={16} />} p="xs">{t('admin.chats.cannotSend')}</Alert>
         )}

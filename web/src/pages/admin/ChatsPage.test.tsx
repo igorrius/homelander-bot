@@ -88,6 +88,7 @@ describe('ChatsPage', () => {
     await user.click(toggle)
     expect(await screen.findByText('Stranger group')).toBeInTheDocument()
     expect(screen.getByText(i18n.t('admin.chats.addedBy', { id: '1000099' }))).toBeInTheDocument()
+    expect(screen.getByText(uk.admin.chats.leftWarning)).toBeInTheDocument()
   })
 
   it('reports a test send failure reason', async () => {

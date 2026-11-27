@@ -50,7 +50,8 @@ type OutboxItem struct {
 type OutboxRepo interface {
 	Add(ctx context.Context, it *OutboxItem) error
 	Get(ctx context.Context, id int64) (OutboxItem, error)
-	// Due returns pending rows whose next attempt has come, oldest first.
+	// Due returns the oldest pending row of each chat whose next attempt has
+	// come, oldest first: one chat's messages go out in order.
 	Due(ctx context.Context, now time.Time, limit int) ([]OutboxItem, error)
 	Update(ctx context.Context, it *OutboxItem) error
 	// RepointChat moves pending rows from a chat's old id to its new one.

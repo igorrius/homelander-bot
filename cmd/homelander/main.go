@@ -155,7 +155,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 			}
 		}()
 	}
-	go cleanup(ctx, auth, notifier, log)
+	go cleanup(ctx, auth, users, notifier, log)
 	go worker.Run(ctx)
 	go leaveDue(ctx, chats, log)
 
@@ -173,8 +173,8 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	return nil
 }
 
-// cleanup deletes expired sessions and old outbox rows every hour.
-func cleanup(ctx context.Context, auth *domain.AuthService, notifier *domain.Notifier, log *slog.Logger) {
+// cleanup deletes expired sessions, expired registration links and old outbox rows every hour.
+func cleanup(ctx context.Context, auth *domain.AuthService, users *domain.UserService, notifier *domain.Notifier, log *slog.Logger) {
 	t := time.NewTicker(cleanupEvery)
 	defer t.Stop()
 	for {
@@ -186,6 +186,9 @@ func cleanup(ctx context.Context, auth *domain.AuthService, notifier *domain.Not
 				log.Warn("session cleanup failed", "err", err)
 			} else if n > 0 {
 				log.Info("expired sessions removed", "count", n)
+			}
+			if _, err := users.CleanRegistrationTokens(ctx); err != nil {
+				log.Warn("registration link cleanup failed", "err", err)
 			}
 			if n, err := notifier.Clean(ctx); err != nil {
 				log.Warn("outbox cleanup failed", "err", err)

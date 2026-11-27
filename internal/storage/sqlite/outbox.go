@@ -93,10 +93,15 @@ func (r Outbox) Get(ctx context.Context, id int64) (domain.OutboxItem, error) {
 	return scanOutbox(r.DB.Q(ctx).QueryRowContext(ctx, `SELECT `+outboxColumns+` FROM outbox WHERE id = ?`, id))
 }
 
-// Due returns pending rows whose next attempt has come, oldest first.
+// Due returns, for each chat, its oldest pending row if that row's next
+// attempt has come; oldest first.
 func (r Outbox) Due(ctx context.Context, now time.Time, limit int) ([]domain.OutboxItem, error) {
-	rows, err := r.DB.Q(ctx).QueryContext(ctx, `SELECT `+outboxColumns+` FROM outbox
-		WHERE state = 'pending' AND next_attempt_at <= ? ORDER BY id LIMIT ?`, fmtTime(now), limit)
+	// Only the oldest pending row of each chat is a candidate, so a chat gets
+	// its messages in order and a backlog in one chat does not hide others.
+	rows, err := r.DB.Q(ctx).QueryContext(ctx, `SELECT `+outboxColumns+` FROM outbox o
+		WHERE state = 'pending' AND next_attempt_at <= ? AND NOT EXISTS (SELECT 1 FROM outbox p
+			WHERE p.state = 'pending' AND p.messenger = o.messenger AND p.chat_id = o.chat_id AND p.id < o.id)
+		ORDER BY id LIMIT ?`, fmtTime(now), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +190,16 @@ func (r RegTokens) InvalidateFor(ctx context.Context, channelType, externalID st
 	_, err := r.DB.Q(ctx).ExecContext(ctx, `UPDATE registration_tokens SET used_at = ?
 		WHERE channel_type = ? AND external_id = ? AND used_at IS NULL`, fmtTime(at), channelType, externalID)
 	return err
+}
+
+// DeleteExpiredBefore removes tokens that expired before t.
+func (r RegTokens) DeleteExpiredBefore(ctx context.Context, t time.Time) (int, error) {
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `DELETE FROM registration_tokens WHERE expires_at < ?`, fmtTime(t))
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	return int(n), err
 }
 
 type notificationsJSON struct {

@@ -63,8 +63,8 @@ func (f *fakeChats) ChatSeen(_ context.Context, c domain.ChatInfo) (bool, error)
 	return created, nil
 }
 
-func (f *fakeChats) TopicSeen(_ context.Context, c domain.ChatInfo, thread, name string) error {
-	f.record(fmt.Sprintf("topic %s %s %q", c.ExternalID, thread, name))
+func (f *fakeChats) TopicSeen(_ context.Context, c domain.ChatInfo, thread, name string, authoritative bool) error {
+	f.record(fmt.Sprintf("topic %s %s %q authoritative=%v", c.ExternalID, thread, name, authoritative))
 	return nil
 }
 
@@ -186,10 +186,10 @@ func TestTopicNameFromCreatedEditedAndReply(t *testing.T) {
 	got := r.feed(t, "topic_created.json", "topic_edited.json", "topic_message_reply.json", "topic_message_plain.json")
 	seen := `seen telegram/-1001000000001/supergroup/"yard"/forum=true`
 	want(t, got,
-		seen, `topic -1001000000001 50 "News"`,
-		seen, `topic -1001000000001 50 "Announcements"`,
-		seen, `topic -1001000000001 40 "Parking"`,
-		seen, `topic -1001000000001 30 ""`)
+		seen, `topic -1001000000001 50 "News" authoritative=true`,
+		seen, `topic -1001000000001 50 "Announcements" authoritative=true`,
+		seen, `topic -1001000000001 40 "Parking" authoritative=false`,
+		seen, `topic -1001000000001 30 "" authoritative=false`)
 }
 
 func TestMigrateMessages(t *testing.T) {
@@ -214,4 +214,12 @@ func TestSinkOnlyForAcceptedChats(t *testing.T) {
 	if len(r.sink.msgs) != 1 {
 		t.Fatalf("sink got %d messages", len(r.sink.msgs))
 	}
+}
+
+func TestBotOwnLeftMessageIgnored(t *testing.T) {
+	r := newRig(t)
+	r.bot.HandleUpdate(ctx, gotgbot.Update{UpdateId: 9, Message: &gotgbot.Message{MessageId: 9, Date: 1764244800,
+		Chat: gotgbot.Chat{Id: -1000000001, Type: "group", Title: "log"}, From: &gotgbot.User{Id: 1000099},
+		LeftChatMember: &gotgbot.User{Id: 1, IsBot: true}}})
+	want(t, r.chats.got())
 }

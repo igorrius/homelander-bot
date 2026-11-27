@@ -64,7 +64,7 @@ func TestSetLabelsOnChatAndTopic(t *testing.T) {
 	ls := c.labels()
 	a := actor(c.admin)
 	c.must(c.chats.BotAdded(ctx, forum(superGroup), adminTG, member))
-	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News"))
+	c.must(c.chats.TopicSeen(ctx, forum(superGroup), "9", "News", true))
 	ch := c.chat(superGroup)
 	tp, _ := c.r.Topics.GetByExternal(ctx, ch.ID, "9")
 	j, _ := ls.Create(ctx, "journal", "", a)

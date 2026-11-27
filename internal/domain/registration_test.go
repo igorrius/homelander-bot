@@ -419,3 +419,20 @@ func TestLinkButtonBecomesTextForPlainHTTP(t *testing.T) {
 		t.Fatalf("notice = %+v", n)
 	}
 }
+
+func TestExpiredRegistrationTokensAreDeleted(t *testing.T) {
+	r := newRegEnv(t)
+	tokenOf(t, r.share("2001", "+380500000011"))
+	if n, err := r.users.CleanRegistrationTokens(ctx); err != nil || n != 0 {
+		t.Fatalf("Clean before expiry = %d, %v", n, err)
+	}
+	r.clock.Advance(time.Hour + time.Second)
+	if n, err := r.users.CleanRegistrationTokens(ctx); err != nil || n != 1 {
+		t.Fatalf("Clean after expiry = %d, %v", n, err)
+	}
+	var left int
+	_ = r.db.QueryRow(`SELECT count(*) FROM registration_tokens`).Scan(&left)
+	if left != 0 {
+		t.Fatalf("%d tokens left", left)
+	}
+}

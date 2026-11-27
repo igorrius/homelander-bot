@@ -23,7 +23,7 @@ func (c *chatEnv) notifier() *domain.Notifier {
 func (c *chatEnv) acceptedForum(ext, thread string) (domain.Chat, domain.Topic) {
 	c.t.Helper()
 	c.must(c.chats.BotAdded(ctx, forum(ext), adminTG, member))
-	c.must(c.chats.TopicSeen(ctx, forum(ext), thread, "News"))
+	c.must(c.chats.TopicSeen(ctx, forum(ext), thread, "News", true))
 	ch := c.chat(ext)
 	tp, err := c.r.Topics.GetByExternal(ctx, ch.ID, thread)
 	c.must(err)
@@ -38,11 +38,25 @@ func (c *chatEnv) bind(l domain.Label, ts ...domain.LabelTarget) {
 	}
 }
 
+// pending lists every pending outbox row, oldest first.
 func (c *chatEnv) pending() []domain.OutboxItem {
 	c.t.Helper()
-	due, err := c.r.Outbox.Due(ctx, c.clock.t.Add(time.Hour), 100)
+	rows, err := c.db.Query(`SELECT id FROM outbox WHERE state = 'pending' ORDER BY id`)
 	c.must(err)
-	return due
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		c.must(rows.Scan(&id))
+		ids = append(ids, id)
+	}
+	c.must(rows.Close())
+	out := make([]domain.OutboxItem, 0, len(ids))
+	for _, id := range ids {
+		it, err := c.r.Outbox.Get(ctx, id)
+		c.must(err)
+		out = append(out, it)
+	}
+	return out
 }
 
 func TestSendToLabelResolvesAcceptedOnly(t *testing.T) {
