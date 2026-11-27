@@ -62,7 +62,7 @@ var (
 )
 
 func (s *DataService) audit(ctx context.Context, a Actor, action, key string, details map[string]any) error {
-	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: DataTarget(key), Details: details, IP: a.IP})
+	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: DataTarget(key), Details: a.AuditDetails(details), IP: a.IP})
 }
 
 // List returns every item without rows.

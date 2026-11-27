@@ -166,7 +166,8 @@
       "actor": "Хто",
       "ip": "IP",
       "title": "Журнал дій",
-      "clearFilter": "Показати всі записи"
+      "clearFilter": "Показати всі записи",
+      "viaMcp": "через MCP ({{client}})"
     },
     "houses": {
       "title": "Будинки",
@@ -433,7 +434,8 @@
         "type": "{{path}}: такий тип файлу не підтримується. Дозволено HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (розширення малими літерами).",
         "invalid": "{{path}}: неприпустима назва файлу (лише латиниця, цифри, . _ -, без папки preview/).",
         "too_large": "{{path}}: файл більший за 5 МБ."
-      }
+      },
+      "viaMcp": "MCP"
     }
   },
   "notFound": {

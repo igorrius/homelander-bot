@@ -41,7 +41,7 @@ type McpAuthService struct {
 
 func (s *McpAuthService) audit(ctx context.Context, a Actor, action string, userID int64, details map[string]any) error {
 	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: UserTarget(userID),
-		Details: details, IP: a.IP})
+		Details: a.AuditDetails(details), IP: a.IP})
 }
 
 func randomToken() string {

@@ -68,20 +68,20 @@ func (m *mcpEnv) tokens() domain.MCPTokens {
 func TestRedirectPolicy(t *testing.T) {
 	for uri, want := range map[string]bool{
 		claudeCB: true,
-		"https://claude.com/api/mcp/auth_callback":        true,
-		"http://localhost:8080/callback":                  true,
-		"http://localhost/callback":                       true,
-		"http://127.0.0.1:33418/cb":                       true,
+		"https://claude.com/api/mcp/auth_callback":         true,
+		"http://localhost:8080/callback":                   true,
+		"http://localhost/callback":                        true,
+		"http://127.0.0.1:33418/cb":                        true,
 		"https://claude.ai.evil.com/api/mcp/auth_callback": false,
-		"https://claude.ai/api/mcp/auth_callback/../x":    false,
-		"https://claude.ai/api/mcp/auth_callback?x=1":     false,
-		"http://localhost.evil.com:8080/cb":               false,
-		"https://localhost:8080/cb":                       false,
-		"http://user@localhost:8080/cb":                   false,
-		"http://localhost:8080/cb#frag":                   false,
-		"http://127.0.0.2:8080/cb":                        false,
-		"javascript:alert(1)":                             false,
-		"":                                                false,
+		"https://claude.ai/api/mcp/auth_callback/../x":     false,
+		"https://claude.ai/api/mcp/auth_callback?x=1":      false,
+		"http://localhost.evil.com:8080/cb":                false,
+		"https://localhost:8080/cb":                        false,
+		"http://user@localhost:8080/cb":                    false,
+		"http://localhost:8080/cb#frag":                    false,
+		"http://127.0.0.2:8080/cb":                         false,
+		"javascript:alert(1)":                              false,
+		"":                                                 false,
 	} {
 		if got := defaultPolicy.Allows(uri); got != want {
 			t.Errorf("Allows(%q) = %v, want %v", uri, got, want)

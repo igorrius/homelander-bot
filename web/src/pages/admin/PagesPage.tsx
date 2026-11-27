@@ -1,4 +1,4 @@
-import { Alert, Anchor, FileInput, Group, Loader, Stack, Table, Text, TextInput } from '@mantine/core'
+import { Alert, Anchor, Badge, FileInput, Group, Loader, Stack, Table, Text, TextInput } from '@mantine/core'
 import { IconLayout, IconUpload } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -97,6 +97,11 @@ export function PagesPage() {
                 <Table.Td>
                   <Text size="sm">{formatDateTime(v.createdAt, i18n.language)}</Text>
                   {v.createdBy && <Text size="xs" c="dimmed">{v.createdBy.name}</Text>}
+                  {v.createdVia && (
+                    <Badge size="xs" variant="light" color="grape" title={v.createdVia}>
+                      {t('admin.pages.viaMcp')}
+                    </Badge>
+                  )}
                 </Table.Td>
                 <Table.Td>
                   {v.publishedAt && <Text size="sm">{formatDateTime(v.publishedAt, i18n.language)}</Text>}

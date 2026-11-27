@@ -241,6 +241,8 @@ export interface PageVersion {
   totalSize: number
   createdAt: string
   createdBy: { id: number; name: string } | null
+  /** The agent's client name when written through MCP; empty otherwise. */
+  createdVia: string
   publishedAt: string | null
   publishedBy: { id: number; name: string } | null
 }

@@ -40,6 +40,24 @@ type Repos struct {
 type Actor struct {
 	UserID *int64
 	IP     string
+	// Via is how the user acted when not through the panel ("mcp"), with the
+	// agent's client name in Client.
+	Via    string
+	Client string
+}
+
+// AuditDetails returns d with "via" and "client" added when the actor acted
+// through an agent; d is not changed.
+func (a Actor) AuditDetails(d map[string]any) map[string]any {
+	if a.Via == "" {
+		return d
+	}
+	out := make(map[string]any, len(d)+2)
+	for k, v := range d {
+		out[k] = v
+	}
+	out["via"], out["client"] = a.Via, a.Client
+	return out
 }
 
 // Application is what a resident submits through the public registration form.

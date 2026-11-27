@@ -166,7 +166,8 @@
       "actor": "By",
       "ip": "IP",
       "title": "Audit log",
-      "clearFilter": "Show all entries"
+      "clearFilter": "Show all entries",
+      "viaMcp": "via MCP ({{client}})"
     },
     "houses": {
       "title": "Houses",
@@ -433,7 +434,8 @@
         "type": "{{path}}: this file type is not supported. Allowed: HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (lower-case extensions).",
         "invalid": "{{path}}: file name not allowed (Latin letters, digits, . _ - only; no preview/ folder).",
         "too_large": "{{path}}: file is larger than 5 MB."
-      }
+      },
+      "viaMcp": "MCP"
     }
   },
   "notFound": {

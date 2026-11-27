@@ -39,3 +39,6 @@ CREATE TABLE mcp_tokens (
     revoked_at TEXT
 );
 CREATE INDEX mcp_tokens_grant ON mcp_tokens (grant_id);
+
+-- The agent's client name when a page version was written through MCP.
+ALTER TABLE page_versions ADD COLUMN created_via TEXT NOT NULL DEFAULT '';
