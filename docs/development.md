@@ -28,7 +28,31 @@ Open http://localhost:8080. The health check is `/healthz`.
 | `make docker` | Builds the container image |
 
 For fast front-end work run the Go server (`make run`) and, in another terminal, `cd web && npm run dev`.
-The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`.
+The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`. The session cookie
+(`__Host-session`, `Secure`) works on `http://localhost` in current browsers; use `localhost`, not
+`127.0.0.1` or a LAN address.
+
+## First run
+
+1. Set `BOOTSTRAP_ADMIN_PHONE`, open the bot, send `/start` and share your contact: you become the
+   first admin.
+2. Log in at `/login` (the code arrives in Telegram) and fill in your name on your user card.
+3. Add the houses (Admin → Houses) and, if needed, residency statuses; registration opens once at
+   least one house and one status exist.
+4. Set the community name, welcome text and picture (Admin → Site) and pin the registration link
+   shown there in the community chat.
+
+## Web app
+
+- `web/src/api/` — DTO types (`types.ts`) and one TanStack Query hook per endpoint (`public.ts`,
+  `admin.ts`). All calls go through `api()` in `client.ts`.
+- `web/src/pages/` — one file per screen; `web/src/pages/admin/` for the admin panel.
+- The API answers with error codes only. `lib/errors.ts` turns them into texts:
+  `errors.<code>` for the request and `validation.<reason>` for each field.
+- Admin-entered texts are per locale; `lib/localized.ts` picks the current language, then the
+  site's default language, then any filled value.
+- Tests render the whole app with `renderApp(path)` (`src/test/render.tsx`) over a fake API from
+  `mockApi(routes)` (`src/test/api.ts`), with synthetic fixtures from `src/test/fixtures.ts`.
 
 ## The Telegram bot
 
