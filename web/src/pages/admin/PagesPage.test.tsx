@@ -12,11 +12,11 @@ const author = { id: 1, name: 'Admin A' }
 
 // Synthetic data only.
 const versions: PageVersion[] = [
-  { id: 3, status: 'draft', note: 'New look', files: [file('index.html', 1200), file('app.js', 300, 'text/javascript; charset=utf-8')],
+  { id: 3, status: 'draft', note: 'New look', files: [file('index.html', 1200), file('app.js', 300, 'text/javascript; charset=utf-8')], pages: [{ name: 'index', path: '/' }],
     totalSize: 1500, createdAt: '2026-11-27T12:00:00Z', createdBy: { id: 2, name: 'Admin B' }, createdVia: 'Claude', publishedAt: null, publishedBy: null },
-  { id: 2, status: 'published', note: '', files: [file('index.html', 800)], totalSize: 800, createdAt: '2026-11-26T12:00:00Z',
+  { id: 2, status: 'published', note: '', files: [file('index.html', 800)], pages: [{ name: 'index', path: '/' }], totalSize: 800, createdAt: '2026-11-26T12:00:00Z',
     createdBy: author, createdVia: '', publishedAt: '2026-11-26T13:00:00Z', publishedBy: author },
-  { id: 1, status: 'archived', note: 'First', files: [file('index.html', 500)], totalSize: 500, createdAt: '2026-11-25T12:00:00Z',
+  { id: 1, status: 'archived', note: 'First', files: [file('index.html', 500)], pages: [{ name: 'index', path: '/' }], totalSize: 500, createdAt: '2026-11-25T12:00:00Z',
     createdBy: author, createdVia: '', publishedAt: '2026-11-25T13:00:00Z', publishedBy: author },
 ]
 

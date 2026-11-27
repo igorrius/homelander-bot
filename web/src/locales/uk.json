@@ -446,6 +446,7 @@
       "type": "Тип",
       "size": "Розмір",
       "previewTitle": "Перегляд сторінки",
+      "previewPage": "Сторінка",
       "previewHint": "Так сторінку побачать відвідувачі",
       "fileError": {
         "type": "{{path}}: такий тип файлу не підтримується. Дозволено HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (розширення малими літерами).",

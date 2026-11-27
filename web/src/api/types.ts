@@ -243,11 +243,18 @@ export interface PageFileInfo {
 }
 
 /** One uploaded set of home page files. */
+export interface SitePage {
+  name: string
+  path: string
+}
+
 export interface PageVersion {
   id: number
   status: PageStatus
   note: string
   files: PageFileInfo[]
+  /** Root *.html files that are pages: index → "/", contacts → "/contacts". */
+  pages: SitePage[]
   totalSize: number
   createdAt: string
   createdBy: { id: number; name: string } | null
