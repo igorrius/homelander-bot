@@ -36,6 +36,28 @@ type fakeAPI struct {
 	getCalls chan struct{}
 	commands map[string][]gotgbot.BotCommand // "scope/lang" → commands
 	deleted2 []string                        // "scope/lang" of deleted command lists
+	sendErr  error
+	left     []int64
+	leaveErr error
+	members  map[int64]gotgbot.ChatMember // bot's membership per chat for GetChatMember
+	memberN  int
+}
+
+func (f *fakeAPI) LeaveChat(chatID int64, _ *gotgbot.LeaveChatOpts) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.left = append(f.left, chatID)
+	return f.leaveErr == nil, f.leaveErr
+}
+
+func (f *fakeAPI) GetChatMember(chatID, _ int64, _ *gotgbot.GetChatMemberOpts) (gotgbot.ChatMember, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.memberN++
+	if m, ok := f.members[chatID]; ok {
+		return m, nil
+	}
+	return nil, errors.New("no member")
 }
 
 func scopeName(s gotgbot.BotCommandScope) string {
@@ -89,6 +111,9 @@ func (f *fakeAPI) GetUpdates(o *gotgbot.GetUpdatesOpts) ([]gotgbot.Update, error
 func (f *fakeAPI) SendMessage(chatID int64, text string, o *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.sendErr != nil {
+		return nil, f.sendErr
+	}
 	f.sent = append(f.sent, sent{chatID, text, o})
 	return &gotgbot.Message{}, nil
 }

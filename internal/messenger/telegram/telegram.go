@@ -28,6 +28,8 @@ type API interface {
 	DeleteWebhook(opts *gotgbot.DeleteWebhookOpts) (bool, error)
 	SetMyCommands(commands []gotgbot.BotCommand, opts *gotgbot.SetMyCommandsOpts) (bool, error)
 	DeleteMyCommands(opts *gotgbot.DeleteMyCommandsOpts) (bool, error)
+	LeaveChat(chatId int64, opts *gotgbot.LeaveChatOpts) (bool, error)
+	GetChatMember(chatId int64, userId int64, opts *gotgbot.GetChatMemberOpts) (gotgbot.ChatMember, error)
 }
 
 // Activator links a Telegram account to the user with the verified phone.

@@ -58,6 +58,10 @@ func (f *fakeTelegram) SetMyCommands([]gotgbot.BotCommand, *gotgbot.SetMyCommand
 func (f *fakeTelegram) DeleteMyCommands(*gotgbot.DeleteMyCommandsOpts) (bool, error) {
 	return true, nil
 }
+func (f *fakeTelegram) LeaveChat(int64, *gotgbot.LeaveChatOpts) (bool, error) { return true, nil }
+func (f *fakeTelegram) GetChatMember(int64, int64, *gotgbot.GetChatMemberOpts) (gotgbot.ChatMember, error) {
+	return gotgbot.ChatMemberMember{}, nil
+}
 
 func (f *fakeTelegram) push(m *gotgbot.Message) {
 	f.mu.Lock()

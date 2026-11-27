@@ -41,6 +41,14 @@ func (f *fakeMessenger) SendText(_ context.Context, _, text string) error {
 	return nil
 }
 
+func (f *fakeMessenger) Send(_ context.Context, _ domain.Destination, m domain.OutMessage) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sent = append(f.sent, m.Text)
+	return nil
+}
+func (f *fakeMessenger) LeaveChat(context.Context, string) error { return nil }
+
 func (f *fakeMessenger) last() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
