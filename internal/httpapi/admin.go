@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
@@ -104,6 +105,8 @@ func (h handlerCtx) summary(w http.ResponseWriter, r *http.Request) {
 		"pendingApplications": domain.StatusPendingApproval,
 		"awaitingActivation":  domain.StatusAwaitingActivation,
 		"activeUsers":         domain.StatusActive,
+		"disabledUsers":       domain.StatusDisabled,
+		"rejectedUsers":       domain.StatusRejected,
 	} {
 		n, err := h.api.Users.CountByStatus(r.Context(), st)
 		if err != nil {
@@ -195,19 +198,39 @@ type channelDTO struct {
 }
 
 type auditDTO struct {
-	ID          int64          `json:"id"`
-	At          time.Time      `json:"at"`
-	Action      string         `json:"action"`
-	Target      string         `json:"target"`
-	ActorUserID *int64         `json:"actorUserId"`
-	Details     map[string]any `json:"details"`
-	IP          string         `json:"ip"`
+	ID          int64                `json:"id"`
+	At          time.Time            `json:"at"`
+	Action      string               `json:"action"`
+	Target      string               `json:"target"`
+	TargetName  string               `json:"targetName"`
+	TargetNames domain.LocalizedText `json:"targetNames"`
+	ActorUserID *int64               `json:"actorUserId"`
+	ActorName   string               `json:"actorName"`
+	Details     map[string]any       `json:"details"`
+	IP          string               `json:"ip"`
 }
 
-func toAudit(es []domain.AuditEntry) []auditDTO {
+// toAudit adds the names of the people, houses and statuses the entries mention.
+// A name that cannot be resolved stays empty; the client then shows the raw target.
+func toAudit(ctx context.Context, n *namer, es []domain.AuditEntry) []auditDTO {
 	out := make([]auditDTO, 0, len(es))
 	for _, e := range es {
-		out = append(out, auditDTO{e.ID, e.At, e.Action, e.Target, e.ActorUserID, e.Details, e.IP})
+		d := auditDTO{ID: e.ID, At: e.At, Action: e.Action, Target: e.Target, ActorUserID: e.ActorUserID, Details: e.Details, IP: e.IP}
+		if e.ActorUserID != nil {
+			d.ActorName = n.userName(ctx, *e.ActorUserID)
+		}
+		kind, raw, _ := strings.Cut(e.Target, ":")
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			switch kind {
+			case "user":
+				d.TargetName = n.userName(ctx, id)
+			case "house":
+				d.TargetName = n.houses[id].Name
+			case "status":
+				d.TargetNames = n.statuses[id].Names
+			}
+		}
+		out = append(out, d)
 	}
 	return out
 }
@@ -232,7 +255,7 @@ func (h handlerCtx) writeCard(w http.ResponseWriter, r *http.Request, id int64, 
 		"user":        n.toAdminUser(card.User, card.Residencies, hasType(card.Channels, h.api.Messenger.Type())),
 		"channels":    chans,
 		"residencies": n.residencies(card.Residencies),
-		"audit":       toAudit(card.Audit),
+		"audit":       toAudit(r.Context(), n, card.Audit),
 	})
 }
 
@@ -630,5 +653,10 @@ func (h handlerCtx) audit(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{"items": toAudit(entries), "total": total})
+	n, err := newNamer(r.Context(), h.api)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"items": toAudit(r.Context(), n, entries), "total": total})
 }

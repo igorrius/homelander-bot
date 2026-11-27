@@ -529,6 +529,11 @@ func (s *UserService) Card(ctx context.Context, id int64) (UserCard, error) {
 	return c, err
 }
 
+// Get returns the user with id.
+func (s *UserService) Get(ctx context.Context, id int64) (User, error) {
+	return s.R.Users.Get(ctx, id)
+}
+
 // List returns users matching f.
 func (s *UserService) List(ctx context.Context, f UserFilter) ([]User, int, error) {
 	return s.R.Users.List(ctx, f)

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
@@ -74,10 +75,11 @@ type namer struct {
 	api      API
 	houses   map[int64]domain.House
 	statuses map[int64]domain.ResidencyStatus
+	users    map[int64]string // display names looked up so far
 }
 
 func newNamer(ctx context.Context, api API) (*namer, error) {
-	n := &namer{api: api, houses: map[int64]domain.House{}, statuses: map[int64]domain.ResidencyStatus{}}
+	n := &namer{api: api, houses: map[int64]domain.House{}, statuses: map[int64]domain.ResidencyStatus{}, users: map[int64]string{}}
 	hs, err := api.Catalog.Houses(ctx, true)
 	if err != nil {
 		return nil, err
@@ -93,6 +95,22 @@ func newNamer(ctx context.Context, api API) (*namer, error) {
 		n.statuses[s.ID] = s
 	}
 	return n, nil
+}
+
+// userName returns a user's full name, their phone when nameless, or "" when the user cannot be read.
+func (n *namer) userName(ctx context.Context, id int64) string {
+	if name, ok := n.users[id]; ok {
+		return name
+	}
+	name := ""
+	if u, err := n.api.Users.Get(ctx, id); err == nil {
+		name = strings.TrimSpace(u.FirstName + " " + u.LastName)
+		if name == "" {
+			name = u.Phone
+		}
+	}
+	n.users[id] = name
+	return name
 }
 
 func (n *namer) residencies(rs []domain.Residency) []residencyDTO {

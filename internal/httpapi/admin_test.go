@@ -294,3 +294,56 @@ func TestAuditList(t *testing.T) {
 		t.Errorf("all audit total = %v", all)
 	}
 }
+
+func TestAuditNames(t *testing.T) {
+	e, tok := adminEnv(t)
+	e.do("POST", "/api/v1/register", e.registration("+380500000001"), "", "")
+	list, _ := items(t, e.do("GET", "/api/v1/admin/users?status=pending_approval", nil, tok, ""))
+	id := int64(list[0].(map[string]any)["id"].(float64))
+	e.do("POST", "/api/v1/admin/users/"+strconv.FormatInt(id, 10)+"/approve", nil, tok, "")
+	e.do("POST", "/api/v1/admin/houses", map[string]any{"name": "House Z", "apartmentFrom": 1, "apartmentTo": 5}, tok, "")
+	e.do("PATCH", "/api/v1/admin/statuses/"+strconv.FormatInt(e.owner.ID, 10), map[string]any{"code": e.owner.Code, "names": map[string]string{"uk": "Власник", "en": "Owner"}, "sortOrder": 1}, tok, "")
+	if err := e.r.Audit.Add(ctx, domain.AuditEntry{At: e.now, Action: domain.ActUserApproved, Target: domain.UserTarget(9999)}); err != nil {
+		t.Fatal(err)
+	}
+	r := e.do("GET", "/api/v1/admin/audit?pageSize=100", nil, tok, "")
+	if r.Code != 200 {
+		t.Fatalf("audit = %d %s", r.Code, r.Body)
+	}
+	entries, _ := items(t, r)
+	find := func(action, target string) map[string]any {
+		for _, x := range entries {
+			m := x.(map[string]any)
+			if m["action"] == action && m["target"] == target {
+				return m
+			}
+		}
+		t.Fatalf("no %s %s in %v", action, target, entries)
+		return nil
+	}
+	approved := find(domain.ActUserApproved, domain.UserTarget(id))
+	if approved["targetName"] != "Тест Мешканець" || approved["actorName"] != "F L" {
+		t.Errorf("approved names = %v / %v", approved["targetName"], approved["actorName"])
+	}
+	for _, x := range entries {
+		m := x.(map[string]any)
+		if m["action"] == domain.ActHouseCreated && m["targetName"] != "House Z" && m["targetName"] != e.house.Name {
+			t.Errorf("house name = %v", m["targetName"])
+		}
+	}
+	status := find(domain.ActStatusUpdated, domain.StatusTarget(e.owner.ID))
+	if names, _ := status["targetNames"].(map[string]any); names["uk"] != "Власник" {
+		t.Errorf("status names = %v", status["targetNames"])
+	}
+	gone := find(domain.ActUserApproved, domain.UserTarget(9999))
+	if gone["targetName"] != "" {
+		t.Errorf("missing user name = %v", gone["targetName"])
+	}
+	v := e.do("GET", "/api/v1/admin/summary", nil, tok, "").json()
+	if _, ok := v["disabledUsers"]; !ok {
+		t.Errorf("summary = %v", v)
+	}
+	if _, ok := v["rejectedUsers"]; !ok {
+		t.Errorf("summary = %v", v)
+	}
+}
