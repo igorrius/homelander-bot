@@ -29,12 +29,14 @@ own community (two houses), but nothing about that community goes into the repos
 
 1. An admin logs in to the admin panel with a **phone number + one-time code delivered to their
    linked Telegram account**. There is no password and no open sign-up.
-2. An admin **invites** a person by phone number. The person opens the invitation page, enters first
-   and last name, picks house, apartment and residency status from lists, and links their Telegram
-   account. They become a **resident**.
+2. An admin **invites a resident** by phone number. The person opens the invitation page, enters
+   first and last name, picks house, apartment and residency status from lists. An admin **approves**
+   the registration. After that the person opens the bot, shares their phone number, and the bot
+   links their Telegram account — no per-person link has to be sent.
 3. An admin manages **houses** (name, number of apartments), the **residency status dictionary**
-   (e.g. owner / tenant), **residents** (view, edit, disable) and **admin rights** (grant / revoke).
-4. The **first admin** is created from environment configuration.
+   (e.g. owner / tenant) and **users**: a searchable list (first name, last name, phone) and a user
+   card page where the **Resident** and **Admin** flags are switched on and off.
+4. The **first admin** is defined by environment configuration and links Telegram the same way.
 5. Every user-facing text, in the bot and in the UI, goes through **i18n**; Ukrainian is the
    default, English is the second locale.
 6. The bot receives Telegram updates by **long polling by default**, switchable to a **webhook** by
@@ -45,9 +47,11 @@ own community (two houses), but nothing about that community goes into the repos
 
 - Registration started from the bot, marking unidentified chat members, chats/topics routing (M2).
 - Modules, module catalog, module settings (M3), outage schedules (M4), flow editor (M5), gate (M6).
-- Fine-grained roles / RBAC. M1 has exactly two levels: resident and admin.
+- Fine-grained roles / RBAC. M1 has exactly two flags on a user: resident and admin.
 - A panel for regular residents. Residents use the bot only; the only web page they see is the
   invitation page.
+- Notifying a person in Telegram that their registration was approved: they are not linked yet,
+  so the bot cannot write to them (the post-registration page tells them what to do).
 - Discord or any messenger other than Telegram — but see the messenger abstraction (section 5.3).
 - Entrances/sections of a house. A big house with sections is entered as several houses
   ("7, section 1", "7, section 2").
@@ -96,9 +100,9 @@ house, apartment, status.
 are inside Telegram; a Discord-only community would need a parallel flow.
 
 **B. Web first, messenger linked as a channel. — Chosen by the owner.**
-The invitation is a web link. The page shows the prefilled phone, the person fills in the form, then
-links Telegram through a deep link and "Share contact". The user record lives in the system;
-Telegram is one linked channel.
+The invitation is a web link. The page shows the prefilled phone, the person fills in the form, an
+admin approves it, then the person links Telegram by opening the bot and tapping "Share contact".
+The user record lives in the system; Telegram is one linked channel.
 *Trade-off:* one extra hop for the person; in return identity is messenger-agnostic, which is what
 the owner asked for, and adding Discord later means adding a channel type, not a second sign-up.
 
@@ -139,14 +143,13 @@ All ids are integers (SQLite rowid); timestamps are UTC.
 
 | Table | Key fields | Notes |
 |---|---|---|
-| `users` | id, phone (E.164, unique), first_name, last_name, locale, is_admin, status (`active` / `disabled`), created_at | Every registered person is a resident. `is_admin` is the only right in M1. |
+| `users` | id, phone (E.164, unique), first_name, last_name (nullable until filled), locale, is_resident, is_admin, status (`pending` / `active` / `rejected` / `disabled`), approved_by, approved_at, created_at | A user is a person. Registration through an invitation creates a `pending` user with `is_resident = true`. `is_admin` gives access to the admin panel. Both flags are independent: an admin need not be a resident; turning `is_resident` off removes resident abilities in the bot (residencies are kept but ignored). |
 | `channels` | id, user_id, type (`telegram`), external_id (Telegram user id), chat_id, username, linked_at | One row per linked messenger account. Unique (type, external_id). A user may have at most one channel per type in M1. |
 | `houses` | id, name (free text, e.g. "22" or "7, section 1"), apartments_count, sort_order, archived | Apartments are numbered 1..apartments_count. |
 | `residency_statuses` | id, code, names (JSON: `{"uk": "Власник", "en": "Owner"}`), sort_order, archived | Dictionary edited in the UI, one name per supported locale (a missing locale falls back to the default locale's name). Seeded with `owner` / `tenant`. |
 | `residencies` | id, user_id, house_id, apartment_number, status_id, created_at | Many-to-many: one person may live in or own several apartments; one apartment may have several residents. Unique (user_id, house_id, apartment_number). |
-| `invitations` | id, phone, token_hash, grant_admin, is_bootstrap, created_by, expires_at, used_at, revoked_at, user_id | One-time. Token is shown once to the admin, only its hash is stored. `grant_admin` makes the person an admin on registration. |
+| `invitations` | id, phone, token_hash, created_by, expires_at, used_at, revoked_at, user_id | Invites a resident. One-time. Token is shown once to the admin, only its hash is stored. |
 | `login_codes` | id, user_id, code_hash, expires_at, attempts, used_at, ip | One active code per user; a new request invalidates the old one. |
-| `link_requests` | id, user_id, token_hash, expires_at, used_at | Short-lived token behind the `t.me/<bot>?start=` deep link used for channel linking. |
 | `sessions` | id, user_id, token_hash, created_at, last_seen_at, expires_at, ip, user_agent | Server-side sessions; cookie holds the raw token. |
 | `audit_log` | id, at, actor_user_id, action, target, details (JSON), ip | Append-only. |
 | `settings` | key, value | System settings editable in the UI (e.g. default locale). Secrets never go here. |
@@ -164,12 +167,12 @@ transaction runner, so a second database can be added without touching the domai
 type Messenger interface {
     Type() string                                   // "telegram"
     SendText(ctx, chatID string, text string) error // codes, notices
-    LinkURL(token string) string                    // deep link for channel linking
+    BotURL() string                                 // public link to the bot (t.me/<bot>)
 }
 ```
 
-Inbound events (a contact shared, `/start <token>`) are turned by the Telegram adapter into
-messenger-neutral domain calls (`LinkChannel(token, externalID, chatID, phone)`). The domain never
+Inbound events (`/start`, a contact shared) are turned by the Telegram adapter into
+messenger-neutral domain calls (`LinkChannel(type, externalID, chatID, verifiedPhone)`). The domain never
 sees a Telegram type. Discord later implements the same interface with its own linking proof.
 
 **Telegram adapter.** Library: `gotgbot/v2` for Bot API calls (no dependencies, generated from the
@@ -185,41 +188,46 @@ Bot API spec; the owner's Ganglion research rated it the best fit for "methods o
 
 ### 5.4 Flows
 
-**Bootstrap.** If `BOOTSTRAP_ADMIN_PHONE` is set and no admin exists, at start the system creates
-an invitation for that phone with `grant_admin` and `is_bootstrap` set and logs the invitation URL
-to the server log (at warn level, token included — the only place a raw token is logged). Because
-only the hash is stored and the URL cannot be printed again, **on every start while no admin exists**
-the previous unused bootstrap invitation is revoked and a fresh one is issued and logged, so a
-restart never locks the first admin out. Once an admin exists, the variable is ignored.
+**Linking a messenger (bot).** Used by everyone, including the first admin.
+1. The person opens the bot (`t.me/<bot>`, shown on the post-registration page and easy to pin in the
+   community chat) and sends `/start`. The bot replies with a "Share my phone number" keyboard button.
+2. Contact received → the bot checks `contact.user_id == from.id` (the person shared **their own**
+   number, which Telegram has verified) and normalizes the phone.
+3. The domain looks the phone up:
+   - an `active` user without a Telegram channel → channel created, bot greets them in their language;
+   - a `pending` user → "your registration is waiting for an administrator's approval";
+   - a `rejected`/`disabled` user, an unknown phone, or a phone whose user already has a different
+     Telegram account linked → one neutral "this number is not registered in the system, contact an
+     administrator" (no hint which case it is);
+   - the same Telegram account already linked → "you are already connected".
+4. Rate limit per Telegram account (e.g. 5 attempts / hour).
+
+**Bootstrap.** If `BOOTSTRAP_ADMIN_PHONE` is set and no admin exists, the first contact shared from
+that phone creates an `active` user with `is_admin = true`, `is_resident = false`, links the channel
+and asks them to log in to the web and fill in their name. No tokens, nothing printed to logs,
+restarts are harmless. Once an admin exists, the variable is ignored.
 
 **Invite (admin).** Admin enters a phone → system normalizes it to E.164 (default region from
 `DEFAULT_PHONE_REGION`, `UA`) → rejects if a user or a live invitation already has it → creates an
-invitation (default lifetime 7 days, `INVITE_TTL`; optional "make admin" checkbox → `grant_admin`) → shows the link `PUBLIC_URL/invite/<token>`
-with a copy button. The admin can list, revoke and re-issue invitations.
+invitation (default lifetime 7 days, `INVITE_TTL`) → shows the link `PUBLIC_URL/invite/<token>` with a
+copy button; the admin sends it any way they like. The admin can list, revoke and re-issue
+invitations. Invitations always invite a resident; admin rights are granted later on the user card.
 
 **Register (invitee, web).**
 1. `/invite/<token>`: valid → form with phone (read-only), first name, last name, house (select),
    apartment (select 1..N of that house), status (select). Invalid/expired/used → a neutral error page.
-2. Submit → user + residency created, invitation marked used, user `active` but **without a channel**.
-3. Next screen: "Connect Telegram" button = `t.me/<bot>?start=<link token>` (+ QR code for desktop).
-4. In the bot: `/start <link token>` → bot replies with a "Share contact" keyboard button.
-5. Contact received → checks: `contact.user_id == from.id`; normalized contact phone equals the
-   user's phone; link token valid. Pass → channel created, bot confirms in the user's language.
-   Fail → bot explains (in neutral words) and nothing is linked.
-6. The web page polls the link status and shows "Done".
+2. Submit → `pending` user (`is_resident = true`) + residency created, invitation marked used.
+3. Final screen: "Thank you. After an administrator approves your registration, open the bot and
+   share your phone number" with the bot button and a QR code for desktop.
 
-The "Connect Telegram" step lives on its own page `/link/<link token>` (button, QR code, status
-polling), so it can be reopened. Link tokens live 24 h. The registration form itself is not
-reachable again once the invitation is used.
+**Approve (admin).** The admin panel shows pending registrations (a counter in the menu). The admin
+checks the details, may correct name/house/apartment/status, then **approves** (`active`) or
+**rejects** (`rejected`). A rejected phone can be invited again later, which reuses the user row.
 
-A registered user without a channel can get a new link from an admin ("send link again"): the
-system creates a new link token and the admin copies the `PUBLIC_URL/link/<token>` web URL, the same
-way as an invitation.
-
-**Phone mismatch.** If the person's Telegram phone differs from the invited one, linking fails and
-the bot tells them to contact an admin. An admin can **edit the phone of a user who has no linked
-channel** (uniqueness still enforced), then resend the link. Changing the phone of a linked user
-requires unlinking the channel first (which also ends their sessions).
+**Phone mismatch.** If the person's Telegram phone differs from the invited one, the bot answers
+"not registered". An admin can **edit the phone of a user who has no linked channel** (uniqueness
+still enforced). Changing the phone of a linked user requires unlinking the channel first (which
+also ends their sessions).
 
 **Login (admin, web).**
 1. Phone → `POST /api/v1/auth/code`. The response is always the same ("if this number has access, a
@@ -236,14 +244,17 @@ requires unlinking the channel first (which also ends their sessions).
 Logout deletes the row. Revoking admin, disabling a user or unlinking their channel deletes all their
 sessions. Mutating API calls also require a custom header (`X-Requested-With`) as a CSRF backstop.
 
-**Admin rights.** An admin can grant or revoke `is_admin` on any active user; the last admin cannot
-revoke themselves or be disabled.
+**User card (admin).** A separate page per user: name, phone, status, linked channels (with
+"unlink"), residencies (add/edit/remove), the **Resident** and **Admin** checkboxes, disable/enable,
+recent audit entries for this user. An admin can grant or revoke `is_admin` on any active user; the
+last admin cannot lose admin or be disabled. Granting admin to a user without a linked channel is
+allowed, but they cannot log in until they link one.
 
 ### 5.5 HTTP surface
 
-- `/api/v1/...` JSON REST. Public: `auth/code`, `auth/verify`, `invitations/{token}` (read + submit),
-  `link/{token}` (read + status). Everything else requires an admin session.
-- `/invite/*`, `/link/*` and `/` — the React app (one SPA with a public invitation route and the protected admin
+- `/api/v1/...` JSON REST. Public: `auth/code`, `auth/verify`, `invitations/{token}` (read + submit).
+  Everything else requires an admin session.
+- `/invite/*` and `/` — the React app (one SPA with a public invitation route and the protected admin
   area). Unknown non-API paths fall back to `index.html`.
 - `/healthz` for Railway.
 - `/telegram/webhook/<path>` only in webhook mode.
@@ -252,8 +263,9 @@ revoke themselves or be disabled.
 
 ### 5.6 Admin UI (M1 screens)
 
-Login (phone → code), Residents (list, search, filter by house; details with residencies and
-channel; edit, disable, grant/revoke admin, resend link), Invitations (create, list, revoke),
+Login (phone → code), Users (list with search by first name, last name, phone; filters by house,
+resident/admin flag, status), User card (separate page, see 5.4), Pending registrations (approve /
+reject), Invitations (create, list, revoke),
 Houses (CRUD, apartments count), Residency statuses (CRUD), Audit log (read-only list),
 Settings (default locale). Language switcher (uk/en).
 
@@ -302,7 +314,8 @@ scope for M1 (a follow-up issue).
 - Domain services: unit tests with an in-memory/temporary SQLite database.
 - Auth: tests for code expiry, attempt limit, one-active-code, rate limits, session idle/absolute
   expiry, revocation on admin removal, generic responses.
-- Linking: contact from a different user rejected; phone mismatch rejected; expired token rejected.
+- Linking: a forwarded contact (contact.user_id ≠ from.id) rejected; pending, rejected, disabled and unknown phones get the right answers; bootstrap only while no admin exists.
+- Registration: pending → approve / reject; flags resident and admin independent; last admin protected.
 - Telegram adapter behind an interface; a fake messenger records sent messages for tests.
 - HTTP API: handler tests with `httptest`.
 - UI: type check + lint in CI; a few component tests for the login and invitation forms.
@@ -319,9 +332,10 @@ exact rate-limit numbers within the stated spirit, QR code library, test fixture
 
 - One binary, React + TS admin UI, `gotgbot/v2`, `go-i18n`, Mantine suggested.
 - A person can have several residencies; an apartment can have several residents.
-- Only admins can log in to the web; non-admin residents get the same neutral response and no code.
-- Bootstrap admin via a one-time invitation URL printed to the server log, reissued on each start until an admin exists.
-- Admins can issue "make admin" invitations.
+- Only admins can log in to the web; others get the same neutral response and no code.
+- Bootstrap admin: the first contact shared from `BOOTSTRAP_ADMIN_PHONE` creates the admin (not a resident).
+- Rejected registrations: the phone can be invited again.
+- The bot gives one neutral answer for unknown / disabled / rejected / conflicting phones.
 - Admins can fix the phone of a not-yet-linked user; a linked user's phone changes only after unlinking.
 - Status names stored per locale in the database.
 - Epics #1 and #2 have no sub-issues yet; the implementation plan defines them (one issue per PR-sized slice).
