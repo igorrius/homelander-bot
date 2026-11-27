@@ -32,3 +32,10 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Homelander
+/data/
+/homelander
+/web/node_modules/
+/web/dist/*
+!/web/dist/.gitkeep
