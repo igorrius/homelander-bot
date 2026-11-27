@@ -137,7 +137,7 @@ function Residencies({ card }: { card: UserCard }) {
             }}>
               <IconPencil size={16} />
             </ActionIcon>
-            <ConfirmButton size="xs" variant="subtle" color="red" aria-label={t('admin.user.removeResidency')}
+            <ConfirmButton size="xs" variant="subtle" color="red" aria-label={t('admin.user.removeResidency')} title={t('admin.user.removeResidency')}
               message={t('admin.user.removeResidencyConfirm', { house: r.houseName, n: r.apartment })} onConfirm={() => remove.mutate(r.id, { onSuccess: saved })}>
               <IconTrash size={16} />
             </ConfirmButton>
@@ -228,7 +228,7 @@ export function UserCardPage() {
           <UserSummary card={card.data} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 8 }}>
-          <Tabs value={tab} onChange={(v) => setTab(v)} keepMounted={false}>
+          <Tabs value={tab} onChange={(v) => setTab(v)}>
             <Tabs.List mb="md" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
               <Tabs.Tab value="details" leftSection={<IconId size={16} />}>
                 {t('admin.user.tabs.details')}

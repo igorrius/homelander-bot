@@ -28,7 +28,7 @@ describe('UserCardPage', () => {
     renderApp('/admin/users/5?tab=apartments')
     expect(await screen.findByRole('heading', { name: 'Olena Test' })).toBeInTheDocument()
     expect(screen.getByText(uk.userStatus.active)).toBeInTheDocument()
-    expect(screen.getByText('@olena_test')).toBeInTheDocument()
+    expect(screen.getAllByText('@olena_test').length).toBeGreaterThan(0)
     const residencies = screen.getByRole('table', { name: uk.admin.user.residencies })
     expect(within(residencies).getByText('House A')).toBeInTheDocument()
     expect(within(residencies).getByText('12')).toBeInTheDocument()
@@ -54,6 +54,24 @@ describe('UserCardPage', () => {
     await user.click(await screen.findByRole('tab', { name: uk.admin.user.tabs.history }))
     expect(await screen.findByText(uk.audit.action.user.approved)).toBeInTheDocument()
     expect(currentLocation()).toBe('/admin/users/5?tab=history')
+  })
+
+  it('keeps unsaved edits when the admin looks at another tab', async () => {
+    mockApi(routes(userCard()))
+    const { user } = renderApp('/admin/users/5')
+    const first = await screen.findByLabelText(uk.register.firstName)
+    await user.clear(first)
+    await user.type(first, 'Olha')
+    await user.click(screen.getByRole('tab', { name: uk.admin.user.tabs.history }))
+    await user.click(screen.getByRole('tab', { name: uk.admin.user.tabs.details }))
+    expect(await screen.findByLabelText(uk.register.firstName)).toHaveValue('Olha')
+  })
+
+  it('names the remove-apartment dialog', async () => {
+    mockApi(routes(userCard()))
+    const { user } = renderApp('/admin/users/5?tab=apartments')
+    await user.click(await screen.findByRole('button', { name: uk.admin.user.removeResidency }))
+    expect(await screen.findByRole('dialog', { name: uk.admin.user.removeResidency })).toBeInTheDocument()
   })
 
   it('counts apartments and messengers in the tab names', async () => {
