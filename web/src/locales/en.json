@@ -183,14 +183,18 @@
       "upload": "Upload a picture",
       "pictureHint": "PNG, JPEG or WebP, up to 5 MB",
       "removePicture": "Remove picture",
-      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration.",
-      "registerLink": "Registration link",
-      "registerLinkHint": "Pin this link in the community chat. Residents apply with it; you approve each application."
+      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration."
     },
     "navGroup": {
       "people": "People",
       "community": "Community",
       "settings": "Settings"
+    },
+    "invite": {
+      "title": "Invite residents",
+      "hint": "Pin this link in the community chat or print the QR code. Residents apply with it; you approve each application.",
+      "download": "Download QR",
+      "open": "Registration link"
     }
   },
   "notFound": {

@@ -8,7 +8,6 @@ import type { Locale, Site } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
 import { HousesIllustration } from '../../components/HousesIllustration'
 import { LocalizedTextInputs } from '../../components/LocalizedTextInputs'
-import { QrLink } from '../../components/QrLink'
 import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { cleanLocalized } from '../../lib/localized'
@@ -109,13 +108,6 @@ export function SitePage() {
       <PageHeader icon={IconWorld} title={t('admin.site.title')} />
       <Texts site={site.data} />
       <Picture site={site.data} />
-      <Card withBorder>
-        <Stack>
-          <Title order={3}>{t('admin.site.registerLink')}</Title>
-          <Text size="sm" c="dimmed">{t('admin.site.registerLinkHint')}</Text>
-          <QrLink url={site.data.registerUrl} copy />
-        </Stack>
-      </Card>
     </Stack>
   )
 }

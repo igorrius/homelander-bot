@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
@@ -27,6 +27,17 @@ describe('ApplicationsPage', () => {
     expect(screen.getByText('+380500000002')).toBeInTheDocument()
     expect(screen.getByText(/House A/)).toBeInTheDocument()
     expect(callsTo(calls, 'GET /admin/users')[0].query.get('status')).toBe('pending_approval')
+    // A list, not a table: the buttons stay visible on a phone.
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('opens the registration link from the header', async () => {
+    mockApi(routes)
+    const { user } = renderApp('/admin/applications')
+    await user.click(await screen.findByRole('button', { name: uk.admin.invite.open }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('http://localhost/register')).toBeInTheDocument()
+    expect(within(dialog).getByTitle(uk.qr.title)).toBeInTheDocument()
   })
 
   it('approves an application', async () => {
