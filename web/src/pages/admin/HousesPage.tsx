@@ -1,4 +1,4 @@
-import { Alert, Anchor, Badge, Button, Loader, Modal, Stack, Switch, Table, Text } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Card, Loader, Modal, Stack, Switch, Table } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import { useState } from 'react'
 import { IconBuildingCommunity, IconPlus } from '@tabler/icons-react'
@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router'
 import { useCreateHouse, useHouses } from '../../api/admin'
 import { errorText } from '../../lib/errors'
 import { HouseForm } from './HouseForm'
+import { EmptyState } from '../../components/EmptyState'
 import { PageHeader } from '../../components/PageHeader'
 
 export function HousesPage() {
@@ -16,14 +17,15 @@ export function HousesPage() {
   const houses = useHouses(showArchived)
   const create = useCreateHouse()
   const [adding, { open, close }] = useDisclosure(false)
+  const startAdding = () => {
+    create.reset()
+    open()
+  }
   return (
     <Stack>
       <PageHeader icon={IconBuildingCommunity} title={t('admin.houses.title')}
         actions={
-          <Button leftSection={<IconPlus size={16} />} onClick={() => {
-            create.reset()
-            open()
-          }}>
+          <Button leftSection={<IconPlus size={16} />} onClick={startAdding}>
             {t('admin.houses.add')}
           </Button>
         } />
@@ -33,8 +35,12 @@ export function HousesPage() {
       ) : houses.isError ? (
         <Alert color="red">{errorText(t, houses.error)}</Alert>
       ) : houses.data.length === 0 ? (
-        <Text>{t('admin.houses.empty')}</Text>
+        <Card>
+          <EmptyState icon={IconBuildingCommunity} title={t('admin.houses.empty')} hint={t('admin.houses.emptyHint')}
+            action={<Button leftSection={<IconPlus size={16} />} onClick={startAdding}>{t('admin.houses.add')}</Button>} />
+        </Card>
       ) : (
+        <Card p={0}>
         <Table striped>
           <Table.Thead>
             <Table.Tr>
@@ -59,6 +65,7 @@ export function HousesPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </Card>
       )}
       <Modal opened={adding} onClose={close} title={t('admin.houses.add')} size="lg" centered>
         <HouseForm busy={create.isPending} error={create.error}

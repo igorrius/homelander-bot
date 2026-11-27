@@ -1,4 +1,4 @@
-import { Alert, Badge, Button, Group, Loader, Modal, NumberInput, Stack, Switch, Table, TextInput } from '@mantine/core'
+import { Alert, Badge, Button, Card, Group, Loader, Modal, NumberInput, Stack, Switch, Table, TextInput } from '@mantine/core'
 import { useState, type FormEvent } from 'react'
 import { IconPlus, IconTags } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -57,11 +57,11 @@ export function StatusesPage() {
       ) : statuses.isError ? (
         <Alert color="red">{errorText(t, statuses.error)}</Alert>
       ) : (
+        <Card p={0}>
         <Table striped>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t('admin.statuses.name')}</Table.Th>
-              <Table.Th>{t('admin.statuses.code')}</Table.Th>
               <Table.Th>{t('admin.statuses.sortOrder')}</Table.Th>
               <Table.Th />
             </Table.Tr>
@@ -72,7 +72,6 @@ export function StatusesPage() {
                 <Table.Td>
                   {text(s.names)} {s.archived && <Badge color="gray">{t('admin.statuses.archived')}</Badge>}
                 </Table.Td>
-                <Table.Td>{s.code}</Table.Td>
                 <Table.Td>{s.sortOrder}</Table.Td>
                 <Table.Td>
                   <Button size="xs" variant="subtle" onClick={() => setEditing(s)}>
@@ -83,6 +82,7 @@ export function StatusesPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </Card>
       )}
       <Modal opened={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? t('admin.statuses.add') : t('common.edit')} centered>
         {editing !== null && <StatusForm initial={editing === 'new' ? undefined : editing} onDone={() => setEditing(null)} />}

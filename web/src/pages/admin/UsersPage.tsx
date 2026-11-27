@@ -1,10 +1,11 @@
-import { Alert, Anchor, Badge, Button, Group, Loader, Pagination, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Card, Group, Loader, Pagination, Select, Stack, Table, Tabs, TextInput, Tooltip } from '@mantine/core'
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks'
 import { useState } from 'react'
-import { IconBrandTelegram, IconUserPlus, IconUsers } from '@tabler/icons-react'
+import { IconBrandTelegram, IconUserPlus, IconUserSearch, IconUsers } from '@tabler/icons-react'
+import { EmptyState } from '../../components/EmptyState'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
-import { useHouses, useUsers, type UserQuery } from '../../api/admin'
+import { useHouses, useSummary, useUsers, type UserQuery } from '../../api/admin'
 import { userStatuses, type UserStatus } from '../../api/types'
 import { errorText } from '../../lib/errors'
 import { fullName } from '../../lib/format'
@@ -33,6 +34,11 @@ export function UsersPage() {
     pageSize,
   }
   const users = useUsers(q)
+  const summary = useSummary()
+  const sd = summary.data
+  const counts: Partial<Record<UserStatus, number>> = sd
+    ? { pending_approval: sd.pendingApplications, awaiting_activation: sd.awaitingActivation, active: sd.activeUsers, disabled: sd.disabledUsers, rejected: sd.rejectedUsers }
+    : {}
 
   /** Sets one filter and goes back to page 1. */
   const setParam = (key: string, value: string | null) => {
@@ -60,6 +66,16 @@ export function UsersPage() {
     <Stack>
       <PageHeader icon={IconUsers} title={t('admin.users.title')}
         actions={<Button leftSection={<IconUserPlus size={16} />} onClick={open}>{t('admin.users.add')}</Button>} />
+      <Tabs variant="pills" value={q.status ?? 'all'} onChange={(v) => setParam('status', v && v !== 'all' ? v : null)}>
+        <Tabs.List>
+          <Tabs.Tab value="all">{t('admin.users.tabs.all')}</Tabs.Tab>
+          {userStatuses.map((s) => (
+            <Tabs.Tab key={s} value={s} rightSection={counts[s] !== undefined ? <Badge size="xs" variant="light" circle>{counts[s]}</Badge> : undefined}>
+              {t(`userStatus.${s}`)}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
       <Group align="flex-end">
         <TextInput label={t('admin.users.search')} placeholder={t('admin.users.searchHint')} value={search}
           onChange={(e) => {
@@ -68,8 +84,6 @@ export function UsersPage() {
           }} w={260} />
         <Select label={t('admin.users.house')} placeholder={t('common.any')} clearable value={params.get('houseId')}
           data={(houses.data ?? []).map((h) => ({ value: String(h.id), label: h.name }))} onChange={(v) => setParam('houseId', v)} w={180} />
-        <Select label={t('admin.users.status')} placeholder={t('common.any')} clearable value={q.status ?? null}
-          data={userStatuses.map((s) => ({ value: s, label: t(`userStatus.${s}`) }))} onChange={(v) => setParam('status', v)} w={200} />
         <Select label={t('admin.users.isAdmin')} placeholder={t('common.any')} clearable value={params.get('isAdmin')}
           data={yesNo} onChange={(v) => setParam('isAdmin', v)} w={130} />
         <Select label={t('admin.users.isResident')} placeholder={t('common.any')} clearable value={params.get('isResident')}
@@ -80,8 +94,11 @@ export function UsersPage() {
       ) : users.isError ? (
         <Alert color="red">{errorText(t, users.error)}</Alert>
       ) : users.data.items.length === 0 ? (
-        <Text>{t('admin.users.empty')}</Text>
+        <Card>
+          <EmptyState icon={IconUserSearch} title={t('admin.users.empty')} />
+        </Card>
       ) : (
+        <Card p={0}>
         <Table.ScrollContainer minWidth={720}>
           <Table striped>
             <Table.Thead>
@@ -125,6 +142,7 @@ export function UsersPage() {
             </Table.Tbody>
           </Table>
         </Table.ScrollContainer>
+        </Card>
       )}
       {total > pageSize && (
         <Pagination total={Math.ceil(total / pageSize)} value={q.page} onChange={(p) => setParam('page', String(p))} />

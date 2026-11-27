@@ -66,7 +66,8 @@
       "approve": "Approve",
       "reject": "Reject",
       "rejectConfirm": "Reject the application of {{name}}?",
-      "appliedAt": "Applied"
+      "appliedAt": "Applied",
+      "emptyHint": "New applications appear here. Share the registration link in the community chat."
     },
     "users": {
       "name": "Name",
@@ -83,7 +84,10 @@
       "flags": "Roles",
       "telegram": "Telegram",
       "linked": "Telegram linked",
-      "empty": "No users found."
+      "empty": "No users found.",
+      "tabs": {
+        "all": "All"
+      }
     },
     "user": {
       "isResident": "Resident",
@@ -153,7 +157,8 @@
       "showArchived": "Show archived",
       "archived": "Archived",
       "apartments": "Apartments",
-      "empty": "No houses yet. Add the houses of your community to open registration."
+      "empty": "No houses yet. Add the houses of your community to open registration.",
+      "emptyHint": "Add the community houses: registration does not open without them."
     },
     "house": {
       "name": "Name",

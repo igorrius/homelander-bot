@@ -20,7 +20,14 @@ describe('StatusesPage', () => {
     renderApp('/admin/statuses')
     expect(await screen.findByText('Власник')).toBeInTheDocument()
     expect(screen.getByText('Орендар')).toBeInTheDocument()
-    expect(screen.getByText('tenant')).toBeInTheDocument()
+    expect(screen.queryByText('tenant')).toBeNull()
+  })
+
+  it('keeps the technical code out of the list', async () => {
+    mockApi(routes)
+    renderApp('/admin/statuses')
+    await screen.findByText('Власник')
+    expect(screen.queryByRole('columnheader', { name: uk.admin.statuses.code })).toBeNull()
   })
 
   it('adds a status with names per locale', async () => {
