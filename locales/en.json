@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "Homelander"
+  },
+  "common": {
+    "error": {
+      "internal": "Something went wrong. Please try again later."
+    }
+  },
+  "test": {
+    "apartments": {
+      "one": "{{.Count}} apartment",
+      "other": "{{.Count}} apartments"
+    }
+  }
+}

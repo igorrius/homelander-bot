@@ -11,7 +11,9 @@ import (
 	"syscall"
 
 	"github.com/igorrius/homelander-bot/internal/config"
+	"github.com/igorrius/homelander-bot/internal/i18n"
 	"github.com/igorrius/homelander-bot/internal/storage/sqlite"
+	"github.com/igorrius/homelander-bot/locales"
 )
 
 func main() {
@@ -40,5 +42,11 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) erro
 	if err := sqlite.Migrate(ctx, db, sqlite.Migrations); err != nil {
 		return err
 	}
+
+	tr, err := i18n.New(locales.FS, cfg.DefaultLocale, config.SupportedLocales)
+	if err != nil {
+		return err
+	}
+	_ = tr
 	return nil
 }
