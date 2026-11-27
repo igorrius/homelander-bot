@@ -33,6 +33,7 @@ type Repos struct {
 	Pages         PageRepo
 	RegTokens     RegTokenRepo
 	Notifications NotificationRepo
+	MCP           MCPRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).
