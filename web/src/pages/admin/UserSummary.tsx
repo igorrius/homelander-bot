@@ -11,7 +11,8 @@ import { errorText } from '../../lib/errors'
 import { formatDateTime, fullName } from '../../lib/format'
 import { StatusBadge } from './StatusBadge'
 
-function Copy({ value, label }: { value: string; label: string }) {
+/** A small copy-to-clipboard icon button. */
+export function Copy({ value, label }: { value: string; label: string }) {
   const { t } = useTranslation()
   return (
     <CopyButton value={value}>

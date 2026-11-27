@@ -302,4 +302,31 @@ describe('UserCardPage', () => {
     await user.click(await screen.findByRole('button', { name: uk.common.confirm }))
     await waitFor(() => expect(callsTo(calls, 'DELETE /admin/users/5/mcp-grants/3')).toHaveLength(1))
   })
+
+  it('shows an admin how to connect an agent on their own card', async () => {
+    const own = { ...userCard({ id: 1, firstName: 'Adam', lastName: 'Admin', isAdmin: true, isMcp: true }), mcpGrants: [] }
+    mockApi({ ...routes(own), 'GET /admin/users/1': { body: own } })
+    renderApp('/admin/users/1?tab=channels')
+    const url = `${window.location.origin}/mcp`
+    expect(await screen.findByRole('heading', { name: uk.admin.user.connect.title })).toBeInTheDocument()
+    expect(screen.getByText(url)).toBeInTheDocument()
+    expect(screen.getByText(`claude mcp add --transport http homelander ${url}`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: uk.admin.user.connect.copyUrl })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: uk.admin.user.connect.copyCommand })).toBeInTheDocument()
+    expect(screen.queryByText(uk.admin.user.connect.turnOnFirst)).toBeNull()
+  })
+
+  it('asks the admin to turn MCP on first', async () => {
+    const own = { ...userCard({ id: 1, firstName: 'Adam', lastName: 'Admin', isAdmin: true, isMcp: false }), mcpGrants: [] }
+    mockApi({ ...routes(own), 'GET /admin/users/1': { body: own } })
+    renderApp('/admin/users/1?tab=channels')
+    expect(await screen.findByText(uk.admin.user.connect.turnOnFirst)).toBeInTheDocument()
+  })
+
+  it("does not show connection steps on another user's card", async () => {
+    mockApi(routes(userCard({ isAdmin: true, isMcp: true })))
+    renderApp('/admin/users/5?tab=channels')
+    expect(await screen.findByRole('heading', { name: uk.admin.user.agents.title })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: uk.admin.user.connect.title })).toBeNull()
+  })
 })

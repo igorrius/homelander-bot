@@ -1,9 +1,10 @@
-import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Grid, Group, Loader, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Code, Grid, Group, List, Loader, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
 import { IconHistory, IconHome, IconId, IconMessages, IconPencil, IconTrash } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams, useSearchParams } from 'react-router'
+import { useMe } from '../../api/public'
 import {
   useAddResidency, useDeleteResidency, useHouses, usePatchUser, useRevokeGrant, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
   type UserPatch,
@@ -16,7 +17,7 @@ import { formatDateTime, fullName } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
 import { AuditTable } from './AuditTable'
 import { ResidencyEditor } from './ResidencyEditor'
-import { UserSummary } from './UserSummary'
+import { Copy, UserSummary } from './UserSummary'
 
 function useSaved() {
   const { t } = useTranslation()
@@ -139,6 +140,43 @@ function Agents({ card }: { card: UserCard }) {
   )
 }
 
+/** One line of code or a URL with a copy button. */
+function CopyLine({ value, label }: { value: string; label: string }) {
+  return (
+    <Group gap={4} wrap="nowrap">
+      <Code style={{ overflowWrap: 'anywhere' }}>{value}</Code>
+      <Copy value={value} label={label} />
+    </Group>
+  )
+}
+
+/** On the admin's own card: how to connect Claude (or Claude Code) to this server's MCP endpoint. */
+function ConnectAgent({ user }: { user: AdminUser }) {
+  const { t } = useTranslation()
+  const url = `${window.location.origin}/mcp`
+  return (
+    <Card withBorder>
+      <Stack gap="sm">
+        <Title order={3} size="h4">{t('admin.user.connect.title')}</Title>
+        {!user.isMcp && <Alert color="yellow">{t('admin.user.connect.turnOnFirst')}</Alert>}
+        <Text size="sm">{t('admin.user.connect.url')}</Text>
+        <CopyLine value={url} label={t('admin.user.connect.copyUrl')} />
+        <Text size="sm" fw={600}>{t('admin.user.connect.claudeTitle')}</Text>
+        <List type="ordered" size="sm" spacing={4}>
+          <List.Item>{t('admin.user.connect.step1')}</List.Item>
+          <List.Item>{t('admin.user.connect.step2')}</List.Item>
+          <List.Item>{t('admin.user.connect.step3')}</List.Item>
+        </List>
+        <Text size="sm" fw={600}>{t('admin.user.connect.codeTitle')}</Text>
+        <CopyLine value={`claude mcp add --transport http homelander ${url}`} label={t('admin.user.connect.copyCommand')} />
+        <Anchor href="https://github.com/igorrius/homelander-bot/blob/main/docs/mcp.md" target="_blank" rel="noopener noreferrer" size="sm">
+          {t('admin.user.connect.docs')}
+        </Anchor>
+      </Stack>
+    </Card>
+  )
+}
+
 function Residencies({ card }: { card: UserCard }) {
   const { t } = useTranslation()
   const text = useLocalized()
@@ -234,6 +272,7 @@ export function UserCardPage() {
   const { t } = useTranslation()
   const id = Number(useParams().id)
   const card = useUserCard(id)
+  const me = useMe()
   const [params, setParams] = useSearchParams()
   const raw = params.get('tab')
   const tab: Tab = (tabs as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'details'
@@ -290,6 +329,7 @@ export function UserCardPage() {
             <Tabs.Panel value="channels">
               <Stack>
                 <Channels card={card.data} />
+                {user.isAdmin && me.data?.id === user.id && <ConnectAgent user={user} />}
                 {(user.isAdmin || (card.data.mcpGrants ?? []).length > 0) && <Agents card={card.data} />}
               </Stack>
             </Tabs.Panel>

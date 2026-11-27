@@ -156,6 +156,19 @@
         "neverUsed": "not used yet",
         "revoke": "Revoke",
         "revokeConfirm": "Disconnect {{client}}? It loses access at once; connecting again needs a new approval."
+      },
+      "connect": {
+        "title": "Connect an AI agent",
+        "turnOnFirst": "Turn on MCP in Roles (on the left) first; without it the agent cannot be approved.",
+        "url": "MCP server address:",
+        "copyUrl": "Copy address",
+        "claudeTitle": "Claude (claude.ai, Desktop, mobile)",
+        "step1": "In Claude open Settings → Connectors → Add custom connector and paste the address above.",
+        "step2": "Claude opens a Homelander page: log in with the code from Telegram.",
+        "step3": "Check that the answer goes to claude.ai or claude.com, then press Allow.",
+        "codeTitle": "Claude Code",
+        "copyCommand": "Copy command",
+        "docs": "More about MCP (documentation)"
       }
     },
     "audit": {
