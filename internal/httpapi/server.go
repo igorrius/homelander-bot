@@ -59,12 +59,13 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) serveAPI(w http.ResponseWriter, r *http.Request) {
-	h, pattern := s.api.Handler(r)
-	if pattern == "" {
+	// Handler only tells whether a route matches; ServeHTTP is what fills in
+	// r.Pattern and the path values the route's handler reads.
+	if _, pattern := s.api.Handler(r); pattern == "" {
 		WriteError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	h.ServeHTTP(w, r)
+	s.api.ServeHTTP(w, r)
 }
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {

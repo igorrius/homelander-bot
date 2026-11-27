@@ -158,3 +158,14 @@ func TestAPIRouteServed(t *testing.T) {
 		t.Errorf("got %d %q", rec.Code, rec.Body.String())
 	}
 }
+
+func TestAPIRoutePathValues(t *testing.T) {
+	s, _ := newTestServer(t, testStatic())
+	s.API().HandleFunc("GET /api/v1/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		WriteJSON(w, 200, map[string]string{"id": r.PathValue("id"), "pattern": r.Pattern})
+	})
+	rec := get(t, s.Handler(), "/api/v1/users/42")
+	if rec.Code != 200 || strings.TrimSpace(rec.Body.String()) != `{"id":"42","pattern":"GET /api/v1/users/{id}"}` {
+		t.Errorf("got %d %q", rec.Code, rec.Body.String())
+	}
+}
