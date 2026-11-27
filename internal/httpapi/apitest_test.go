@@ -193,3 +193,5 @@ func (e *apiEnv) login(u domain.User) string {
 }
 
 func admin(u *domain.User) { u.IsAdmin = true }
+
+func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }

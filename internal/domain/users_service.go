@@ -538,3 +538,8 @@ func (s *UserService) List(ctx context.Context, f UserFilter) ([]User, int, erro
 func (s *UserService) PendingCount(ctx context.Context) (int, error) {
 	return s.R.Users.CountByStatus(ctx, StatusPendingApproval)
 }
+
+// AuditLog lists audit entries, newest first.
+func (s *UserService) AuditLog(ctx context.Context, f AuditFilter) ([]AuditEntry, int, error) {
+	return s.R.Audit.List(ctx, f)
+}
