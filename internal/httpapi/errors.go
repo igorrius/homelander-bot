@@ -16,8 +16,11 @@ const maxJSONBody = 64 << 10
 var errBadRequest = errors.New("bad_request")
 
 // decode reads a JSON body of at most 64 KiB, refusing unknown fields.
-func decode(r *http.Request, v any) error {
-	dec := json.NewDecoder(io.LimitReader(r.Body, maxJSONBody))
+func decode(r *http.Request, v any) error { return decodeLimit(r, v, maxJSONBody) }
+
+// decodeLimit is decode with a body cap of n bytes.
+func decodeLimit(r *http.Request, v any, n int64) error {
+	dec := json.NewDecoder(io.LimitReader(r.Body, n))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return errBadRequest

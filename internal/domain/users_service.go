@@ -614,6 +614,9 @@ func (s *UserService) UnlinkChannel(ctx context.Context, userID, channelID int64
 		if idx < 0 {
 			return ErrNotFound
 		}
+		if u.Source == SourceBootstrap {
+			return ErrFirstAdmin
+		}
 		if last, err := s.isLastActiveAdmin(ctx, u); err != nil {
 			return err
 		} else if last && len(chans) == 1 {

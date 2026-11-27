@@ -10,12 +10,16 @@ import (
 func TestFirstAdminProtected(t *testing.T) {
 	e := newEnv(t)
 	first := e.mkUser("+380500000099", admin, func(u *domain.User) { u.Source = domain.SourceBootstrap })
+	ch := e.link(first, "999")
 	second := e.mkUser("+380500000098", admin)
 	if err := e.users.Disable(ctx, first.ID, actor(second)); !errors.Is(err, domain.ErrFirstAdmin) {
 		t.Errorf("disable err = %v", err)
 	}
 	if _, err := e.users.Update(ctx, first.ID, domain.UserPatch{IsAdmin: ptr(false)}, actor(second)); !errors.Is(err, domain.ErrFirstAdmin) {
 		t.Errorf("revoke err = %v", err)
+	}
+	if err := e.users.UnlinkChannel(ctx, first.ID, ch.ID, actor(second)); !errors.Is(err, domain.ErrFirstAdmin) {
+		t.Errorf("unlink err = %v", err)
 	}
 	if got := e.get(first.ID); got.Status != domain.StatusActive || !got.IsAdmin {
 		t.Errorf("first admin changed: %+v", got)

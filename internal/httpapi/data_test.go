@@ -98,3 +98,77 @@ func TestDataAssetUpload(t *testing.T) {
 		t.Fatalf("guest = %d", r.Code)
 	}
 }
+
+func TestAdminDataCRUD(t *testing.T) {
+	e, tok := adminEnv(t)
+	r := e.do("POST", "/api/v1/admin/data", map[string]any{"key": "house.address", "kind": "value", "valueType": "text",
+		"value": "Main st 1", "description": "where we live", "public": false}, tok, "")
+	if r.Code != 201 || r.json()["key"] != "house.address" || r.json()["value"] != "Main st 1" {
+		t.Fatalf("create = %d %s", r.Code, r.Body)
+	}
+	var list []map[string]any
+	_ = jsonUnmarshal(e.do("GET", "/api/v1/admin/data", nil, tok, "").Body.Bytes(), &list)
+	if len(list) != 1 || list[0]["kind"] != "value" || list[0]["updatedBy"].(map[string]any)["name"] != "F L" {
+		t.Fatalf("list = %v", list)
+	}
+	r = e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"public": true, "valueType": "text", "value": "Main st 2"}, tok, "")
+	if r.Code != 200 || r.json()["public"] != true || r.json()["value"] != "Main st 2" {
+		t.Fatalf("patch = %d %s", r.Code, r.Body)
+	}
+	r = e.do("GET", "/api/v1/admin/data/house.address", nil, tok, "")
+	if r.Code != 200 || r.json()["item"].(map[string]any)["description"] != "where we live" {
+		t.Fatalf("get = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("DELETE", "/api/v1/admin/data/house.address", nil, tok, ""); r.Code != 204 {
+		t.Fatalf("delete = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("GET", "/api/v1/admin/data/house.address", nil, tok, ""); r.Code != 404 {
+		t.Fatalf("get after delete = %d", r.Code)
+	}
+}
+
+func TestAdminDataRows(t *testing.T) {
+	e, tok := adminEnv(t)
+	r := e.do("POST", "/api/v1/admin/data", map[string]any{"key": "contacts", "kind": "table",
+		"columns": []map[string]string{{"name": "name", "label": "Name", "type": "text"}, {"name": "phone", "label": "Phone", "type": "phone"}}}, tok, "")
+	if r.Code != 201 {
+		t.Fatalf("create = %d %s", r.Code, r.Body)
+	}
+	r = e.do("PUT", "/api/v1/admin/data/contacts/rows", map[string]any{"rows": []map[string]any{
+		{"position": 0, "cells": map[string]any{"name": "Office", "phone": "+380 44 000 00 00"}},
+		{"position": 1, "cells": map[string]any{"name": "Guard"}},
+	}}, tok, "")
+	rows, _ := r.json()["rows"].([]any)
+	if r.Code != 200 || len(rows) != 2 {
+		t.Fatalf("put rows = %d %s", r.Code, r.Body)
+	}
+	id := int64(rows[0].(map[string]any)["id"].(float64))
+	if r := e.do("DELETE", fmt.Sprintf("/api/v1/admin/data/contacts/rows/%d", id), nil, tok, ""); r.Code != 204 {
+		t.Fatalf("delete row = %d %s", r.Code, r.Body)
+	}
+	r = e.do("GET", "/api/v1/admin/data/contacts", nil, tok, "")
+	rows, _ = r.json()["rows"].([]any)
+	if len(rows) != 1 || rows[0].(map[string]any)["cells"].(map[string]any)["name"] != "Guard" ||
+		r.json()["item"].(map[string]any)["rowCount"] != float64(1) {
+		t.Fatalf("get = %s", r.Body)
+	}
+}
+
+func TestAdminDataValidation(t *testing.T) {
+	e, tok := adminEnv(t)
+	r := e.do("POST", "/api/v1/admin/data", map[string]any{"key": "Bad Key", "kind": "value", "valueType": "text"}, tok, "")
+	if r.Code != 422 || fieldOf(r, "key") != "invalid" {
+		t.Fatalf("bad key = %d %s", r.Code, r.Body)
+	}
+}
+
+func TestAdminDataRequiresAdmin(t *testing.T) {
+	e := newAPIEnv(t)
+	tok := e.login(e.mkUser("+380500000001"))
+	if r := e.do("GET", "/api/v1/admin/data", nil, tok, ""); r.Code != 403 {
+		t.Fatalf("resident = %d", r.Code)
+	}
+	if r := e.do("GET", "/api/v1/admin/data", nil, "", ""); r.Code != 401 {
+		t.Fatalf("guest = %d", r.Code)
+	}
+}
