@@ -48,7 +48,8 @@ The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`.
   user. Set `RAILWAY_RUN_UID=0` on the service so the process can write to the volume
   (Railway's documented setting for non-root images).
 - Variables: `APP_SECRET`, `PUBLIC_URL=https://<service domain>`, `TELEGRAM_BOT_TOKEN`,
-  `TELEGRAM_UPDATES=webhook`, `TELEGRAM_WEBHOOK_SECRET`, optionally `BOOTSTRAP_ADMIN_PHONE`.
+  `TELEGRAM_UPDATES=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `TRUST_PROXY=true` (rate limits per
+  client need the real IP), optionally `BOOTSTRAP_ADMIN_PHONE`.
   Do not set `HTTP_ADDR`: the server listens on Railway's `$PORT`.
 - Health check path: `/healthz`.
 

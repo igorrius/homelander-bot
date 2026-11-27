@@ -161,3 +161,13 @@ func TestConfigLogValueRedactsSecrets(t *testing.T) {
 		t.Errorf("log has no PublicURL: %s", out)
 	}
 }
+
+func TestLoadTrustProxy(t *testing.T) {
+	if mustLoad(t, required(nil)).TrustProxy {
+		t.Error("TrustProxy defaults to true")
+	}
+	if !mustLoad(t, required(map[string]string{"TRUST_PROXY": "true"})).TrustProxy {
+		t.Error("TRUST_PROXY=true ignored")
+	}
+	mustFail(t, required(map[string]string{"TRUST_PROXY": "maybe"}), "TRUST_PROXY")
+}

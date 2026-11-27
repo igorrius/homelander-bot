@@ -30,6 +30,7 @@ type Server struct {
 	api    *http.ServeMux
 	spa    http.Handler
 	mounts map[string]http.Handler
+	auth   Authenticator
 }
 
 // New builds a server. API routes are registered later on API().
@@ -72,6 +73,10 @@ func (s *Server) serveAPI(w http.ResponseWriter, r *http.Request) {
 	// r.Pattern and the path values the route's handler reads.
 	if _, pattern := s.api.Handler(r); pattern == "" {
 		WriteError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	r, ok := s.prepareAPI(w, r)
+	if !ok {
 		return
 	}
 	s.api.ServeHTTP(w, r)

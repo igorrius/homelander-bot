@@ -42,6 +42,9 @@ type Config struct {
 	SessionIdleTTL        time.Duration
 	SessionMaxTTL         time.Duration
 	LogLevel              slog.Level
+	// TrustProxy takes the client IP from the rightmost X-Forwarded-For entry
+	// (set it behind Railway's proxy).
+	TrustProxy bool
 }
 
 // Load reads and validates the configuration. All problems are reported
@@ -120,6 +123,14 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, errors.New("SESSION_MAX_TTL must not be shorter than SESSION_IDLE_TTL"))
 	}
 
+	switch v := strings.ToLower(get("TRUST_PROXY", "false")); v {
+	case "true", "1", "yes":
+		cfg.TrustProxy = true
+	case "false", "0", "no":
+	default:
+		errs = append(errs, errors.New("TRUST_PROXY must be true or false"))
+	}
+
 	if err := cfg.LogLevel.UnmarshalText([]byte(get("LOG_LEVEL", "info"))); err != nil {
 		errs = append(errs, errors.New("LOG_LEVEL must be debug, info, warn or error"))
 	}
@@ -169,5 +180,6 @@ func (c Config) LogValue() slog.Value {
 		slog.Duration("SessionIdleTTL", c.SessionIdleTTL),
 		slog.Duration("SessionMaxTTL", c.SessionMaxTTL),
 		slog.String("LogLevel", c.LogLevel.String()),
+		slog.Bool("TrustProxy", c.TrustProxy),
 	)
 }
