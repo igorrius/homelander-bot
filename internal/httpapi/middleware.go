@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -54,7 +55,7 @@ func recoverPanics(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if p := recover(); p != nil {
-				if p == http.ErrAbortHandler {
+				if err, ok := p.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(p)
 				}
 				log.Error("panic in handler", "method", r.Method, "path", r.URL.Path, "panic", p)

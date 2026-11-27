@@ -25,7 +25,7 @@ func TestOpenCreatesDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("database file not created: %v", err)
 	}

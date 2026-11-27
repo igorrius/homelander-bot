@@ -1,0 +1,15 @@
+version: "2"
+linters:
+  enable:
+    - errorlint
+    - gosec
+    - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec]
