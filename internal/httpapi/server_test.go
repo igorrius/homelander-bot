@@ -117,6 +117,27 @@ func TestAssetCached(t *testing.T) {
 	}
 }
 
+func TestIconContentTypes(t *testing.T) {
+	static := fstest.MapFS{
+		"index.html":       {Data: []byte(indexHTML)},
+		"favicon.svg":      {Data: []byte(`<svg xmlns="http://www.w3.org/2000/svg"/>`)},
+		"favicon.ico":      {Data: []byte{0, 0, 1, 0}},
+		"site.webmanifest": {Data: []byte(`{"name":"Homelander"}`)},
+	}
+	s, _ := newTestServer(t, static)
+	want := map[string]string{
+		"/favicon.svg":      "image/svg+xml",
+		"/favicon.ico":      "image/x-icon",
+		"/site.webmanifest": "application/manifest+json",
+	}
+	for p, ct := range want {
+		rec := get(t, s.Handler(), p)
+		if rec.Code != 200 || rec.Header().Get("Content-Type") != ct {
+			t.Errorf("%s: got %d %q, want 200 %q", p, rec.Code, rec.Header().Get("Content-Type"), ct)
+		}
+	}
+}
+
 func TestIndexHTMLPathNotCachedForever(t *testing.T) {
 	s, _ := newTestServer(t, testStatic())
 	rec := get(t, s.Handler(), "/index.html")
