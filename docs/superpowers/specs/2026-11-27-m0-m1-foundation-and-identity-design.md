@@ -297,11 +297,21 @@ active yet (uniqueness enforced); an active user's phone changes only after unli
 
 ### 5.6 Web app (M1 screens)
 
-**Resident page `/`.** Header with the community name; a large picture of the houses (the uploaded
-picture, or a neutral built-in illustration); the welcome text. A guest sees a "Log in" button and a
+**Resident page `/`.** Header with the community name; a large picture of the houses; the welcome
+text. The product stays universal through three layers, each optional:
+
+1. **Text** — community name and welcome text per locale (Site settings). Defaults to a generic
+   greeting.
+2. **Built-in illustration** — drawn by the app from the house list: one stylized house per house
+   record, labelled with its name. Works out of the box for any community, no upload needed.
+3. **Own picture** — an uploaded image replaces the built-in illustration. A specific community's
+   look (for example a 3D drawing of its real building) is just such an upload; the product never
+   knows about it.
+
+Richer, data-driven scenes (power, batteries, gates on the picture, as in the owner's K7 project)
+come later with modules and are out of M1. A guest sees a "Log in" button and a
 "Register" link; a signed-in user sees their name, their apartments and "Log out"; an admin also sees
-a link to the admin panel. Placeholders for future house data are not shown. The owner's K7 project
-(a page with a house scene) is a reference for the look.
+a link to the admin panel. Placeholders for future house data are not shown.
 
 **Register `/register`.** The application form and the final screen (5.4).
 
@@ -378,7 +388,7 @@ scope for M1 (a follow-up issue).
 
 Exact package names, migration tool (own vs `goose`), Telegram receive loop (library updater vs own),
 component library, HTTP router (`net/http` mux is enough), logging (`log/slog` suggested), exact
-rate-limit numbers within the stated spirit, QR code library, the neutral built-in illustration,
+rate-limit numbers within the stated spirit, QR code library, the style of the built-in illustration,
 test fixtures (synthetic data only).
 
 ## 7. Calls made by Claude (for the owner to check)
