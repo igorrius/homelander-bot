@@ -30,7 +30,9 @@ type Server struct {
 	api    *http.ServeMux
 	spa    http.Handler
 	mounts map[string]http.Handler
-	auth   Authenticator
+	// prefixes serve every path under a prefix (page files under /site/).
+	prefixes []prefixMount
+	auth     Authenticator
 }
 
 // New builds a server. API routes are registered later on API().
@@ -49,6 +51,26 @@ func (s *Server) API() *http.ServeMux { return s.api }
 // under /telegram/ answer 404 instead of the web app.
 func (s *Server) Mount(path string, h http.Handler) { s.mounts[path] = h }
 
+type prefixMount struct {
+	prefix string
+	h      http.Handler
+}
+
+// MountPrefix serves h at every path that starts with prefix, ahead of the
+// web app.
+func (s *Server) MountPrefix(prefix string, h http.Handler) {
+	s.prefixes = append(s.prefixes, prefixMount{prefix, h})
+}
+
+func (s *Server) prefixHandler(p string) http.Handler {
+	for _, m := range s.prefixes {
+		if strings.HasPrefix(p, m.prefix) {
+			return m.h
+		}
+	}
+	return nil
+}
+
 // Handler returns the server's root handler with middleware applied.
 func (s *Server) Handler() http.Handler {
 	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +83,8 @@ func (s *Server) Handler() http.Handler {
 			s.mounts[p].ServeHTTP(w, r)
 		case strings.HasPrefix(p, "/telegram/"):
 			http.NotFound(w, r)
+		case s.prefixHandler(p) != nil:
+			s.prefixHandler(p).ServeHTTP(w, r)
 		default:
 			s.spa.ServeHTTP(w, r)
 		}

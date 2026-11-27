@@ -55,7 +55,8 @@ var (
 // PageContentType returns the content type for a valid page path, or the
 // field reason ("invalid" or "type") it is rejected with.
 func PageContentType(p string) (string, string) {
-	if len(p) > maxPagePath || !pagePathRe.MatchString(p) {
+	// The top folder "preview" is where drafts are served, so it is reserved.
+	if len(p) > maxPagePath || !pagePathRe.MatchString(p) || strings.HasPrefix(p, "preview/") {
 		return "", "invalid"
 	}
 	for _, seg := range strings.Split(p, "/") {

@@ -32,7 +32,7 @@ func TestPagePaths(t *testing.T) {
 	for path, reason := range map[string]string{
 		"../x.html": "invalid", "/abs.html": "invalid", "a//b.css": "invalid", `a\b.css`: "invalid",
 		"x.HTML": "invalid", "x.exe": "type", ".hidden": "invalid", "a/../b.css": "invalid", "": "invalid",
-		strings.Repeat("a", 200) + ".css": "invalid", "noext": "type",
+		strings.Repeat("a", 200) + ".css": "invalid", "noext": "type", "preview/a.png": "invalid",
 	} {
 		_, err := e.pages.CreateDraft(ctx, []domain.PageFileInput{index(), pin(path, "x")}, "", a)
 		if err == nil {

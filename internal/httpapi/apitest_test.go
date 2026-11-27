@@ -97,6 +97,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 		Notifier: notifier,
 		Catalog:  &domain.CatalogService{R: r, Now: clock, Locales: locs},
 		Data:     &domain.DataService{R: r, Now: clock, Limits: limits, Locales: locs},
+		Pages:    &domain.PageService{R: r, Now: clock, Secret: secret},
 		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: secret,
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
 			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() },
@@ -108,6 +109,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	s.WithSession(e.api.Auth)
 	httpapi.RegisterPublic(s, e.api)
 	httpapi.RegisterAdmin(s, e.api)
+	s.MountPrefix("/site/", httpapi.SiteHandler(e.api))
 	e.h = s.Handler()
 	sts, _ := r.Statuses.List(ctx, false)
 	e.owner = sts[0]
