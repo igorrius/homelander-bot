@@ -18,6 +18,7 @@
 - Phones are stored and compared only in E.164 form, normalized with `DEFAULT_PHONE_REGION`.
 - Repositories run every statement through `sqlite.DB.Q(ctx)` and close every `*sql.Rows` (one connection; anything else can deadlock inside `InTx`).
 - Secrets (codes, session tokens) are stored only as HMAC-SHA256 with `APP_SECRET`, compared in constant time, never logged.
+- **Every schema change is a new migration file** `internal/storage/sqlite/migrations/NNNN_name.sql` (M1 adds `0002_identity.sql`; later changes get `0003_…`); an applied migration is never edited. `TestEmbeddedMigrationsApply` and each repository test run on a freshly migrated database.
 - Times are UTC, stored as RFC 3339 text; services take a `domain.Clock` so tests control time.
 - All API errors use `{"error":{"code":"...","fields":{...}}}`; `fields` only for `validation`.
 - Work on a branch, PR into `main`.
@@ -399,8 +400,18 @@ Rules (spec 5.4): `ActivateChannel` — rate limit `activate:<externalID>` 5/hou
   type Activator interface {
       ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.ActivationResult, domain.User, error)
   }
-  type Bot struct { /* api, activator, i18n, publicURL, username, log */ }
-  func New(api API, act Activator, tr *i18n.Bundle, publicURL string, log *slog.Logger) (*Bot, error) // calls GetMe for the username
+  // GroupMessage is a messenger-neutral copy of a message seen in a group or supergroup.
+  // M1 only hands it to the sink; reactions are configured later as flows (M5) running WASM modules (M3).
+  type GroupMessage struct {
+      ChatID, ChatTitle, MessageID, ThreadID string // ThreadID: forum topic, "" outside topics
+      FromExternalID, FromUsername, FromName, LanguageCode string
+      Text string; At time.Time
+  }
+  // GroupSink receives group messages. M1 wires NopSink: nothing is answered, stored or logged beyond debug counters.
+  type GroupSink interface { OnGroupMessage(ctx context.Context, m GroupMessage) }
+  type NopSink struct{}
+  type Bot struct { /* api, activator, sink, i18n, publicURL, username, log */ }
+  func New(api API, act Activator, sink GroupSink, tr *i18n.Bundle, publicURL string, log *slog.Logger) (*Bot, error) // calls GetMe for the username
   func (b *Bot) Type() string                    // "telegram"
   func (b *Bot) BotURL() string                  // "https://t.me/<username>"
   func (b *Bot) SendText(ctx context.Context, chatID, text string) error
@@ -414,11 +425,11 @@ Rules (spec 5.4): `ActivateChannel` — rate limit `activate:<externalID>` 5/hou
   func (s *Server) Mount(prefix string, h http.Handler) // routes paths with prefix before the SPA
   ```
 
-Behaviour: only `message` updates in **private** chats are handled; everything else is ignored. `/start` (with or without payload) → `bot.start.prompt` with a one-time reply keyboard of one button `bot.start.button` (`RequestContact: true`, `ResizeKeyboard`, `OneTimeKeyboard`). A contact with `UserId != From.Id` or no `UserId` → `bot.contact.notOwn`, no domain call. Own contact → `ActivateChannel("telegram", fromID, chatID, username, contact.PhoneNumber)`; reply by result with `ReplyKeyboardRemove`: `Activated` → `bot.activated` (`{{.Name}}`, `{{.URL}}` = `PUBLIC_URL`), `BootstrapAdmin` → `bot.bootstrap` (`{{.URL}}` = `PUBLIC_URL + "/admin"`), `AlreadyConnected` → `bot.alreadyConnected`, `PendingApproval` → `bot.pending`, `NotRegistered` → `bot.notRegistered`; `ErrRateLimited` → `bot.rateLimited`; other errors → `common.error.internal` and an error log. Any other text → `bot.help`. Language: the linked user's `Locale` when the result has a user, else `Pick(from.LanguageCode)`. `SendText` parses `chatID` as int64. Polling backs off 1 s → 30 s on errors and stops on `ctx.Done()`.
+Behaviour: `message` updates in **private** chats are handled as below. `message` updates in `group` / `supergroup` chats are converted to `GroupMessage` and passed to the sink, and the bot **never replies in a group** in M1 (how it reacts is decided later, in the visual flow editor). Other update kinds are ignored. Note for deployment docs: to see every group message the bot needs privacy mode turned off in @BotFather (or admin rights in the group); with privacy mode on, Telegram delivers only commands and replies to the bot. `/start` (with or without payload) → `bot.start.prompt` with a one-time reply keyboard of one button `bot.start.button` (`RequestContact: true`, `ResizeKeyboard`, `OneTimeKeyboard`). A contact with `UserId != From.Id` or no `UserId` → `bot.contact.notOwn`, no domain call. Own contact → `ActivateChannel("telegram", fromID, chatID, username, contact.PhoneNumber)`; reply by result with `ReplyKeyboardRemove`: `Activated` → `bot.activated` (`{{.Name}}`, `{{.URL}}` = `PUBLIC_URL`), `BootstrapAdmin` → `bot.bootstrap` (`{{.URL}}` = `PUBLIC_URL + "/admin"`), `AlreadyConnected` → `bot.alreadyConnected`, `PendingApproval` → `bot.pending`, `NotRegistered` → `bot.notRegistered`; `ErrRateLimited` → `bot.rateLimited`; other errors → `common.error.internal` and an error log. Any other text → `bot.help`. Language: the linked user's `Locale` when the result has a user, else `Pick(from.LanguageCode)`. `SendText` parses `chatID` as int64. Polling backs off 1 s → 30 s on errors and stops on `ctx.Done()`.
 
-- [ ] **Step 1: Write failing tests** with a fake `API` (records sent messages, serves queued updates) and a fake `Activator`: `TestStartAsksForContact` (one message, keyboard button with `RequestContact`), `TestContactFromSomeoneElseIsRefused` (activator not called; `bot.contact.notOwn` text), `TestOwnContactActivates` (activator called with `"telegram"`, from id, chat id, phone as sent), `TestRepliesPerResult` (each result → its locale key's text in the expected language), `TestGroupMessagesIgnored`, `TestOtherTextGetsHelp`, `TestWebhookRejectsWrongSecret` (401, no handling), `TestWebhookHandlesUpdate` (200; activator called), `TestWebhookPathStable` (same secret → same path; differs for another secret; length 18+32), `TestPollingAdvancesOffset` (second `GetUpdates` call carries offset last+1; stops on cancel), `TestBotURL`.
+- [ ] **Step 1: Write failing tests** with a fake `API` (records sent messages, serves queued updates) and a fake `Activator`: `TestStartAsksForContact` (one message, keyboard button with `RequestContact`), `TestContactFromSomeoneElseIsRefused` (activator not called; `bot.contact.notOwn` text), `TestOwnContactActivates` (activator called with `"telegram"`, from id, chat id, phone as sent), `TestRepliesPerResult` (each result → its locale key's text in the expected language), `TestGroupMessageGoesToSinkWithoutReply` (supergroup message in a forum topic → sink got ChatID, ThreadID, sender and text; no `SendMessage` call), `TestOtherTextGetsHelp`, `TestWebhookRejectsWrongSecret` (401, no handling), `TestWebhookHandlesUpdate` (200; activator called), `TestWebhookPathStable` (same secret → same path; differs for another secret; length 18+32), `TestPollingAdvancesOffset` (second `GetUpdates` call carries offset last+1; stops on cancel), `TestBotURL`.
 - [ ] **Step 2: Run** `go test ./internal/messenger/...` — Expected: FAIL.
-- [ ] **Step 3: Implement**; `go get github.com/PaulSonOfLars/gotgbot/v2@v2.0.0-rc.37`. Add locale keys `bot.start.prompt`, `bot.start.button`, `bot.contact.notOwn`, `bot.activated`, `bot.bootstrap`, `bot.alreadyConnected`, `bot.pending`, `bot.notRegistered`, `bot.rateLimited`, `bot.help` in uk and en. Add `Server.Mount` with a test `TestMountedHandlerServed` in `internal/httpapi`.
+- [ ] **Step 3: Implement**; `go get github.com/PaulSonOfLars/gotgbot/v2@v2.0.0-rc.37`. Add locale keys `bot.start.prompt`, `bot.start.button`, `bot.contact.notOwn`, `bot.activated`, `bot.bootstrap`, `bot.alreadyConnected`, `bot.pending`, `bot.notRegistered`, `bot.rateLimited`, `bot.help` in uk and en. Add the privacy-mode note to `docs/development.md`. Add `Server.Mount` with a test `TestMountedHandlerServed` in `internal/httpapi`.
 - [ ] **Step 4: Run** `go test -race ./internal/messenger/... ./internal/httpapi/ ./internal/i18n/` — Expected: PASS.
 - [ ] **Step 5: Commit** `feat: Telegram adapter with polling and webhook modes`
 
@@ -532,7 +543,7 @@ The actor of every call is `Actor{UserID: &current.ID, IP: ClientIP(...)}`.
 **Interfaces:**
 - Consumes: everything above.
 
-`run` builds repos, `ratelimit.New(time.Now)`, services (`PendingCap: 200`, `CodeTTL: 5*time.Minute`, `MaxAttempts: 5`, TTLs from config, `Rand: crypto/rand.Reader`), `gotgbot.NewBot(cfg.TelegramBotToken, nil)` → `telegram.New`, the HTTP server with `WithSession`, `RegisterPublic`, `RegisterAdmin`; in webhook mode `Mount(telegram.WebhookPath(cfg.AppSecret), bot.WebhookHandler(cfg.TelegramWebhookSecret))` and `StartWebhook(PUBLIC_URL + path)` after the listener is up; in polling mode `go bot.RunPolling(ctx)`. A goroutine deletes expired sessions hourly. Also apply the M0 deferred minors: `http.Server` gets `ReadTimeout: 30s`, `WriteTimeout: 60s`, `IdleTimeout: 120s`; call `stop()` after the shutdown signal so a second signal kills the process; session TTLs in `Config.LogValue` are logged as strings.
+`run` builds repos, `ratelimit.New(time.Now)`, services (`PendingCap: 200`, `CodeTTL: 5*time.Minute`, `MaxAttempts: 5`, TTLs from config, `Rand: crypto/rand.Reader`), `gotgbot.NewBot(cfg.TelegramBotToken, nil)` → `telegram.New(…, telegram.NopSink{}, …)`, the HTTP server with `WithSession`, `RegisterPublic`, `RegisterAdmin`; in webhook mode `Mount(telegram.WebhookPath(cfg.AppSecret), bot.WebhookHandler(cfg.TelegramWebhookSecret))` and `StartWebhook(PUBLIC_URL + path)` after the listener is up; in polling mode `go bot.RunPolling(ctx)`. A goroutine deletes expired sessions hourly. Also apply the M0 deferred minors: `http.Server` gets `ReadTimeout: 30s`, `WriteTimeout: 60s`, `IdleTimeout: 120s`; call `stop()` after the shutdown signal so a second signal kills the process; session TTLs in `Config.LogValue` are logged as strings.
 
 For tests, `run` takes the bot API as a parameter through an unexported `runWith(ctx, getenv, stderr, newAPI func(token string) (telegram.API, error))`.
 
