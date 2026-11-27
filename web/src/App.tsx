@@ -16,6 +16,7 @@ import { NotificationsPage } from './pages/admin/NotificationsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
 import { DataPage } from './pages/admin/DataPage'
+import { DataItemPage } from './pages/admin/DataItemPage'
 import { StatusesPage } from './pages/admin/StatusesPage'
 import { UserCardPage } from './pages/admin/UserCardPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="statuses" element={<StatusesPage />} />
           <Route path="site" element={<SitePage />} />
           <Route path="data" element={<DataPage />} />
+          <Route path="data/:key" element={<DataItemPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />

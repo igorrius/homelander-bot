@@ -1,4 +1,4 @@
-import type { AdminUser, Chat, DataItem, House, Label, Me, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
+import type { AdminUser, Chat, DataItem, DataRow, House, Label, Me, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
 
 // Synthetic data only: no real names, phones or addresses.
 export const site: Site = {
@@ -96,4 +96,9 @@ export const dataItems: DataItem[] = [
     updatedAt: '2026-11-27T10:00:00Z', updatedBy: { id: 1, name: 'Admin A' } },
   { key: 'house.address', kind: 'value', description: '', public: false, valueType: 'text', value: 'Main st 1', rowCount: 0,
     updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
+]
+
+export const contactRows: DataRow[] = [
+  { id: 7, position: 0, cells: { name: 'Office', phone: '+380 44 000 00 00' } },
+  { id: 8, position: 1, cells: { name: 'Guard' } },
 ]
