@@ -52,6 +52,14 @@ describe('AdminLayout', () => {
     }
   })
 
+  it('has an open-site button in the header that opens the home page in a new tab', async () => {
+    mockApi(adminRoutes)
+    renderApp('/admin/users')
+    const link = await screen.findByRole('link', { name: uk.admin.openSite })
+    expect(link).toHaveAttribute('href', '/')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
   it('has a user menu with the resident page and log out', async () => {
     const { calls } = mockApi({ ...adminRoutes, 'POST /auth/logout': { status: 204 } })
     const { user } = renderApp('/admin/users')
