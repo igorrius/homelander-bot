@@ -52,3 +52,20 @@ export function useVerifyCode() {
     onSuccess: ({ user }) => qc.setQueryData(qk.me, user),
   })
 }
+
+export interface Application {
+  phone: string
+  firstName: string
+  lastName: string
+  houseId: number
+  apartment: number
+  statusId: number
+  consent: boolean
+  locale: string
+}
+
+export function useRegister() {
+  return useMutation<void, ApiError, Application>({
+    mutationFn: (body) => api<void>('/register', { method: 'POST', body: JSON.stringify(body) }),
+  })
+}

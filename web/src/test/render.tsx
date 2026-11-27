@@ -10,7 +10,7 @@ export function renderApp(path: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const user = userEvent.setup()
   const result = render(
-    <Providers client={client}>
+    <Providers client={client} env="test">
       <MemoryRouter initialEntries={[path]}>
         <App />
       </MemoryRouter>

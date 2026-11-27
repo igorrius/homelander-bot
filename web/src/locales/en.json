@@ -16,7 +16,22 @@
     "apartment": "{{house}}, apt {{n}}"
   },
   "register": {
-    "title": "Registration application"
+    "title": "Registration application",
+    "intro": "Fill in the form. An administrator checks it, then you activate your account in the Telegram bot.",
+    "phone": "Phone number",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "house": "House",
+    "apartment": "Apartment",
+    "noApartment": "No such apartment",
+    "status": "I am",
+    "consent": "I agree that my data is stored to check that I live here",
+    "submit": "Submit application",
+    "unavailable": "Registration is not open yet. Please try again later.",
+    "doneTitle": "Application received",
+    "doneText": "After an administrator approves it, open the bot and share your phone number. Then you can log in.",
+    "openBot": "Open the bot",
+    "qrHint": "Scan with your phone if you are on a computer"
   },
   "login": {
     "title": "Log in",
@@ -77,5 +92,8 @@
     "has_residents": "Residents are registered in apartments outside this range",
     "type": "Only PNG, JPEG or WebP images",
     "size": "The file is larger than 5 MB"
+  },
+  "qr": {
+    "title": "QR code"
   }
 }
