@@ -154,6 +154,13 @@ func (h handlerCtx) listUsers(w http.ResponseWriter, r *http.Request) {
 			v["status"] = "invalid"
 		}
 	}
+	switch q.Get("sort") {
+	case "", "name":
+	case "newest":
+		f.NewestFirst = true
+	default:
+		v["sort"] = "invalid"
+	}
 	if err := v.err(); err != nil {
 		h.fail(w, err)
 		return

@@ -54,10 +54,18 @@ describe('OverviewPage', () => {
     expect(screen.queryByText(uk.admin.overview.setup.title)).toBeNull()
   })
 
-  it('suggests a community name when none is set', async () => {
-    mockApi({ ...adminRoutes, 'GET /site': { body: { ...site, communityName: {} } } })
+  it('suggests a community name while setting up', async () => {
+    mockApi({ ...adminRoutes, 'GET /admin/statuses': { body: [] }, 'GET /site': { body: { ...site, communityName: {} } } })
     renderApp('/admin')
     expect(await screen.findByRole('link', { name: new RegExp(uk.admin.overview.setup.community) })).toHaveAttribute('href', '/admin/site')
+  })
+
+  it('does not nag about a blank community name once registration can open', async () => {
+    mockApi({ ...adminRoutes, 'GET /site': { body: { ...site, communityName: {} } } })
+    renderApp('/admin')
+    await screen.findByText('http://localhost/register')
+    await main().findByRole('link', { name: new RegExp(`${uk.admin.overview.stats.houses}\\s*2`) })
+    expect(screen.queryByText(uk.admin.overview.setup.title)).toBeNull()
   })
 
   it('approves an application from the overview', async () => {
@@ -70,6 +78,8 @@ describe('OverviewPage', () => {
     await user.click(await screen.findByRole('button', { name: uk.admin.applications.approve }))
     await waitFor(() => expect(callsTo(calls, 'POST /admin/users/5/approve')).toHaveLength(1))
     expect(callsTo(calls, 'GET /admin/users')[0].query.get('status')).toBe('pending_approval')
+    // The newest applications, not the first ones by surname.
+    expect(callsTo(calls, 'GET /admin/users')[0].query.get('sort')).toBe('newest')
     expect(screen.getByRole('link', { name: uk.admin.overview.allApplications })).toHaveAttribute('href', '/admin/applications')
   })
 

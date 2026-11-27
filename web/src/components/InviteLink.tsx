@@ -35,7 +35,7 @@ export function InviteLink({ url }: { url: string }) {
   return (
     <Group align="center" gap="lg" wrap="wrap">
       <Paper withBorder p={6} bg="white" style={{ lineHeight: 0 }}>
-        <QRCodeSVG ref={svg} value={url} size={168} title={t('qr.title')} marginSize={1} />
+        <QRCodeSVG value={url} size={168} title={t('qr.title')} marginSize={1} />
       </Paper>
       <Stack gap="sm" style={{ flex: '1 1 260px', minWidth: 0 }}>
         <Text size="sm" c="dimmed">
@@ -61,6 +61,8 @@ export function InviteLink({ url }: { url: string }) {
           </Button>
         </Group>
       </Stack>
+      {/* The file gets the standard 4-module white margin, so it scans when printed or posted on a dark chat. */}
+      <QRCodeSVG ref={svg} value={url} size={downloadSize} marginSize={4} aria-hidden style={{ display: 'none' }} />
     </Group>
   )
 }

@@ -47,7 +47,8 @@ function SetupChecklist() {
   const noHouse = houses.isSuccess && houses.data.length === 0
   const noStatus = statuses.isSuccess && !statuses.data.some((s) => !s.archived)
   const noName = site.isSuccess && !Object.values(site.data.communityName).some((v) => v?.trim())
-  if (!noHouse && !noStatus && !noName) return null
+  // Shown only while registration cannot open; the name is suggested alongside, never on its own.
+  if (!noHouse && !noStatus) return null
   const items: { to: string; label: string }[] = []
   if (noHouse) items.push({ to: '/admin/houses', label: t('admin.overview.setup.house') })
   if (noStatus) items.push({ to: '/admin/statuses', label: t('admin.overview.setup.status') })
@@ -55,7 +56,7 @@ function SetupChecklist() {
   return (
     <Alert color="yellow" variant="light" title={t('admin.overview.setup.title')}>
       <Stack gap="xs">
-        {(noHouse || noStatus) && <Text size="sm">{t('admin.overview.setup.hint')}</Text>}
+        <Text size="sm">{t('admin.overview.setup.hint')}</Text>
         <List spacing={4} size="sm" icon={<IconCircleDashed size={16} />} center>
           {items.map((it) => (
             <List.Item key={it.to}>
@@ -72,7 +73,7 @@ function SetupChecklist() {
 
 function LatestApplications() {
   const { t } = useTranslation()
-  const users = useUsers({ status: 'pending_approval', pageSize: latestCount })
+  const users = useUsers({ status: 'pending_approval', sort: 'newest', pageSize: latestCount })
   return (
     <Card>
       <Stack gap="sm">

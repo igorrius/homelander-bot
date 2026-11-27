@@ -72,6 +72,19 @@ func TestUsersListSearchAndPaging(t *testing.T) {
 	}
 }
 
+func TestUsersListNewestFirst(t *testing.T) {
+	e, tok := adminEnv(t)
+	e.mkUser("+380500000101", func(u *domain.User) { u.LastName = "Abel" })
+	e.mkUser("+380500000102", func(u *domain.User) { u.LastName = "Zed" })
+	list, _ := items(t, e.do("GET", "/api/v1/admin/users?sort=newest&isAdmin=false", nil, tok, ""))
+	if len(list) != 2 || list[0].(map[string]any)["lastName"] != "Zed" {
+		t.Errorf("newest first = %v", list)
+	}
+	if r := e.do("GET", "/api/v1/admin/users?sort=bogus", nil, tok, ""); r.Code != 422 {
+		t.Errorf("bad sort = %d", r.Code)
+	}
+}
+
 func TestApproveFlow(t *testing.T) {
 	e, tok := adminEnv(t)
 	e.do("POST", "/api/v1/register", e.registration("+380500000001"), "", "")

@@ -23,6 +23,8 @@ export interface UserQuery {
   status?: UserStatus
   isAdmin?: boolean
   isResident?: boolean
+  /** "newest" orders by application time, newest first; the default is by name. */
+  sort?: 'newest'
   page?: number
   pageSize?: number
 }

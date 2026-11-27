@@ -39,6 +39,22 @@ describe('InviteLink', () => {
     expect(sources[0]).toMatch(/^data:image\/svg\+xml/)
   })
 
+  it('downloads the QR with the standard 4-module white margin', async () => {
+    const sources: string[] = []
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null
+      set src(v: string) {
+        sources.push(v)
+      }
+    })
+    const user = userEvent.setup()
+    render(<Providers env="test"><InviteLink url="http://localhost/register" /></Providers>)
+    // The on-screen code has a 1-module margin; the file gets 3 more on each side.
+    const shown = Number(screen.getByTitle(uk.qr.title).closest('svg')!.getAttribute('viewBox')!.split(' ')[2])
+    await user.click(screen.getByRole('button', { name: uk.admin.invite.download }))
+    expect(decodeURIComponent(sources[0])).toContain(`viewBox="0 0 ${shown + 6} ${shown + 6}"`)
+  })
+
   it('does not throw when the browser cannot draw the QR picture', async () => {
     const user = userEvent.setup()
     render(<Providers env="test"><InviteLink url="http://localhost/register" /></Providers>)
