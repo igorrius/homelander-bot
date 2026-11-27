@@ -379,3 +379,21 @@ func TestPreviewInjectsNav(t *testing.T) {
 		t.Fatalf("ETag = %q", tag)
 	}
 }
+
+func TestPreviewInjectsIntoLegacyEncoding(t *testing.T) {
+	e := newAPIEnv(t)
+	// windows-1251 bytes (invalid UTF-8) and a Kelvin sign, which lowercases to a shorter rune.
+	cp1251 := "<html><BODY><p>\xcf\xf0\xe8\xe2\xb3\xf2 \xf1\xe2\xb3\xf2\xe5</p></BODY></html>"
+	kelvin := "<p>KKK</p></body>"
+	v := e.draft(map[string]string{"index.html": cp1251, "k.html": kelvin})
+	tok := e.api.Pages.PreviewToken(v.ID)
+	r := e.get("/site/preview/" + tok + "/index.html")
+	body := r.Body.String()
+	if r.Code != 200 || !strings.HasPrefix(body, "<html><BODY><p>\xcf\xf0\xe8\xe2\xb3\xf2 \xf1\xe2\xb3\xf2\xe5</p><script>") || !strings.HasSuffix(body, "</script></BODY></html>") {
+		t.Fatalf("legacy encoding = %d %q", r.Code, body)
+	}
+	k := e.get("/site/preview/" + tok + "/k.html").Body.String()
+	if !strings.HasPrefix(k, "<p>KKK</p><script>") || !strings.HasSuffix(k, "</script></body>") {
+		t.Fatalf("kelvin = %q", k)
+	}
+}

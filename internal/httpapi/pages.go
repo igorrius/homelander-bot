@@ -24,6 +24,30 @@ const pageCSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandb
 //go:embed preview_nav.js
 var previewNavJS string
 
+// lastBodyClose finds the last "</body>" in any letter case. It folds only
+// ASCII letters, so the offset stays valid for any encoding (bytes.ToLower
+// may change the length of non-UTF-8 or some Unicode input).
+func lastBodyClose(data []byte) int {
+	const tag = "</body>"
+	for i := len(data) - len(tag); i >= 0; i-- {
+		match := true
+		for k := 0; k < len(tag); k++ {
+			c := data[i+k]
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != tag[k] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
 // injectPreviewNav adds the preview navigation script, listing the draft's
 // page paths, before the last </body> (or at the end when there is none).
 func injectPreviewNav(data []byte, pages []domain.SitePage) []byte {
@@ -33,7 +57,7 @@ func injectPreviewNav(data []byte, pages []domain.SitePage) []byte {
 	}
 	list, _ := json.Marshal(paths) // page paths are [a-z0-9-/] only
 	script := []byte("<script>" + strings.Replace(previewNavJS, "__PAGES__", string(list), 1) + "</script>")
-	at := bytes.LastIndex(bytes.ToLower(data), []byte("</body>"))
+	at := lastBodyClose(data)
 	if at < 0 {
 		at = len(data)
 	}
