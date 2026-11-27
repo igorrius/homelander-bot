@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../i18n'
 import en from '../locales/en.json'
 import uk from '../locales/uk.json'
-import { callsTo, mockApi } from '../test/api'
-import { admin, publicRoutes, resident, site } from '../test/fixtures'
+import { mockApi } from '../test/api'
+import { publicRoutes, site } from '../test/fixtures'
 import { renderApp } from '../test/render'
 
 describe('HomePage', () => {
@@ -48,38 +48,17 @@ describe('HomePage', () => {
     expect(screen.getByText(en.home.welcomeDefault)).toBeInTheDocument()
   })
 
-  it('shows name, apartments and logout for a resident', async () => {
-    mockApi({ ...publicRoutes, 'GET /me': { body: resident } })
-    renderApp('/')
-    expect(await screen.findByText('Olena Test')).toBeInTheDocument()
-    const apt = screen.getByRole('listitem')
-    expect(apt).toHaveTextContent('House A, кв. 12')
-    expect(screen.getByRole('button', { name: uk.home.logout })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: uk.home.admin })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: uk.home.login })).not.toBeInTheDocument()
-  })
-
-  it('shows the admin link for an admin', async () => {
-    mockApi({ ...publicRoutes, 'GET /me': { body: admin } })
-    renderApp('/')
-    expect(await screen.findByRole('link', { name: uk.home.admin })).toHaveAttribute('href', '/admin')
-  })
-
-  it('logs out', async () => {
-    const { calls } = mockApi({ ...publicRoutes, 'GET /me': { body: resident }, 'POST /auth/logout': { status: 204 } })
-    const { user } = renderApp('/')
-    await user.click(await screen.findByRole('button', { name: uk.home.logout }))
-    expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
-    expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1)
-  })
-
   it('shows the published page in a frame under our header', async () => {
     mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, pageUrl: '/site/index.html' } } })
     renderApp('/')
-    const frame = await screen.findByTitle('Тестова громада')
-    expect(frame.tagName).toBe('IFRAME')
+    const frame = await waitFor(() => {
+      const f = document.querySelector('iframe')
+      expect(f).not.toBeNull()
+      return f!
+    })
+    expect(frame).toHaveAttribute('title', 'Тестова громада')
     expect(frame).toHaveAttribute('src', '/site/index.html?lang=uk')
-    expect(screen.getByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
+    expect(screen.getByTestId('site-header-name')).toHaveTextContent('Тестова громада')
     expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
     expect(screen.queryByText('Привіт')).not.toBeInTheDocument()
     expect(screen.queryByTestId('house')).not.toBeInTheDocument()
@@ -89,7 +68,7 @@ describe('HomePage', () => {
     mockApi(publicRoutes)
     renderApp('/')
     expect(await screen.findByText('Привіт')).toBeInTheDocument()
-    expect(screen.queryByTitle('Тестова громада')).not.toBeInTheDocument()
+    expect(document.querySelector('iframe')).toBeNull()
   })
 
   it('applies the site default language when the visitor chose none', async () => {

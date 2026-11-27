@@ -46,6 +46,8 @@ export interface Site {
   registerUrl: string
   /** The published home page, framed under our header; null shows the built-in page. */
   pageUrl: string | null
+  /** Site paths of the published pages ("/", "/contacts"); [] when nothing is published. */
+  pages: string[]
 }
 
 export interface HouseOption {

@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OAuthAuthorizePage } from './pages/OAuthAuthorizePage'
 import { RegisterPage } from './pages/RegisterPage'
+import { SitePageRoute } from './pages/SitePageRoute'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
@@ -53,6 +54,8 @@ export default function App() {
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
+        {/* A published page at its own address; after every named route. */}
+        <Route path="/:page" element={<SitePageRoute />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>
