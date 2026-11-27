@@ -61,7 +61,8 @@
       "audit": "Audit log",
       "overview": "Overview",
       "chats": "Chats",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "data": "Data"
     },
     "applications": {
       "title": "Applications",
@@ -104,6 +105,7 @@
       "disable": "Disable",
       "enable": "Enable",
       "disableConfirm": "Disable {{name}}? They will be logged out and cannot log in until enabled.",
+      "firstAdminLocked": "The first administrator cannot be disabled, lose admin rights or be unlinked from a messenger.",
       "channels": "Messengers",
       "noChannels": "No messenger is linked yet. The person activates the account by sharing their phone in the bot.",
       "channelType": {
@@ -320,6 +322,40 @@
       "off": "Turn off",
       "offPlaceholder": "Off",
       "noChat": "This label is not on any accepted chat yet, so the notices will go nowhere."
+    },
+    "data": {
+      "title": "Data",
+      "description": "Values and tables the site shows and modules use. Anyone can read the public ones.",
+      "add": "New data",
+      "create": "Create",
+      "key": "Key",
+      "keyHint": "Lower-case Latin letters, digits, _ and dots: house.address. Cannot be changed later.",
+      "kindLabel": "Kind",
+      "kind": {
+        "value": "Value",
+        "table": "Table"
+      },
+      "valueType": "Value type",
+      "type": {
+        "text": "Text",
+        "localized_text": "Text in several languages",
+        "number": "Number",
+        "bool": "Yes / no",
+        "image": "Image",
+        "json": "JSON",
+        "url": "Link",
+        "phone": "Phone"
+      },
+      "descriptionField": "Description",
+      "descriptionHint": "What this data is. Admins and the AI agent see it.",
+      "publicSwitch": "Public — show on the site",
+      "access": "Access",
+      "public": "Public",
+      "private": "Private",
+      "rows": "Rows",
+      "updated": "Updated",
+      "empty": "No data yet.",
+      "firstColumn": "Name"
     }
   },
   "notFound": {
@@ -350,6 +386,7 @@
     "conflict": "This action is not possible in the current state.",
     "forbidden": "You do not have access to this.",
     "last_admin": "This is the last active administrator: they cannot lose admin rights or be disabled.",
+    "first_admin": "This is the first administrator: they cannot be disabled, lose admin rights or be unlinked from a messenger.",
     "rate_limited": "Too many attempts. Please wait a few minutes and try again.",
     "try_later": "Too many applications are waiting right now. Please try again later.",
     "invalid_code": "The code is wrong or has expired.",
@@ -368,7 +405,9 @@
     "linked": "Unlink the messenger first to change the phone",
     "has_residents": "Residents are registered in apartments outside this range",
     "type": "Only PNG, JPEG or WebP images",
-    "size": "The file is larger than 5 MB"
+    "size": "The file is larger than 5 MB",
+    "too_many": "Too many rows: 1000 at most",
+    "type_change_not_empty": "A column type can be changed only in an empty table"
   },
   "qr": {
     "title": "QR code"
@@ -442,6 +481,13 @@
       },
       "notifications": {
         "updated": "Notification settings changed"
+      },
+      "data": {
+        "created": "Data created",
+        "updated": "Data changed",
+        "deleted": "Data deleted",
+        "public_set": "Data access changed",
+        "rows_changed": "Table rows changed"
       }
     }
   }

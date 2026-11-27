@@ -77,6 +77,7 @@ export function UserSummary({ card }: { card: UserCard }) {
   }
   const err = patch.error ?? action.error
   const telegram = card.channels.find((c) => c.type === 'telegram')
+  const firstAdmin = user.source === 'bootstrap'
   return (
     <Card>
       <Stack gap="md">
@@ -123,7 +124,7 @@ export function UserSummary({ card }: { card: UserCard }) {
             {t('admin.user.roles')}
           </Text>
           <Switch label={t('admin.user.isResident')} checked={user.isResident} disabled={busy} onChange={(e) => setFlag({ isResident: e.currentTarget.checked })} />
-          <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
+          <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy || firstAdmin} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
         </Stack>
 
         <Text size="xs" c="dimmed">
@@ -143,7 +144,7 @@ export function UserSummary({ card }: { card: UserCard }) {
               </ConfirmButton>
             </>
           )}
-          {(user.status === 'active' || user.status === 'awaiting_activation') && (
+          {!firstAdmin && (user.status === 'active' || user.status === 'awaiting_activation') && (
             <ConfirmButton color="red" variant="light" disabled={busy} message={t('admin.user.disableConfirm', { name: fullName(user) })} onConfirm={() => run('disable')}>
               {t('admin.user.disable')}
             </ConfirmButton>
@@ -154,6 +155,11 @@ export function UserSummary({ card }: { card: UserCard }) {
             </Button>
           )}
         </Group>
+        {firstAdmin && (
+          <Text size="xs" c="dimmed">
+            {t('admin.user.firstAdminLocked')}
+          </Text>
+        )}
         {err && <Alert color="red">{errorText(t, err)}</Alert>}
       </Stack>
     </Card>

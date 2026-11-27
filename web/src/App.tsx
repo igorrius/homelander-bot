@@ -15,6 +15,7 @@ import { LabelsPage } from './pages/admin/LabelsPage'
 import { NotificationsPage } from './pages/admin/NotificationsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
+import { DataPage } from './pages/admin/DataPage'
 import { StatusesPage } from './pages/admin/StatusesPage'
 import { UserCardPage } from './pages/admin/UserCardPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="chats/labels" element={<LabelsPage />} />
           <Route path="statuses" element={<StatusesPage />} />
           <Route path="site" element={<SitePage />} />
+          <Route path="data" element={<DataPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />

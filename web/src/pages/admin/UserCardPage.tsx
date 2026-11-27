@@ -88,10 +88,12 @@ function Channels({ card }: { card: UserCard }) {
                   {formatDateTime(c.linkedAt, i18n.language)}
                 </Text>
               </Group>
-              <ConfirmButton size="xs" color="red" variant="light" loading={unlink.isPending} message={t('admin.user.unlinkHint')}
-                onConfirm={() => unlink.mutate(c.id, { onSuccess: saved })}>
-                {t('admin.user.unlink')}
-              </ConfirmButton>
+              {card.user.source !== 'bootstrap' && (
+                <ConfirmButton size="xs" color="red" variant="light" loading={unlink.isPending} message={t('admin.user.unlinkHint')}
+                  onConfirm={() => unlink.mutate(c.id, { onSuccess: saved })}>
+                  {t('admin.user.unlink')}
+                </ConfirmButton>
+              )}
             </Group>
           ))
         )}
