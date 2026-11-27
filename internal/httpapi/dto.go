@@ -76,6 +76,8 @@ type namer struct {
 	houses   map[int64]domain.House
 	statuses map[int64]domain.ResidencyStatus
 	users    map[int64]string // display names looked up so far
+	// Chat, topic and label names, loaded on first use (nil until then).
+	chats, topics, labels map[int64]string
 }
 
 func newNamer(ctx context.Context, api API) (*namer, error) {
@@ -111,6 +113,28 @@ func (n *namer) userName(ctx context.Context, id int64) string {
 	}
 	n.users[id] = name
 	return name
+}
+
+// chatNames fills the chat, topic ("Chat › Topic") and label name maps once per request.
+// A list that cannot be read leaves its names empty; the client then shows the raw target.
+func (n *namer) chatNames(ctx context.Context) {
+	if n.chats != nil {
+		return
+	}
+	n.chats, n.topics, n.labels = map[int64]string{}, map[int64]string{}, map[int64]string{}
+	if cs, err := n.api.Chats.List(ctx); err == nil {
+		for _, c := range cs {
+			n.chats[c.ID] = c.Title
+			for _, t := range c.Topics {
+				n.topics[t.ID] = c.Title + " › " + t.Title
+			}
+		}
+	}
+	if ls, err := n.api.Labels.List(ctx); err == nil {
+		for _, l := range ls {
+			n.labels[l.ID] = l.Name
+		}
+	}
 }
 
 func (n *namer) residencies(rs []domain.Residency) []residencyDTO {

@@ -44,6 +44,19 @@ describe('AuditPage', () => {
     expect(screen.getByRole('link', { name: 'Орендар' })).toHaveAttribute('href', '/admin/statuses')
   })
 
+  it('names chats, topics and labels with links', async () => {
+    const named = [
+      { ...base, id: 5, at: '2026-11-21T09:00:00Z', action: 'chat.accepted', target: 'chat:3', targetName: 'Test chat' },
+      { ...base, id: 6, at: '2026-11-21T09:00:00Z', action: 'topic.renamed', target: 'topic:7', targetName: 'Test chat › Parking' },
+      { ...base, id: 7, at: '2026-11-21T09:00:00Z', action: 'label.created', target: 'label:2', targetName: 'news' },
+    ]
+    mockApi({ ...adminRoutes, 'GET /admin/audit': { body: { items: named, total: 3 } } })
+    renderApp('/admin/audit')
+    expect(await screen.findByRole('link', { name: 'Test chat' })).toHaveAttribute('href', '/admin/chats')
+    expect(screen.getByRole('link', { name: 'Test chat › Parking' })).toHaveAttribute('href', '/admin/chats')
+    expect(screen.getByRole('link', { name: 'news' })).toHaveAttribute('href', '/admin/chats/labels')
+  })
+
   it('pages', async () => {
     const { calls } = mockApi({ ...adminRoutes, 'GET /admin/audit': { body: { items: entries, total: 60 } } })
     const { user } = renderApp('/admin/audit')

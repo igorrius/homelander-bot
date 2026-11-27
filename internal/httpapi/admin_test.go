@@ -347,3 +347,41 @@ func TestAuditNames(t *testing.T) {
 		t.Errorf("summary = %v", v)
 	}
 }
+
+func TestAuditNamesForChatsTopicsLabels(t *testing.T) {
+	e, tok := adminEnv(t)
+	chat := domain.Chat{Messenger: "telegram", ExternalID: "-100", Kind: "supergroup", Title: "Test chat", State: domain.ChatNew, BotStatus: "member", FirstSeenAt: e.now, LastSeenAt: e.now}
+	if err := e.r.Chats.Create(ctx, &chat); err != nil {
+		t.Fatal(err)
+	}
+	topic := domain.Topic{ChatID: chat.ID, ExternalID: "7", Title: "Parking", FirstSeenAt: e.now, LastSeenAt: e.now}
+	if err := e.r.Topics.Create(ctx, &topic); err != nil {
+		t.Fatal(err)
+	}
+	label := domain.Label{Name: "news", CreatedAt: e.now, UpdatedAt: e.now}
+	if err := e.r.Labels.Create(ctx, &label); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{domain.ChatTarget(chat.ID), domain.TopicTarget(topic.ID), domain.LabelAuditTarget(label.ID), domain.LabelAuditTarget(999)} {
+		if err := e.r.Audit.Add(ctx, domain.AuditEntry{At: e.now, Action: "x", Target: target}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entries, _ := items(t, e.do("GET", "/api/v1/admin/audit?pageSize=100", nil, tok, ""))
+	got := map[string]any{}
+	for _, x := range entries {
+		m := x.(map[string]any)
+		got[m["target"].(string)] = m["targetName"]
+	}
+	want := map[string]string{
+		domain.ChatTarget(chat.ID):        "Test chat",
+		domain.TopicTarget(topic.ID):      "Test chat › Parking",
+		domain.LabelAuditTarget(label.ID): "news",
+		domain.LabelAuditTarget(999):      "",
+	}
+	for target, name := range want {
+		if got[target] != name {
+			t.Errorf("%s name = %v, want %q", target, got[target], name)
+		}
+	}
+}

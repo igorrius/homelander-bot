@@ -235,6 +235,15 @@ func toAudit(ctx context.Context, n *namer, es []domain.AuditEntry) []auditDTO {
 				d.TargetName = n.houses[id].Name
 			case "status":
 				d.TargetNames = n.statuses[id].Names
+			case "chat":
+				n.chatNames(ctx)
+				d.TargetName = n.chats[id]
+			case "topic":
+				n.chatNames(ctx)
+				d.TargetName = n.topics[id]
+			case "label":
+				n.chatNames(ctx)
+				d.TargetName = n.labels[id]
 			}
 		}
 		out = append(out, d)

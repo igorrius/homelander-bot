@@ -10,11 +10,20 @@ import { useLocalized } from '../../lib/localized'
 
 /** Where an audit target links to, by its kind ("user:5" → that user's card). */
 function targetHref(target: string): string | null {
-  const m = /^(user|house|status):(\d+)$/.exec(target)
+  const m = /^(user|house|status|chat|topic|label):(\d+)$/.exec(target)
   if (!m) return null
-  if (m[1] === 'user') return `/admin/users/${m[2]}`
-  if (m[1] === 'house') return `/admin/houses/${m[2]}`
-  return '/admin/statuses'
+  switch (m[1]) {
+    case 'user':
+      return `/admin/users/${m[2]}`
+    case 'house':
+      return `/admin/houses/${m[2]}`
+    case 'status':
+      return '/admin/statuses'
+    case 'label':
+      return '/admin/chats/labels'
+    default:
+      return '/admin/chats'
+  }
 }
 
 /**
