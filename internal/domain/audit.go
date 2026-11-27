@@ -84,3 +84,15 @@ func StatusTarget(id int64) string { return "status:" + strconv.FormatInt(id, 10
 
 // SiteTarget is the audit target of site settings.
 const SiteTarget = "site"
+
+// Data space audit actions.
+const (
+	ActDataCreated     = "data.created"
+	ActDataUpdated     = "data.updated"
+	ActDataDeleted     = "data.deleted"
+	ActDataPublicSet   = "data.public_set"
+	ActDataRowsChanged = "data.rows_changed"
+)
+
+// DataTarget is the audit target of a data item.
+func DataTarget(key string) string { return "data:" + key }

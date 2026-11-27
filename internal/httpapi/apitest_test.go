@@ -96,6 +96,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 		Labels:   &domain.LabelService{R: r, Now: clock},
 		Notifier: notifier,
 		Catalog:  &domain.CatalogService{R: r, Now: clock, Locales: locs},
+		Data:     &domain.DataService{R: r, Now: clock, Limits: limits, Locales: locs},
 		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: secret,
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
 			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() },

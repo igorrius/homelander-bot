@@ -136,6 +136,23 @@ describe('UserCardPage', () => {
     expect(await screen.findByRole('heading', { name: 'Olha Test' })).toBeInTheDocument()
   })
 
+  it('locks the first admin: no disable button, admin switch disabled', async () => {
+    mockApi(routes(userCard({ isAdmin: true, source: 'bootstrap' })))
+    renderApp('/admin/users/5')
+    const toggle = await screen.findByRole('switch', { name: uk.admin.user.isAdmin })
+    expect(toggle).toBeDisabled()
+    expect(screen.queryByRole('button', { name: uk.admin.user.disable })).not.toBeInTheDocument()
+    expect(screen.getByText(uk.admin.user.firstAdminLocked)).toBeInTheDocument()
+  })
+
+  it('hides unlink for the first admin', async () => {
+    mockApi(routes(userCard({ isAdmin: true, source: 'bootstrap' })))
+    renderApp('/admin/users/5?tab=channels')
+    expect(await screen.findByRole('heading', { name: uk.admin.user.channels })).toBeInTheDocument()
+    expect(screen.getAllByText('@olena_test').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: uk.admin.user.unlink })).not.toBeInTheDocument()
+  })
+
   it('toggles admin and shows last-admin refusal', async () => {
     const card = userCard({ isAdmin: true })
     const { calls } = mockApi(routes(card, { 'PATCH /admin/users/5': { status: 409, body: { error: { code: 'last_admin' } } } }))

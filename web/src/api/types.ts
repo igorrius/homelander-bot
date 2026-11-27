@@ -178,3 +178,34 @@ export interface OutboxStatus {
   state: 'pending' | 'sent' | 'failed'
   lastError: string
 }
+
+export type DataKind = 'value' | 'table'
+export type DataType = 'text' | 'localized_text' | 'number' | 'bool' | 'image' | 'json' | 'url' | 'phone'
+export const valueTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'json']
+export const columnTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'url', 'phone']
+
+export interface DataColumn {
+  name: string
+  label: string
+  type: DataType
+}
+
+/** A value or a table of the data space; value is JSON (image values are asset ids). */
+export interface DataItem {
+  key: string
+  kind: DataKind
+  description: string
+  public: boolean
+  valueType?: DataType
+  value?: unknown
+  columns?: DataColumn[]
+  rowCount: number
+  updatedAt: string
+  updatedBy: { id: number; name: string } | null
+}
+
+export interface DataRow {
+  id?: number
+  position: number
+  cells: Record<string, unknown>
+}

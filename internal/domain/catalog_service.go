@@ -316,3 +316,24 @@ func (s *CatalogService) RemovePicture(ctx context.Context, actor Actor) error {
 func (s *CatalogService) Asset(ctx context.Context, id int64) (Asset, error) {
 	return s.R.Site.GetAsset(ctx, id)
 }
+
+// dataImageTypes are the image types the data space accepts.
+var dataImageTypes = []string{"image/png", "image/jpeg", "image/webp", "image/gif"}
+
+// UploadImage stores an image for the data space; it is served publicly only
+// once a public item refers to it. Problems are reported on the "file" field.
+func (s *CatalogService) UploadImage(ctx context.Context, data []byte, actor Actor) (Asset, error) {
+	if len(data) > maxPictureBytes {
+		return Asset{}, &ValidationError{Fields: map[string]string{"file": "size"}}
+	}
+	ct := http.DetectContentType(data)
+	if !slices.Contains(dataImageTypes, ct) {
+		return Asset{}, &ValidationError{Fields: map[string]string{"file": "type"}}
+	}
+	sum := sha256.Sum256(data)
+	a := Asset{Kind: "data", ContentType: ct, Data: data, SHA256: hex.EncodeToString(sum[:]), UploadedAt: s.Now()}
+	if actor.UserID != nil {
+		a.UploadedBy = *actor.UserID
+	}
+	return a, s.R.Site.PutAsset(ctx, &a)
+}

@@ -50,6 +50,7 @@ func RegisterAdmin(s *Server, api API) {
 		"GET /api/v1/admin/audit":                              h.audit,
 	}
 	registerChats(h, routes)
+	registerData(h, routes)
 	for pattern, fn := range routes {
 		s.API().Handle(pattern, RequireAdmin(fn))
 	}
@@ -616,26 +617,36 @@ func (h handlerCtx) saveSite(w http.ResponseWriter, r *http.Request) {
 	h.writeSite(w, st)
 }
 
-func (h handlerCtx) uploadPicture(w http.ResponseWriter, r *http.Request) {
+// readUpload reads the multipart file field, capped at maxUpload; problems are
+// reported on that field and ok is false.
+func (h handlerCtx) readUpload(w http.ResponseWriter, r *http.Request, field string) ([]byte, bool) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload+64<<10)
 	if err := r.ParseMultipartForm(maxUpload); err != nil { //nolint:gosec // G120: the body is capped by MaxBytesReader above
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			h.fail(w, &domain.ValidationError{Fields: map[string]string{"picture": "size"}})
-			return
+			h.fail(w, &domain.ValidationError{Fields: map[string]string{field: "size"}})
+			return nil, false
 		}
 		h.fail(w, errBadRequest)
-		return
+		return nil, false
 	}
-	f, _, err := r.FormFile("picture")
+	f, _, err := r.FormFile(field)
 	if err != nil {
-		h.fail(w, &domain.ValidationError{Fields: map[string]string{"picture": "required"}})
-		return
+		h.fail(w, &domain.ValidationError{Fields: map[string]string{field: "required"}})
+		return nil, false
 	}
 	defer func() { _ = f.Close() }()
 	data, err := io.ReadAll(io.LimitReader(f, maxUpload))
 	if err != nil {
 		h.fail(w, errBadRequest)
+		return nil, false
+	}
+	return data, true
+}
+
+func (h handlerCtx) uploadPicture(w http.ResponseWriter, r *http.Request) {
+	data, ok := h.readUpload(w, r, "picture")
+	if !ok {
 		return
 	}
 	if _, err := h.api.Catalog.SetPicture(r.Context(), data, h.actor(r)); err != nil {

@@ -17,6 +17,7 @@ import {
   IconTags,
   IconUsers,
   IconWorld,
+  IconDatabase,
   type Icon,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -67,6 +68,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
       label: t('admin.navGroup.settings'),
       items: [
         { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site') },
+        { to: '/admin/data', icon: IconDatabase, label: t('admin.nav.data') },
         { to: '/admin/notifications', icon: IconBell, label: t('admin.nav.notifications') },
         { to: '/admin/statuses', icon: IconTags, label: t('admin.nav.statuses') },
         { to: '/admin/audit', icon: IconHistory, label: t('admin.nav.audit') },
