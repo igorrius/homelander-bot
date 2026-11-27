@@ -6,29 +6,26 @@ import { useTranslation } from 'react-i18next'
 
 const downloadSize = 1024
 
-/** Saves the QR code as a large PNG: the SVG is drawn onto a canvas once the browser has loaded it. */
+/**
+ * Saves the QR code as a large PNG: the SVG is drawn onto a canvas once the browser has loaded it.
+ * A data: URL, not a blob: URL, because the site's CSP allows only 'self' and data: images.
+ */
 function downloadPng(svg: SVGSVGElement | null) {
   if (!svg) return
-  const src = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }))
   const img = new Image()
   img.onload = () => {
-    try {
-      const canvas = document.createElement('canvas')
-      canvas.width = canvas.height = downloadSize
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-      ctx.imageSmoothingEnabled = false
-      ctx.drawImage(img, 0, 0, downloadSize, downloadSize)
-      const a = document.createElement('a')
-      a.href = canvas.toDataURL('image/png')
-      a.download = 'registration-qr.png'
-      a.click()
-    } finally {
-      URL.revokeObjectURL(src)
-    }
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = downloadSize
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(img, 0, 0, downloadSize, downloadSize)
+    const a = document.createElement('a')
+    a.href = canvas.toDataURL('image/png')
+    a.download = 'registration-qr.png'
+    a.click()
   }
-  img.onerror = () => URL.revokeObjectURL(src)
-  img.src = src
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
 }
 
 /** The public registration link as a QR code and text, with copy and "download QR" (PNG for printing or chats). */

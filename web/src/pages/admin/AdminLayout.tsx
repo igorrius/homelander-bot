@@ -1,4 +1,4 @@
-import { AppShell, Avatar, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { AppShell, Avatar, Box, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconBuildingCommunity,
@@ -106,7 +106,9 @@ function UserMenu({ me }: { me: Me }) {
             <Text size="sm" fw={500} visibleFrom="sm">
               {fullName(me)}
             </Text>
-            <IconChevronDown size={14} />
+            <Box visibleFrom="sm" lh={0}>
+              <IconChevronDown size={14} />
+            </Box>
           </Group>
         </UnstyledButton>
       </Menu.Target>
@@ -144,7 +146,7 @@ export function AdminLayout() {
           <Group gap="sm" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" aria-label={t('admin.menu')} />
             <Image src="/favicon.svg" alt="" w={28} h={28} />
-            <Title order={1} size="h4">
+            <Title order={1} size="h4" visibleFrom="xs">
               {t('admin.title')}
             </Title>
           </Group>

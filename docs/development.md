@@ -39,8 +39,9 @@ The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`. The sessi
 2. Log in at `/login` (the code arrives in Telegram) and fill in your name on your user card.
 3. Add the houses (Admin → Houses) and, if needed, residency statuses; registration opens once at
    least one house and one status exist.
-4. Set the community name, welcome text and picture (Admin → Site) and pin the registration link
-   shown there in the community chat.
+4. Set the community name, welcome text and picture (Admin → Site). The admin home page (Admin →
+   Overview) lists what is still missing and shows the registration link with its QR code: pin it
+   in the community chat.
 
 ## Web app
 

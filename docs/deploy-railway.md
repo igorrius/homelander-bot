@@ -117,7 +117,7 @@ backup plan).
 2. **Houses**: one per building or section — name, address, floors, the apartment number range.
 3. **Residency statuses**: owner and tenant exist; add others if you need them.
 4. Add the bot to the community group or forum. It reads messages but does not answer there.
-5. Pin the registration link from **Site** (`https://<domain>/register`) in the chat. Review the
+5. Pin the registration link from **Overview** (`https://<domain>/register`, also as a QR code) in the chat. Review the
    applications as they come in; approved residents activate themselves in the bot.
 
 ## Updating
