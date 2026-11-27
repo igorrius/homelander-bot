@@ -68,7 +68,23 @@
     "users": {
       "name": "Ім'я",
       "phone": "Телефон",
-      "apartments": "Квартири"
+      "apartments": "Квартири",
+      "title": "Користувачі",
+      "add": "Додати користувача",
+      "search": "Пошук",
+      "searchHint": "Ім'я або телефон",
+      "house": "Будинок",
+      "status": "Статус",
+      "isAdmin": "Адміністратор",
+      "isResident": "Мешканець",
+      "flags": "Ролі",
+      "telegram": "Telegram",
+      "linked": "Telegram підключено",
+      "empty": "Нікого не знайдено."
+    },
+    "user": {
+      "isResident": "Мешканець",
+      "isAdmin": "Адміністратор"
     }
   },
   "notFound": {
@@ -119,5 +135,12 @@
   },
   "qr": {
     "title": "QR-код"
+  },
+  "userStatus": {
+    "pending_approval": "Очікує схвалення",
+    "awaiting_activation": "Очікує активації",
+    "active": "Активний",
+    "rejected": "Відхилений",
+    "disabled": "Вимкнений"
   }
 }

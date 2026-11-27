@@ -68,7 +68,23 @@
     "users": {
       "name": "Name",
       "phone": "Phone",
-      "apartments": "Apartments"
+      "apartments": "Apartments",
+      "title": "Users",
+      "add": "Add user",
+      "search": "Search",
+      "searchHint": "Name or phone",
+      "house": "House",
+      "status": "Status",
+      "isAdmin": "Admin",
+      "isResident": "Resident",
+      "flags": "Roles",
+      "telegram": "Telegram",
+      "linked": "Telegram linked",
+      "empty": "No users found."
+    },
+    "user": {
+      "isResident": "Resident",
+      "isAdmin": "Admin"
     }
   },
   "notFound": {
@@ -119,5 +135,12 @@
   },
   "qr": {
     "title": "QR code"
+  },
+  "userStatus": {
+    "pending_approval": "Waiting for approval",
+    "awaiting_activation": "Awaiting activation",
+    "active": "Active",
+    "rejected": "Rejected",
+    "disabled": "Disabled"
   }
 }

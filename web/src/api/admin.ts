@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { AdminUser, Page, UserCard, UserStatus } from './types'
+import type { AdminUser, House, Page, UserCard, UserStatus } from './types'
 
 /** Query keys of the admin API; all start with 'admin' so logout can drop them together. */
 export const qka = {
@@ -8,6 +8,7 @@ export const qka = {
   summary: ['admin', 'summary'] as const,
   users: (q?: UserQuery) => (q ? (['admin', 'users', q] as const) : (['admin', 'users'] as const)),
   user: (id: number) => ['admin', 'user', id] as const,
+  houses: (archived = false) => ['admin', 'houses', archived] as const,
 }
 
 export interface UserQuery {
@@ -58,6 +59,29 @@ export function useUserAction() {
   return useMutation<UserCard, ApiError, { id: number; action: UserAction }>({
     mutationFn: ({ id, action }) => api<UserCard>(`/admin/users/${id}/${action}`, json('POST')),
     onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export interface NewUser {
+  phone: string
+  firstName: string
+  lastName: string
+  isResident: boolean
+  isAdmin: boolean
+}
+
+export function useAddUser() {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, NewUser>({
+    mutationFn: (body) => api<UserCard>('/admin/users', json('POST', body)),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export function useHouses(includeArchived = false) {
+  return useQuery({
+    queryKey: qka.houses(includeArchived),
+    queryFn: () => api<House[]>(`/admin/houses${includeArchived ? '?archived=true' : ''}`),
   })
 }
 

@@ -7,6 +7,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
+import { UsersPage } from './pages/admin/UsersPage'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="applications" replace />} />
           <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="users" element={<UsersPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
