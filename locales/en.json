@@ -12,5 +12,10 @@
       "one": "{{.Count}} apartment",
       "other": "{{.Count}} apartments"
     }
+  },
+  "bot": {
+    "login": {
+      "code": "Your login code: {{.Code}}\nRequested at {{.Time}}. If it wasn't you, just ignore this message."
+    }
   }
 }
