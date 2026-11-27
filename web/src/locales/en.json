@@ -56,7 +56,8 @@
       "houses": "Houses",
       "statuses": "Residency statuses",
       "site": "Site",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "overview": "Overview"
     },
     "applications": {
       "title": "Applications",
@@ -195,6 +196,25 @@
       "hint": "Pin this link in the community chat or print the QR code. Residents apply with it; you approve each application.",
       "download": "Download QR",
       "open": "Registration link"
+    },
+    "overview": {
+      "title": "Overview",
+      "hint": "What matters today: new applications and the registration link.",
+      "stats": {
+        "pending": "New applications",
+        "awaiting": "Waiting for the bot",
+        "active": "Active accounts",
+        "houses": "Houses"
+      },
+      "latest": "Latest applications",
+      "allApplications": "All applications",
+      "setup": {
+        "title": "Set up your community",
+        "hint": "Registration opens once there is at least one house and one residency status.",
+        "house": "Add a house",
+        "status": "Add a residency status",
+        "community": "Fill in the community name"
+      }
     }
   },
   "notFound": {

@@ -23,10 +23,10 @@ describe('AdminLayout', () => {
     expect(await screen.findByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
   })
 
-  it('opens the applications queue by default', async () => {
+  it('opens the overview by default', async () => {
     mockApi(adminRoutes)
     renderApp('/admin')
-    expect(await screen.findByRole('heading', { name: uk.admin.applications.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: uk.admin.overview.title })).toBeInTheDocument()
   })
 
   it('shows the pending counter in the menu', async () => {

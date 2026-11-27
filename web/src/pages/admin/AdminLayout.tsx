@@ -6,6 +6,7 @@ import {
   IconHistory,
   IconHome,
   IconInbox,
+  IconLayoutDashboard,
   IconLogout,
   IconTags,
   IconUsers,
@@ -40,6 +41,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
   const summary = useSummary()
   const pending = summary.data?.pendingApplications ?? 0
   const groups: NavGroup[] = [
+    { items: [{ to: '/admin', icon: IconLayoutDashboard, label: t('admin.nav.overview'), exact: true }] },
     {
       label: t('admin.navGroup.people'),
       items: [
