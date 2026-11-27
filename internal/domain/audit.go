@@ -59,9 +59,13 @@ const (
 	ActBootstrapAdmin     = "bootstrap.admin_created"
 )
 
-// UserTarget, HouseTarget and StatusTarget format audit targets.
-func UserTarget(id int64) string   { return "user:" + strconv.FormatInt(id, 10) }
-func HouseTarget(id int64) string  { return "house:" + strconv.FormatInt(id, 10) }
+// UserTarget is the audit target of a user.
+func UserTarget(id int64) string { return "user:" + strconv.FormatInt(id, 10) }
+
+// HouseTarget is the audit target of a house.
+func HouseTarget(id int64) string { return "house:" + strconv.FormatInt(id, 10) }
+
+// StatusTarget is the audit target of a residency status.
 func StatusTarget(id int64) string { return "status:" + strconv.FormatInt(id, 10) }
 
 // SiteTarget is the audit target of site settings.
