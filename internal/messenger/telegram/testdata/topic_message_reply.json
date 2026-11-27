@@ -1,0 +1,8 @@
+{"update_id": 112, "message": {"message_id": 60, "message_thread_id": 40, "is_topic_message": true, "date": 1764244800,
+  "chat": {"id": -1001000000001, "type": "supergroup", "title": "yard", "is_forum": true},
+  "from": {"id": 1000002, "is_bot": false, "first_name": "Resident"},
+  "text": "hello",
+  "reply_to_message": {"message_id": 40, "message_thread_id": 40, "is_topic_message": true, "date": 1764240000,
+    "chat": {"id": -1001000000001, "type": "supergroup", "title": "yard", "is_forum": true},
+    "from": {"id": 1000001, "is_bot": false, "first_name": "Admin"},
+    "forum_topic_created": {"name": "Parking", "icon_color": 7322096}}}}

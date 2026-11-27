@@ -1,0 +1,8 @@
+{"update_id": 102, "my_chat_member": {
+  "chat": {"id": -1001000000001, "type": "supergroup", "title": "yard", "is_forum": true},
+  "from": {"id": 1000001, "is_bot": false, "first_name": "Admin"},
+  "date": 1764244800,
+  "old_chat_member": {"status": "member", "user": {"id": 1, "is_bot": true, "first_name": "Bot"}},
+  "new_chat_member": {"status": "restricted", "user": {"id": 1, "is_bot": true, "first_name": "Bot"},
+    "is_member": true, "can_send_messages": false, "until_date": 0}
+}}

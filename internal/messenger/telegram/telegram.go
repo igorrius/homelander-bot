@@ -1,7 +1,8 @@
 // Package telegram connects Homelander to Telegram: it implements
 // domain.Messenger and turns updates into domain calls. Private chats handle
-// activation; group messages go to a GroupSink and are never answered (how the
-// bot reacts to them is configured later as flows).
+// activation; chats and topics the bot is in are reported to domain.ChatEvents;
+// messages from accepted groups go to a GroupSink and are never answered (how
+// the bot reacts to them is configured later as flows).
 package telegram
 
 import (
@@ -28,11 +29,13 @@ type API interface {
 	DeleteWebhook(opts *gotgbot.DeleteWebhookOpts) (bool, error)
 	SetMyCommands(commands []gotgbot.BotCommand, opts *gotgbot.SetMyCommandsOpts) (bool, error)
 	DeleteMyCommands(opts *gotgbot.DeleteMyCommandsOpts) (bool, error)
+	LeaveChat(chatId int64, opts *gotgbot.LeaveChatOpts) (bool, error)
+	GetChatMember(chatId int64, userId int64, opts *gotgbot.GetChatMemberOpts) (gotgbot.ChatMember, error)
 }
 
 // Activator links a Telegram account to the user with the verified phone.
 type Activator interface {
-	ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.ActivationResult, domain.User, error)
+	ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.Activation, error)
 }
 
 // GroupMessage is a messenger-neutral copy of a message seen in a group.
@@ -61,23 +64,25 @@ const Type = "telegram"
 type Bot struct {
 	api       API
 	act       Activator
+	chats     domain.ChatEvents
 	sink      GroupSink
 	tr        *i18n.Bundle
 	locales   []string
 	publicURL string
 	username  string
+	botID     int64
 	log       *slog.Logger
 }
 
 var _ domain.Messenger = (*Bot)(nil)
 
 // New asks Telegram for the bot's username and returns the adapter.
-func New(api API, act Activator, sink GroupSink, tr *i18n.Bundle, publicURL string, log *slog.Logger) (*Bot, error) {
-	return NewWithLocales(api, act, sink, tr, []string{"uk", "en"}, publicURL, log)
+func New(api API, act Activator, chats domain.ChatEvents, sink GroupSink, tr *i18n.Bundle, publicURL string, log *slog.Logger) (*Bot, error) {
+	return NewWithLocales(api, act, chats, sink, tr, []string{"uk", "en"}, publicURL, log)
 }
 
 // NewWithLocales is New with the list of locales the bot's command menu is set for.
-func NewWithLocales(api API, act Activator, sink GroupSink, tr *i18n.Bundle, locales []string, publicURL string, log *slog.Logger) (*Bot, error) {
+func NewWithLocales(api API, act Activator, chats domain.ChatEvents, sink GroupSink, tr *i18n.Bundle, locales []string, publicURL string, log *slog.Logger) (*Bot, error) {
 	me, err := api.GetMe(nil)
 	if err != nil {
 		return nil, fmt.Errorf("telegram getMe: %w", err)
@@ -85,7 +90,8 @@ func NewWithLocales(api API, act Activator, sink GroupSink, tr *i18n.Bundle, loc
 	if sink == nil {
 		sink = NopSink{}
 	}
-	return &Bot{api: api, act: act, sink: sink, tr: tr, locales: locales, publicURL: strings.TrimRight(publicURL, "/"), username: me.Username, log: log}, nil
+	return &Bot{api: api, act: act, chats: chats, sink: sink, tr: tr, locales: locales, publicURL: strings.TrimRight(publicURL, "/"),
+		username: me.Username, botID: me.Id, log: log}, nil
 }
 
 // Type returns "telegram".
@@ -112,15 +118,21 @@ func (b *Bot) reply(chatID int64, text string, markup gotgbot.ReplyMarkup) {
 
 // HandleUpdate processes one update.
 func (b *Bot) HandleUpdate(ctx context.Context, u gotgbot.Update) {
+	if u.MyChatMember != nil {
+		b.handleMyChatMember(ctx, u.MyChatMember)
+		return
+	}
 	m := u.Message
-	if m == nil || m.From == nil {
+	if m == nil {
 		return
 	}
 	switch m.Chat.Type {
 	case "private":
-		b.handlePrivate(ctx, m)
+		if m.From != nil {
+			b.handlePrivate(ctx, m)
+		}
 	case "group", "supergroup":
-		b.sink.OnGroupMessage(ctx, groupMessage(m))
+		b.handleGroup(ctx, m)
 	}
 }
 
@@ -159,10 +171,15 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 		b.reply(m.Chat.Id, b.tr.T(lang, "bot.contact.notOwn", nil, nil), remove)
 		return
 	}
-	res, user, err := b.act.ActivateChannel(ctx, Type, strconv.FormatInt(m.From.Id, 10), strconv.FormatInt(m.Chat.Id, 10),
+	act, err := b.act.ActivateChannel(ctx, Type, strconv.FormatInt(m.From.Id, 10), strconv.FormatInt(m.Chat.Id, 10),
 		m.From.Username, m.Contact.PhoneNumber)
+	res, user := act.Result, act.User
 	if err == nil && res != domain.NotRegistered && user.Locale != "" {
 		lang = b.tr.Pick(user.Locale)
+	}
+	if err == nil && res == domain.ApplyLink {
+		b.offerApplication(m.Chat.Id, lang, act.RegistrationURL)
+		return
 	}
 	var key string
 	var data map[string]any
@@ -180,10 +197,26 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 		key = "bot.alreadyConnected"
 	case res == domain.PendingApproval:
 		key = "bot.pending"
+	case res == domain.PendingLinked:
+		key = "bot.pendingLinked"
 	default:
 		key = "bot.notRegistered"
 	}
 	b.reply(m.Chat.Id, b.tr.T(lang, key, data, nil), remove)
+}
+
+// offerApplication sends the registration link as a button, or in the text
+// when it is not https (Telegram refuses such buttons). The contact keyboard
+// was one-time, so it is already hidden.
+func (b *Bot) offerApplication(chatID int64, lang, url string) {
+	text := b.tr.T(lang, "bot.apply.offer", nil, nil)
+	if !strings.HasPrefix(url, "https://") {
+		b.reply(chatID, text+"\n"+url, gotgbot.ReplyKeyboardRemove{RemoveKeyboard: true})
+		return
+	}
+	b.reply(chatID, text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+		{{Text: b.tr.T(lang, "bot.apply.button", nil, nil), Url: url}},
+	}})
 }
 
 // legacyMenuLocales are languages an earlier program may have set a default

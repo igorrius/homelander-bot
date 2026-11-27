@@ -17,6 +17,7 @@ var (
 	ErrInvalidCode  = errors.New("invalid_code")
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrLastAdmin    = errors.New("last_admin")
+	ErrTokenInvalid = errors.New("token_invalid")
 )
 
 // ValidationError maps field names to reason codes such as "required",

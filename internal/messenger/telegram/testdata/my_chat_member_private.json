@@ -1,0 +1,7 @@
+{"update_id": 105, "my_chat_member": {
+  "chat": {"id": 1000001, "type": "private", "first_name": "Admin"},
+  "from": {"id": 1000001, "is_bot": false, "first_name": "Admin"},
+  "date": 1764244800,
+  "old_chat_member": {"status": "member", "user": {"id": 1, "is_bot": true, "first_name": "Bot"}},
+  "new_chat_member": {"status": "kicked", "user": {"id": 1, "is_bot": true, "first_name": "Bot"}, "until_date": 0}
+}}

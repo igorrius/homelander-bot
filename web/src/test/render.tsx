@@ -6,8 +6,8 @@ import App from '../App'
 import { Providers } from '../Providers'
 
 function LocationProbe() {
-  const { pathname, search } = useLocation()
-  return <div data-testid="location" hidden>{pathname + search}</div>
+  const { pathname, search, hash } = useLocation()
+  return <div data-testid="location" hidden>{pathname + search + hash}</div>
 }
 
 /** Renders the whole app at path with fresh query state and no retries. */
@@ -25,7 +25,7 @@ export function renderApp(path: string) {
   return { ...result, user, client }
 }
 
-/** Current router path and query, e.g. "/admin/users?page=2". */
+/** Current router path, query and hash, e.g. "/admin/users?page=2". */
 export function currentLocation(): string {
   return screen.getByTestId('location').textContent ?? ''
 }

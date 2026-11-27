@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -14,16 +15,22 @@ import (
 
 // Repos bundles the repositories services use.
 type Repos struct {
-	Tx          storage.TxRunner
-	Users       UserRepo
-	Channels    ChannelRepo
-	Houses      HouseRepo
-	Statuses    StatusRepo
-	Residencies ResidencyRepo
-	Codes       CodeRepo
-	Sessions    SessionRepo
-	Site        SiteRepo
-	Audit       AuditRepo
+	Tx            storage.TxRunner
+	Users         UserRepo
+	Channels      ChannelRepo
+	Houses        HouseRepo
+	Statuses      StatusRepo
+	Residencies   ResidencyRepo
+	Codes         CodeRepo
+	Sessions      SessionRepo
+	Site          SiteRepo
+	Audit         AuditRepo
+	Chats         ChatRepo
+	Topics        TopicRepo
+	Labels        LabelRepo
+	Outbox        OutboxRepo
+	RegTokens     RegTokenRepo
+	Notifications NotificationRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).
@@ -42,6 +49,7 @@ type Application struct {
 	StatusID  int64
 	Consent   bool
 	Locale    string
+	Token     string // registration link from the bot; its proven phone replaces Phone
 }
 
 // NewUser is what an admin enters to add a user directly.
@@ -79,6 +87,13 @@ type UserService struct {
 	Region     string
 	PendingCap int
 	Locales    []string // supported locales; empty accepts any
+
+	// Registration links from the bot and notices; Notifier nil sends none.
+	Secret        []byte
+	Notifier      *Notifier
+	I18n          Translator
+	PublicURL     string
+	DefaultLocale func(ctx context.Context) string
 }
 
 const (
@@ -132,15 +147,19 @@ func (s *UserService) checkLocale(v validation, locale string) {
 
 // Apply registers an application. A phone that already belongs to a user who
 // is not rejected gets the same nil answer and changes nothing, so the form
-// cannot be used to probe which numbers are registered.
+// cannot be used to probe which numbers are registered. With a Token from the
+// bot the phone is the one Telegram proved, and the account is linked.
 func (s *UserService) Apply(ctx context.Context, a Application, actor Actor) error {
 	if !s.Limits.Allow("apply:"+actor.IP, applyLimit, applyWindow) {
 		return ErrRateLimited
 	}
 	v := validation{}
-	phone, err := NormalizePhone(a.Phone, s.Region)
-	if err != nil {
-		v.add("phone", "invalid")
+	var phone string
+	if a.Token == "" {
+		var err error
+		if phone, err = NormalizePhone(a.Phone, s.Region); err != nil {
+			v.add("phone", "invalid")
+		}
 	}
 	first := checkName(v, "firstName", a.FirstName)
 	last := checkName(v, "lastName", a.LastName)
@@ -155,6 +174,14 @@ func (s *UserService) Apply(ctx context.Context, a Application, actor Actor) err
 		return err
 	}
 	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
+		var tok *RegistrationToken
+		if a.Token != "" {
+			t, err := s.useToken(ctx, a.Token)
+			if err != nil {
+				return err
+			}
+			tok, phone = &t, t.Phone
+		}
 		pending, err := s.R.Users.CountByStatus(ctx, StatusPendingApproval)
 		if err != nil {
 			return err
@@ -195,8 +222,144 @@ func (s *UserService) Apply(ctx context.Context, a Application, actor Actor) err
 		if err := s.R.Residencies.Create(ctx, &r); err != nil {
 			return err
 		}
-		return s.audit(ctx, actor, ActUserApplied, UserTarget(u.ID), map[string]any{"houseId": a.HouseID, "apartment": a.Apartment})
+		via := "site"
+		if tok != nil {
+			via = "bot"
+			if err := s.linkFromToken(ctx, u, *tok); err != nil {
+				return err
+			}
+		}
+		if err := s.audit(ctx, actor, ActUserApplied, UserTarget(u.ID),
+			map[string]any{"houseId": a.HouseID, "apartment": a.Apartment, "via": via}); err != nil {
+			return err
+		}
+		return s.announceApplication(ctx, u, r, via, pending+1)
 	})
+}
+
+// useToken checks a bot registration token and marks it used.
+func (s *UserService) useToken(ctx context.Context, token string) (RegistrationToken, error) {
+	t, err := s.validToken(ctx, token)
+	if err != nil {
+		return t, err
+	}
+	return t, s.R.RegTokens.MarkUsed(ctx, t.ID, s.Now())
+}
+
+func (s *UserService) validToken(ctx context.Context, token string) (RegistrationToken, error) {
+	t, err := s.R.RegTokens.GetByHash(ctx, HashSecret(s.Secret, token))
+	if errors.Is(err, ErrNotFound) || (err == nil && (t.UsedAt != nil || !s.Now().Before(t.ExpiresAt))) {
+		return RegistrationToken{}, ErrTokenInvalid
+	}
+	return t, err
+}
+
+// CleanRegistrationTokens deletes expired registration links (and the phones
+// they hold).
+func (s *UserService) CleanRegistrationTokens(ctx context.Context) (int, error) {
+	return s.R.RegTokens.DeleteExpiredBefore(ctx, s.Now())
+}
+
+// PrefillRegistration returns the proven phone of a valid registration link.
+func (s *UserService) PrefillRegistration(ctx context.Context, token string) (string, error) {
+	if token == "" || len(s.Secret) == 0 {
+		return "", ErrTokenInvalid
+	}
+	t, err := s.validToken(ctx, token)
+	return t.Phone, err
+}
+
+// linkFromToken links the account that proved the phone, re-checking the
+// decision order: the account may be free or held by a rejected person, and
+// the applicant must not have another account of that type.
+func (s *UserService) linkFromToken(ctx context.Context, u User, t RegistrationToken) error {
+	acct := account{typ: t.ChannelType, externalID: t.ExternalID, chatID: t.ChatID, username: t.Username}
+	held, err := s.R.Channels.GetByExternal(ctx, acct.typ, acct.externalID)
+	switch {
+	case err == nil:
+		if held.UserID == u.ID {
+			return nil
+		}
+		holder, err := s.R.Users.Get(ctx, held.UserID)
+		if err != nil {
+			return err
+		}
+		if holder.Status != StatusRejected {
+			return nil
+		}
+	case !errors.Is(err, ErrNotFound):
+		return err
+	}
+	if linked, err := hasChannel(ctx, s.R, u.ID, acct.typ); err != nil || linked {
+		return err
+	}
+	return linkAccount(ctx, s.R, s.Now, u, acct)
+}
+
+func (s *UserService) defaultLocale(ctx context.Context) string {
+	if s.DefaultLocale != nil {
+		return s.DefaultLocale(ctx)
+	}
+	return ""
+}
+
+// linkMessage puts a link under text as a button, or into the text when the
+// URL is not https (Telegram refuses such buttons).
+func linkMessage(text, button, url string) OutMessage {
+	if strings.HasPrefix(url, "https://") {
+		return OutMessage{Text: text, Buttons: []LinkButton{{Text: button, URL: url}}}
+	}
+	return OutMessage{Text: text + "\n" + url}
+}
+
+func (s *UserService) url(path string) string { return strings.TrimRight(s.PublicURL, "/") + path }
+
+// announceApplication posts a new application to the label chosen in the
+// notification settings. No phone number goes into a group.
+func (s *UserService) announceApplication(ctx context.Context, u User, r Residency, via string, pending int) error {
+	if s.Notifier == nil {
+		return nil
+	}
+	n, err := s.R.Notifications.Get(ctx)
+	if err != nil || n.ApplicationsLabelID == nil {
+		return err
+	}
+	h, err := s.R.Houses.Get(ctx, r.HouseID)
+	if err != nil {
+		return err
+	}
+	st, err := s.R.Statuses.Get(ctx, r.StatusID)
+	if err != nil {
+		return err
+	}
+	loc := s.defaultLocale(ctx)
+	status := st.Names[loc]
+	if status == "" {
+		status = st.Code
+	}
+	text := s.I18n.T(loc, "notify.application.text", map[string]any{
+		"Name": strings.TrimSpace(u.FirstName + " " + u.LastName), "House": h.Name, "Apartment": r.Apartment, "Status": status,
+		"Via": s.I18n.T(loc, "notify.via."+via, nil, nil), "Pending": pending}, nil)
+	m := linkMessage(text, s.I18n.T(loc, "notify.application.button", nil, nil), s.url("/admin/applications"))
+	_, err = s.Notifier.SendToLabel(ctx, *n.ApplicationsLabelID, m, "application:"+strconv.FormatInt(u.ID, 10))
+	return err
+}
+
+// notifyDecision tells a person with a linked messenger account how their
+// application was decided.
+func (s *UserService) notifyDecision(ctx context.Context, u User, approved bool) error {
+	if s.Notifier == nil {
+		return nil
+	}
+	loc := s.I18n.Pick(u.Locale, s.defaultLocale(ctx))
+	var m OutMessage
+	if approved {
+		m = linkMessage(s.I18n.T(loc, "notify.approved.text", nil, nil), s.I18n.T(loc, "notify.approved.button", nil, nil), s.url("/login"))
+	} else {
+		m = OutMessage{Text: s.I18n.T(loc, "notify.rejected", nil, nil)}
+	}
+	_, err := s.Notifier.SendToUser(ctx, u.ID, m, "decision:"+strconv.FormatInt(u.ID, 10))
+	return err
 }
 
 func (s *UserService) review(ctx context.Context, id int64, actor Actor, approve bool) error {
@@ -208,18 +371,41 @@ func (s *UserService) review(ctx context.Context, id int64, actor Actor, approve
 		if u.Status != StatusPendingApproval {
 			return ErrConflict
 		}
+		linked, err := s.hasAnyChannel(ctx, u.ID)
+		if err != nil {
+			return err
+		}
 		action := ActUserRejected
-		if approve {
-			now := s.Now()
+		now := s.Now()
+		switch {
+		case approve && linked: // Telegram already proved the phone: active at once
+			u.Status, u.ApprovedBy, u.ApprovedAt, u.ActivatedAt, action = StatusActive, actor.UserID, &now, &now, ActUserApproved
+		case approve:
 			u.Status, u.ApprovedBy, u.ApprovedAt, action = StatusAwaitingActivation, actor.UserID, &now, ActUserApproved
-		} else {
+		default:
 			u.Status = StatusRejected
 		}
 		if err := s.R.Users.Update(ctx, &u); err != nil {
 			return err
 		}
-		return s.audit(ctx, actor, action, UserTarget(id), nil)
+		if err := s.audit(ctx, actor, action, UserTarget(id), nil); err != nil {
+			return err
+		}
+		if approve && linked {
+			if err := s.audit(ctx, actor, ActUserActivated, UserTarget(id), nil); err != nil {
+				return err
+			}
+		}
+		if !linked {
+			return nil
+		}
+		return s.notifyDecision(ctx, u, approve)
 	})
+}
+
+func (s *UserService) hasAnyChannel(ctx context.Context, userID int64) (bool, error) {
+	chans, err := s.R.Channels.ListByUser(ctx, userID)
+	return len(chans) > 0, err
 }
 
 // Approve moves an application to awaiting activation.

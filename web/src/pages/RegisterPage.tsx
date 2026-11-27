@@ -1,7 +1,9 @@
 import { Alert, Button, Checkbox, Loader, Select, Stack, Text, TextInput, Title } from '@mantine/core'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useRegister, useRegisterOptions, useSite } from '../api/public'
+import { useLocation, useNavigate } from 'react-router'
+import { ApiError } from '../api/client'
+import { usePrefill, useRegister, useRegisterOptions, useSite } from '../api/public'
 import { PageShell } from '../components/PageShell'
 import { QrLink } from '../components/QrLink'
 import { apartmentOptions } from '../lib/apartments'
@@ -26,20 +28,59 @@ function Done({ botUrl }: { botUrl: string }) {
   )
 }
 
+/** The token of a registration link from the bot ("#t=…"), or null. */
+function tokenFromHash(hash: string): string | null {
+  const v = new URLSearchParams(hash.replace(/^#/, '')).get('t')
+  return v ? v : null
+}
+
+const isTokenInvalid = (err: unknown) => err instanceof ApiError && err.code === 'token_invalid'
+
+function LinkExpired({ botUrl }: { botUrl: string }) {
+  const { t } = useTranslation()
+  return (
+    <Alert color="orange">
+      <Stack gap="xs">
+        <Text size="sm">{t('register.linkExpired')}</Text>
+        <Button component="a" href={botUrl} target="_blank" rel="noopener noreferrer" size="xs" w="fit-content">
+          {t('register.openBot')}
+        </Button>
+      </Stack>
+    </Alert>
+  )
+}
+
 export function RegisterPage() {
   const { t, i18n } = useTranslation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const options = useRegisterOptions()
   const site = useSite()
   const register = useRegister()
   const text = useLocalized()
-  const [phone, setPhone] = useState('')
+  // The token is read once and taken out of the address bar, so it is not
+  // kept in history or shared by copying the URL.
+  const [token] = useState(() => tokenFromHash(location.hash))
+  const prefill = usePrefill(token)
+  // Set when the server refused the token on submit (it expired meanwhile).
+  const [dropped, setDropped] = useState(false)
+  // What the person typed; null while they have not touched the field.
+  const [ownPhone, setOwnPhone] = useState<string | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [houseId, setHouseId] = useState<string | null>(null)
   const [apartment, setApartment] = useState<string | null>(null)
   const [statusId, setStatusId] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
-  const { message, fields } = useApiErrors(register.error)
+  const { message, fields } = useApiErrors(isTokenInvalid(register.error) ? null : register.error)
+
+  useEffect(() => {
+    if (location.hash) void navigate({ pathname: location.pathname, search: location.search }, { replace: true })
+  }, [location.hash, location.pathname, location.search, navigate])
+  const expired = prefill.isError || dropped
+  const locked = token !== null && prefill.isSuccess && !dropped
+  const phone = locked ? prefill.data.phone : (ownPhone ?? prefill.data?.phone ?? '')
+  const setPhone = setOwnPhone
 
   const submit = useOnce(() =>
     register.mutateAsync({
@@ -51,11 +92,15 @@ export function RegisterPage() {
       statusId: Number(statusId),
       consent,
       locale: i18n.language,
+      ...(locked && token !== null ? { token } : {}),
+    }).catch((err: unknown) => {
+      if (isTokenInvalid(err)) setDropped(true)
+      throw err
     }),
   )
 
   const body = () => {
-    if (options.isPending) return <Loader />
+    if (options.isPending || (token !== null && prefill.isPending)) return <Loader />
     if (options.isError) return <Alert color="red">{t('errors.unknown')}</Alert>
     const { houses, statuses } = options.data
     if (houses.length === 0 || statuses.length === 0) return <Alert>{t('register.unavailable')}</Alert>
@@ -70,8 +115,10 @@ export function RegisterPage() {
       <form onSubmit={onSubmit}>
         <Stack maw={520}>
           <Text c="dimmed">{t('register.intro')}</Text>
+          {expired && <LinkExpired botUrl={site.data?.botUrl ?? ''} />}
           <TextInput label={t('register.phone')} placeholder={t('login.phonePlaceholder')} type="tel" autoComplete="tel"
-            value={phone} onChange={(e) => setPhone(e.currentTarget.value)} error={fields.phone} />
+            value={phone} onChange={(e) => setPhone(e.currentTarget.value)} error={fields.phone}
+            readOnly={locked} description={locked ? t('register.phoneConfirmed') : undefined} />
           <TextInput label={t('register.firstName')} autoComplete="given-name" value={firstName}
             onChange={(e) => setFirstName(e.currentTarget.value)} error={fields.firstName} />
           <TextInput label={t('register.lastName')} autoComplete="family-name" value={lastName}

@@ -1,0 +1,4 @@
+{"update_id": 121, "message": {"message_id": 1, "date": 1764244800,
+  "chat": {"id": -1001000000001, "type": "supergroup", "title": "log"},
+  "from": {"id": 1087968824, "is_bot": true, "first_name": "Group", "username": "GroupAnonymousBot"},
+  "migrate_from_chat_id": -1000000001}}
