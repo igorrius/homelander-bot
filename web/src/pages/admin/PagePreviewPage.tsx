@@ -1,8 +1,8 @@
-import { Alert, Anchor, Box, Button, Card, Group, Loader, SegmentedControl, Select, Stack, Table, Text } from '@mantine/core'
+import { Alert, Box, Button, Card, Group, Loader, SegmentedControl, Select, Stack, Table, Text } from '@mantine/core'
 import { IconLayout } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useCopyPage, useDeletePage, usePagePreview, usePageVersion, usePublishPage } from '../../api/pages'
 import { useSite } from '../../api/public'
 import type { PageVersion } from '../../api/types'
@@ -12,6 +12,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { SiteHeader } from '../../components/SiteHeader'
 import { errorText } from '../../lib/errors'
 import { formatDateTime, formatSize } from '../../lib/format'
+import { BackLink } from '../../components/BackLink'
 import { useLocalized } from '../../lib/localized'
 import { PageStatusBadge } from './PageStatusBadge'
 
@@ -37,7 +38,7 @@ function Actions({ version }: { version: PageVersion }) {
         </Button>
         {version.status !== 'published' && (
           <ConfirmButton color="red" variant="light" message={t('admin.pages.deleteConfirm', { id: version.id })}
-            loading={del.isPending} onConfirm={() => del.mutate(version.id, { onSuccess: () => navigate('/admin/pages') })}>
+            loading={del.isPending} onConfirm={() => del.mutate(version.id, { onSuccess: () => navigate('/admin/site?tab=pages') })}>
             {t('admin.pages.delete')}
           </ConfirmButton>
         )}
@@ -102,7 +103,7 @@ export function PagePreviewPage() {
   const v = q.data
   return (
     <Stack>
-      <Anchor component={Link} to="/admin/pages" size="sm">{t('admin.pages.back')}</Anchor>
+      <BackLink to="/admin/site?tab=pages">{t('admin.pages.back')}</BackLink>
       <PageHeader icon={IconLayout} title={t('admin.pages.versionTitle', { id: v.id })}
         description={<Group gap="xs"><PageStatusBadge status={v.status} />{v.note && <Text size="sm">{v.note}</Text>}</Group>}
         actions={<Actions version={v} />} />

@@ -1,11 +1,11 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { PageVersion } from '../../api/types'
 import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
-import { mockApi } from '../../test/api'
+import { callsTo, mockApi } from '../../test/api'
 import { adminRoutes } from '../../test/fixtures'
-import { renderApp } from '../../test/render'
+import { currentLocation, renderApp } from '../../test/render'
 import { choose } from '../../test/select'
 
 const html = (path: string) => ({ path, size: 100, contentType: 'text/html; charset=utf-8' })
@@ -80,5 +80,41 @@ describe('PagePreviewPage', () => {
     expect(screen.getByRole('combobox', { name: uk.admin.pages.previewPage })).toHaveValue('/')
     await choose(user, uk.admin.pages.previewPage, '/f')
     await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/f.html?lang=uk'))
+  })
+
+  it('publishes a draft after confirmation', async () => {
+    const { calls } = mockApi({ ...routes, 'POST /admin/pages/8/publish': { status: 204 } })
+    const { user } = renderApp('/admin/pages/8')
+    const frame = await previewFrame()
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation')
+    expect(screen.getByText('contacts.html')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: uk.admin.pages.publish }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: uk.common.confirm }))
+    await waitFor(() => expect(callsTo(calls, 'POST /admin/pages/8/publish')).toHaveLength(1))
+  })
+
+  it('offers no delete or publish for the published version', async () => {
+    mockApi({ ...routes, 'GET /admin/pages/8': { body: { ...draft, status: 'published' } } })
+    renderApp('/admin/pages/8')
+    await previewFrame()
+    expect(screen.getByRole('button', { name: uk.admin.pages.copy })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: uk.admin.pages.delete })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: uk.admin.pages.publish })).not.toBeInTheDocument()
+  })
+
+  it('copies a version to a new draft', async () => {
+    const { calls } = mockApi({ ...routes, 'POST /admin/pages/8/copy': { status: 201, body: { ...draft, id: 9 } } })
+    const { user } = renderApp('/admin/pages/8')
+    await user.click(await screen.findByRole('button', { name: uk.admin.pages.copy }))
+    await waitFor(() => expect(currentLocation()).toBe('/admin/pages/9'))
+    expect(callsTo(calls, 'POST /admin/pages/8/copy')).toHaveLength(1)
+  })
+
+  it('goes back to the Site section', async () => {
+    mockApi(routes)
+    renderApp('/admin/pages/8')
+    await previewFrame()
+    const back = screen.getAllByRole('link', { name: uk.admin.pages.back }).find((a) => a.querySelector('svg.tabler-icon-arrow-left'))
+    expect(back).toHaveAttribute('href', '/admin/site?tab=pages')
   })
 })

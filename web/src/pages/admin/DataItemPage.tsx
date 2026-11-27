@@ -1,8 +1,9 @@
-import { Alert, Anchor, Button, Card, Code, Group, Loader, Stack, Switch, Text, Textarea } from '@mantine/core'
+import { Alert, Button, Card, Code, Group, Loader, Stack, Switch, Text, Textarea } from '@mantine/core'
 import { IconDatabase } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { BackLink } from '../../components/BackLink'
+import { useNavigate, useParams } from 'react-router'
 import { publicDataUrl, useDataItem, useDeleteDataItem, usePatchDataItem } from '../../api/data'
 import type { DataItem } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
@@ -53,7 +54,7 @@ export function DataItemPage() {
   const kind = item.kind === 'value' ? `${t('admin.data.kind.value')} · ${t(`admin.data.type.${item.valueType}`)}` : t('admin.data.kind.table')
   return (
     <Stack>
-      <Anchor component={Link} to="/admin/data" size="sm">{t('admin.data.back')}</Anchor>
+      <BackLink to="/admin/data">{t('admin.data.back')}</BackLink>
       <PageHeader icon={IconDatabase} title={item.key} description={kind}
         actions={
           <ConfirmButton color="red" variant="light" message={t('admin.data.deleteItemConfirm', { key: item.key })}

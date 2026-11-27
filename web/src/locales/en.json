@@ -63,8 +63,7 @@
       "overview": "Overview",
       "chats": "Chats",
       "notifications": "Notifications",
-      "data": "Data",
-      "pages": "Site page"
+      "data": "Data"
     },
     "applications": {
       "title": "Applications",
@@ -231,7 +230,42 @@
       "communityName": "Community name",
       "welcomeText": "Welcome text",
       "defaultLocale": "Default language",
-      "save": "Save texts"
+      "save": "Save",
+      "description": "The pages residents see and the built-in home page.",
+      "tabs": {
+        "pages": "Pages",
+        "home": "Built-in page"
+      },
+      "live": "Live now",
+      "liveEmpty": "Nothing published — residents see the built-in page",
+      "liveEmptyHint": "Ask your AI agent to build a site or upload a zip, then preview and publish the draft.",
+      "openSite": "Open site",
+      "drafts": "Drafts",
+      "draftsHint": "Waiting for review and publishing",
+      "draftsEmpty": "No drafts. Ask your AI agent or upload a zip",
+      "previewPublish": "Preview and publish",
+      "archive": "Archive ({{count}})",
+      "restore": "Restore",
+      "restoreConfirm": "Publish version #{{id}} again? It replaces what is live now.",
+      "pageCount": "Pages: {{count}}",
+      "publishedBy": "Published {{at}} by {{name}}",
+      "createdBy": "Created {{at}} by {{name}}",
+      "uploadZip": "Upload zip",
+      "uploadTitle": "New draft from a zip",
+      "version": "Version #{{id}}",
+      "cardsTitle": "Show under the quarter",
+      "cardsHint": "Public data items become cards on the built-in page, in this order.",
+      "addItem": "Add data",
+      "cardTitle": "Card title",
+      "cardTitleHint": "Empty: a title from the key",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeItem": "Remove",
+      "noPublic": "No public data yet: make the items you need public in the Data section.",
+      "noCards": "No cards — nothing is shown under the quarter.",
+      "preview": "Preview",
+      "previewHint": "How the page looks while nothing is published. Changes show before you save.",
+      "notPublic": "Not public — the card is hidden"
     },
     "navGroup": {
       "people": "People",
@@ -380,7 +414,7 @@
       "updated": "Updated",
       "empty": "No data yet.",
       "firstColumn": "Name",
-      "back": "← Back to data",
+      "back": "Back to data",
       "value": "Value",
       "saveValue": "Save value",
       "invalidJson": "This is not valid JSON",
@@ -413,7 +447,7 @@
       "description": "Your own home page: upload a version, preview it and publish it. With nothing published, the built-in page is shown.",
       "note": "Note",
       "upload": "Upload ZIP",
-      "uploadHint": "index.html and the page files (CSS, JS, images), up to 20 MB",
+      "uploadHint": "index.html, other pages (contacts.html → /contacts) and their files (CSS, JS, images), up to 20 MB",
       "tooManyFiles": "Too many files: 200 at most",
       "empty": "No versions yet.",
       "version": "Version",
@@ -434,7 +468,7 @@
       "copy": "Copy to draft",
       "delete": "Delete",
       "deleteConfirm": "Delete version #{{id}}? This cannot be undone.",
-      "back": "← All versions",
+      "back": "Site",
       "versionTitle": "Version #{{id}}",
       "createdBy": "Created {{at}} by {{name}}",
       "path": "File",
@@ -446,7 +480,9 @@
       "fileError": {
         "type": "{{path}}: this file type is not supported. Allowed: HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (lower-case extensions).",
         "invalid": "{{path}}: file name not allowed (Latin letters, digits, . _ - only; no preview/ folder).",
-        "too_large": "{{path}}: file is larger than 5 MB."
+        "too_large": "{{path}}: file is larger than 5 MB.",
+        "reserved_page_name": "{{path}}: this page name is taken by an app address (admin, login, api, …). Rename the file.",
+        "invalid_page_name": "{{path}}: a page name may use only lower-case Latin letters, digits and hyphens (e.g. contacts.html)."
       },
       "viaMcp": "MCP"
     }
