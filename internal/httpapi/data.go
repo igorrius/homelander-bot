@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -219,4 +221,88 @@ func (h handlerCtx) uploadDataImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusCreated, map[string]any{"id": a.ID, "url": adminAssetURL(a.ID)})
+}
+
+// publicItem is what anyone may read about a public item: no description,
+// no author, images as URLs.
+func publicItem(v domain.DataView) map[string]any {
+	it := v.Item
+	if it.Kind == domain.DataValue {
+		return map[string]any{"kind": "value", "type": it.ValueType, "value": publicCell(it.ValueType, it.Value)}
+	}
+	types := map[string]domain.DataType{}
+	for _, c := range it.Columns {
+		types[c.Name] = c.Type
+	}
+	rows := make([]map[string]any, 0, len(v.Rows))
+	for _, r := range v.Rows {
+		row := map[string]any{"id": r.ID}
+		for name, raw := range r.Cells {
+			row[name] = publicCell(types[name], raw)
+		}
+		rows = append(rows, row)
+	}
+	cols := it.Columns
+	if cols == nil {
+		cols = []domain.DataColumn{}
+	}
+	return map[string]any{"kind": "table", "columns": cols, "rows": rows}
+}
+
+// publicCell turns an image id into its public URL and leaves other values as they are.
+func publicCell(t domain.DataType, raw json.RawMessage) any {
+	if t == domain.DataImage {
+		if id, err := strconv.ParseInt(string(raw), 10, 64); err == nil {
+			return "/api/v1/assets/" + strconv.FormatInt(id, 10)
+		}
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	return raw
+}
+
+// writePublic writes a public data response with CORS, short caching and an ETag.
+func writePublic(w http.ResponseWriter, r *http.Request, v any) {
+	body, err := json.Marshal(v)
+	if err != nil {
+		WriteError(w, http.StatusInternalServerError, "internal")
+		return
+	}
+	sum := sha256.Sum256(body)
+	tag := `"` + hex.EncodeToString(sum[:])[:32] + `"`
+	h := w.Header()
+	h.Set("ETag", tag)
+	h.Set("Cache-Control", "public, max-age=30")
+	if r.Header.Get("If-None-Match") == tag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
+}
+
+func (h handlerCtx) publicData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	list, err := h.api.Data.Public(r.Context(), ClientIP(r, h.api.Cfg.TrustProxy))
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	out := make(map[string]any, len(list))
+	for _, v := range list {
+		out[v.Item.Key] = publicItem(v)
+	}
+	writePublic(w, r, out)
+}
+
+func (h handlerCtx) publicDataOne(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	v, err := h.api.Data.PublicOne(r.Context(), r.PathValue("key"), ClientIP(r, h.api.Cfg.TrustProxy))
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writePublic(w, r, publicItem(v))
 }

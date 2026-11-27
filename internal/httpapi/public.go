@@ -49,6 +49,8 @@ func RegisterPublic(s *Server, api API) {
 	m.HandleFunc("POST /api/v1/auth/logout", h.logout)
 	m.Handle("GET /api/v1/me", RequireUser(http.HandlerFunc(h.me)))
 	m.HandleFunc("GET /api/v1/assets/{id}", h.asset)
+	m.HandleFunc("GET /api/v1/public/data", h.publicData)
+	m.HandleFunc("GET /api/v1/public/data/{key}", h.publicDataOne)
 }
 
 func (h handlerCtx) site(w http.ResponseWriter, r *http.Request) {

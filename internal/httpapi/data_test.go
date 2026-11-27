@@ -172,3 +172,116 @@ func TestAdminDataRequiresAdmin(t *testing.T) {
 		t.Fatalf("guest = %d", r.Code)
 	}
 }
+
+// publicFixture makes a public value, a public table with an image cell and a private value.
+func publicFixture(t *testing.T) (*apiEnv, string, int64) {
+	t.Helper()
+	e, tok := adminEnv(t)
+	img := dataImage(t, e, tok)
+	for _, body := range []map[string]any{
+		{"key": "house.address", "kind": "value", "valueType": "text", "value": "Main st 1", "public": true},
+		{"key": "secret", "kind": "value", "valueType": "text", "value": "hidden"},
+		{"key": "contacts", "kind": "table", "public": true, "description": "not for the public",
+			"columns": []map[string]string{{"name": "name", "label": "Name", "type": "text"}, {"name": "pic", "label": "Pic", "type": "image"}}},
+	} {
+		if r := e.do("POST", "/api/v1/admin/data", body, tok, ""); r.Code != 201 {
+			t.Fatalf("create %v = %d %s", body["key"], r.Code, r.Body)
+		}
+	}
+	r := e.do("PUT", "/api/v1/admin/data/contacts/rows", map[string]any{"rows": []map[string]any{
+		{"position": 0, "cells": map[string]any{"name": "Office", "pic": img}}}}, tok, "")
+	if r.Code != 200 {
+		t.Fatalf("rows = %d %s", r.Code, r.Body)
+	}
+	return e, tok, img
+}
+
+func TestPublicData(t *testing.T) {
+	e, _, img := publicFixture(t)
+	r := e.do("GET", "/api/v1/public/data", nil, "", "")
+	if r.Code != 200 {
+		t.Fatalf("all = %d %s", r.Code, r.Body)
+	}
+	all := r.json()
+	if _, ok := all["secret"]; ok || len(all) != 2 {
+		t.Fatalf("all = %v", all)
+	}
+	addr := all["house.address"].(map[string]any)
+	if addr["kind"] != "value" || addr["type"] != "text" || addr["value"] != "Main st 1" {
+		t.Fatalf("address = %v", addr)
+	}
+	tbl := all["contacts"].(map[string]any)
+	row := tbl["rows"].([]any)[0].(map[string]any)
+	if tbl["kind"] != "table" || len(tbl["columns"].([]any)) != 2 || row["name"] != "Office" ||
+		row["pic"] != fmt.Sprintf("/api/v1/assets/%d", img) || row["id"] == nil || tbl["description"] != nil {
+		t.Fatalf("contacts = %v", tbl)
+	}
+	one := e.do("GET", "/api/v1/public/data/house.address", nil, "", "")
+	if one.Code != 200 || one.json()["value"] != "Main st 1" {
+		t.Fatalf("one = %d %s", one.Code, one.Body)
+	}
+	private := e.do("GET", "/api/v1/public/data/secret", nil, "", "")
+	missing := e.do("GET", "/api/v1/public/data/missing", nil, "", "")
+	if private.Code != 404 || private.Body.String() != missing.Body.String() {
+		t.Fatalf("private = %d %s; missing = %d %s", private.Code, private.Body, missing.Code, missing.Body)
+	}
+}
+
+func TestPublicDataCaching(t *testing.T) {
+	e, tok, _ := publicFixture(t)
+	r := e.do("GET", "/api/v1/public/data", nil, "", "")
+	tag := r.Header().Get("ETag")
+	if tag == "" || r.Header().Get("Cache-Control") != "public, max-age=30" {
+		t.Fatalf("headers = %v", r.Header())
+	}
+	req := httptest.NewRequest("GET", "/api/v1/public/data", nil)
+	req.Header.Set("If-None-Match", tag)
+	req.RemoteAddr = "10.7.0.1:1"
+	rec := httptest.NewRecorder()
+	e.h.ServeHTTP(rec, req)
+	if rec.Code != 304 || rec.Body.Len() != 0 || rec.Header().Get("ETag") != tag {
+		t.Fatalf("conditional = %d %q", rec.Code, rec.Body)
+	}
+	if r := e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"valueType": "text", "value": "Main st 2"}, tok, ""); r.Code != 200 {
+		t.Fatalf("patch = %d", r.Code)
+	}
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest("GET", "/api/v1/public/data", nil)
+	req.Header.Set("If-None-Match", tag)
+	req.RemoteAddr = "10.7.0.1:1"
+	e.h.ServeHTTP(rec, req)
+	if rec.Code != 200 || rec.Header().Get("ETag") == tag {
+		t.Fatalf("after change = %d etag %q", rec.Code, rec.Header().Get("ETag"))
+	}
+}
+
+func TestPublicDataCORS(t *testing.T) {
+	e, _, _ := publicFixture(t)
+	for _, p := range []string{"/api/v1/public/data", "/api/v1/public/data/missing"} {
+		if r := e.do("GET", p, nil, "", "10.6.0.1"); r.Header().Get("Access-Control-Allow-Origin") != "*" {
+			t.Fatalf("%s: no CORS header (%d)", p, r.Code)
+		}
+	}
+	var last resp
+	for range 121 {
+		last = e.do("GET", "/api/v1/public/data", nil, "", "10.6.0.2")
+	}
+	if last.Code != 429 || last.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("429 = %d %v", last.Code, last.Header())
+	}
+}
+
+func TestPublicDataRateLimit(t *testing.T) {
+	e, _, _ := publicFixture(t)
+	for i := range 120 {
+		if r := e.do("GET", "/api/v1/public/data", nil, "", "10.5.0.1"); r.Code != 200 {
+			t.Fatalf("request %d = %d", i+1, r.Code)
+		}
+	}
+	if r := e.do("GET", "/api/v1/public/data", nil, "", "10.5.0.1"); r.Code != 429 || r.errCode() != "rate_limited" {
+		t.Fatalf("121st = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("GET", "/api/v1/public/data", nil, "", "10.5.0.2"); r.Code != 200 {
+		t.Fatalf("other IP = %d", r.Code)
+	}
+}
