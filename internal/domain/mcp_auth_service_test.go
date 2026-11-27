@@ -155,7 +155,6 @@ func TestMCPCodeRules(t *testing.T) {
 	if _, err := m.auth.Exchange(ctx, code, m.client.ID, claudeCB, verifier); !errors.Is(err, domain.ErrInvalidGrant) {
 		t.Errorf("code reused after a failed exchange = %v", err)
 	}
-	good := m.tokens()
 	code = m.code()
 	if _, err := m.auth.Exchange(ctx, code, m.client.ID, "https://claude.com/api/mcp/auth_callback", verifier); !errors.Is(err, domain.ErrInvalidGrant) {
 		t.Errorf("other redirect = %v", err)
@@ -165,7 +164,8 @@ func TestMCPCodeRules(t *testing.T) {
 		t.Errorf("other client = %v", err)
 	}
 	code = m.code()
-	if _, err := m.auth.Exchange(ctx, code, m.client.ID, claudeCB, verifier); err != nil {
+	good, err := m.auth.Exchange(ctx, code, m.client.ID, claudeCB, verifier)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := m.auth.Exchange(ctx, code, m.client.ID, claudeCB, verifier); !errors.Is(err, domain.ErrInvalidGrant) {
@@ -271,6 +271,7 @@ func TestMCPVerifyChecksUser(t *testing.T) {
 		m.admin = m.get(m.admin.ID)
 	}
 	tk := m.tokens()
+	revoked := m.auditCount(domain.ActMCPClientRevoked)
 	gs, _ := m.auth.Grants(ctx, m.admin.ID)
 	if err := m.auth.Revoke(ctx, gs[0].ID, actor(other)); err != nil {
 		t.Fatal(err)
@@ -278,14 +279,15 @@ func TestMCPVerifyChecksUser(t *testing.T) {
 	if _, err := m.auth.Verify(ctx, tk.Access); !errors.Is(err, domain.ErrUnauthorized) {
 		t.Errorf("revoked grant: Verify = %v", err)
 	}
-	if m.auditCount(domain.ActMCPClientRevoked) != 1 {
+	if m.auditCount(domain.ActMCPClientRevoked) != revoked+1 {
 		t.Error("no mcp.client_revoked audit")
 	}
 	if gs, _ := m.auth.Grants(ctx, m.admin.ID); len(gs) != 0 {
 		t.Errorf("revoked grant still listed")
 	}
+	authorized := m.auditCount(domain.ActMCPClientAuthorized)
 	tk = m.tokens() // approving again reactivates the grant
-	if m.auditCount(domain.ActMCPClientAuthorized) != 2 {
+	if m.auditCount(domain.ActMCPClientAuthorized) != authorized+1 {
 		t.Errorf("reactivation audits = %d", m.auditCount(domain.ActMCPClientAuthorized))
 	}
 	m.clock.Advance(time.Hour + time.Second)
@@ -294,5 +296,91 @@ func TestMCPVerifyChecksUser(t *testing.T) {
 	}
 	if _, err := m.auth.Verify(ctx, "garbage"); !errors.Is(err, domain.ErrUnauthorized) {
 		t.Errorf("garbage = %v", err)
+	}
+}
+
+func TestMCPCutOffRevokesOldTokens(t *testing.T) {
+	m := newMCPEnv(t)
+	other := m.mkUser("+380500000097", admin)
+	m.link(m.admin, "777")
+	cuts := []struct {
+		name      string
+		cut, back func() error
+	}{
+		{"admin revoked", func() error {
+			_, err := m.users.Update(ctx, m.admin.ID, domain.UserPatch{IsAdmin: ptr(false)}, actor(other))
+			return err
+		}, func() error {
+			_, err := m.users.Update(ctx, m.admin.ID, domain.UserPatch{IsAdmin: ptr(true)}, actor(other))
+			return err
+		}},
+		{"mcp off", func() error {
+			_, err := m.users.Update(ctx, m.admin.ID, domain.UserPatch{IsMCP: ptr(false)}, actor(other))
+			return err
+		}, func() error {
+			_, err := m.users.Update(ctx, m.admin.ID, domain.UserPatch{IsMCP: ptr(true)}, actor(other))
+			return err
+		}},
+		{"disabled", func() error { return m.users.Disable(ctx, m.admin.ID, actor(other)) },
+			func() error { return m.users.Enable(ctx, m.admin.ID, actor(other)) }},
+	}
+	for _, c := range cuts {
+		m.admin = m.get(m.admin.ID)
+		tk := m.tokens()
+		before := m.auditCount(domain.ActMCPClientRevoked)
+		if err := c.cut(); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if err := c.back(); err != nil {
+			t.Fatalf("%s back: %v", c.name, err)
+		}
+		if _, err := m.auth.Verify(ctx, tk.Access); !errors.Is(err, domain.ErrUnauthorized) {
+			t.Errorf("%s: old access token works again after restore: %v", c.name, err)
+		}
+		if _, err := m.auth.Refresh(ctx, tk.Refresh, m.client.ID); !errors.Is(err, domain.ErrInvalidGrant) {
+			t.Errorf("%s: old refresh token works again after restore: %v", c.name, err)
+		}
+		if gs, _ := m.auth.Grants(ctx, m.admin.ID); len(gs) != 0 {
+			t.Errorf("%s: grant still listed", c.name)
+		}
+		if m.auditCount(domain.ActMCPClientRevoked) != before+1 {
+			t.Errorf("%s: no mcp.client_revoked audit", c.name)
+		}
+	}
+}
+
+func TestMCPRefreshReuseAndReconsent(t *testing.T) {
+	m := newMCPEnv(t)
+	tk := m.tokens()
+	next, err := m.auth.Refresh(ctx, tk.Refresh, m.client.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A parallel refresh shortly after rotation fails but does not disconnect.
+	if _, err := m.auth.Refresh(ctx, tk.Refresh, m.client.ID); !errors.Is(err, domain.ErrInvalidGrant) {
+		t.Fatalf("immediate reuse = %v", err)
+	}
+	if _, err := m.auth.Verify(ctx, next.Access); err != nil {
+		t.Fatalf("grace reuse disconnected the agent: %v", err)
+	}
+	// Reuse later means the chain leaked: the whole grant goes.
+	m.clock.Advance(time.Minute)
+	if _, err := m.auth.Refresh(ctx, tk.Refresh, m.client.ID); !errors.Is(err, domain.ErrInvalidGrant) {
+		t.Fatalf("late reuse = %v", err)
+	}
+	if _, err := m.auth.Refresh(ctx, next.Refresh, m.client.ID); !errors.Is(err, domain.ErrInvalidGrant) {
+		t.Errorf("current refresh survives detected reuse: %v", err)
+	}
+	if gs, _ := m.auth.Grants(ctx, m.admin.ID); len(gs) != 0 {
+		t.Errorf("grant survives detected reuse")
+	}
+	// Re-consent drops tokens issued under the earlier consent.
+	old := m.tokens()
+	m.tokens()
+	if _, err := m.auth.Refresh(ctx, old.Refresh, m.client.ID); !errors.Is(err, domain.ErrInvalidGrant) {
+		t.Errorf("refresh from before re-consent = %v", err)
+	}
+	if _, err := m.auth.Verify(ctx, old.Access); !errors.Is(err, domain.ErrUnauthorized) {
+		t.Errorf("access from before re-consent = %v", err)
 	}
 }

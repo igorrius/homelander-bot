@@ -563,6 +563,14 @@ func (s *UserService) Update(ctx context.Context, id int64, p UserPatch, actor A
 				return err
 			}
 		}
+		for _, act := range actions {
+			if act == ActUserAdminRevoked || act == ActUserMCPRevoked {
+				if err := revokeUserGrants(ctx, s.R, s.Now(), u.ID, actor, act); err != nil {
+					return err
+				}
+				break
+			}
+		}
 		if p.FirstName != nil || p.LastName != nil || p.Phone != nil || p.Locale != nil {
 			actions = append(actions, ActUserUpdated)
 		}
@@ -600,6 +608,9 @@ func (s *UserService) Disable(ctx context.Context, id int64, actor Actor) error 
 			return err
 		}
 		if err := s.R.Sessions.DeleteByUser(ctx, u.ID); err != nil {
+			return err
+		}
+		if err := revokeUserGrants(ctx, s.R, s.Now(), u.ID, actor, ActUserDisabled); err != nil {
 			return err
 		}
 		return s.audit(ctx, actor, ActUserDisabled, UserTarget(id), nil)

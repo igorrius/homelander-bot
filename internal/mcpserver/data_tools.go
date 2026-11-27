@@ -246,11 +246,19 @@ func (t tools) addData(s *mcp.Server) {
 
 	mcp.AddTool(s, &mcp.Tool{Name: "data_rows_upsert", Description: "Add rows (no id) and change rows (with id) of a table in one step; returns all rows. Up to 1000 rows per table."},
 		handler(t, func(ctx context.Context, a domain.Actor, in rowsIn) (rowsOut, error) {
-			rows, err := t.mergeRows(ctx, in)
-			if err != nil {
-				return rowsOut{}, err
+			patches := make([]domain.RowPatch, 0, len(in.Rows))
+			for _, r := range in.Rows {
+				p := domain.RowPatch{ID: r.ID, Position: r.Position, Cells: make(map[string]json.RawMessage, len(r.Cells))}
+				for k, c := range r.Cells {
+					raw, err := rawJSON(c)
+					if err != nil {
+						return rowsOut{}, err
+					}
+					p.Cells[k] = raw
+				}
+				patches = append(patches, p)
 			}
-			out, err := d.Data.UpsertRows(ctx, in.Key, rows, a)
+			out, err := d.Data.PatchRows(ctx, in.Key, patches, a)
 			return rowsOut{Rows: toRows(out)}, err
 		}))
 
@@ -279,48 +287,4 @@ func (t tools) addData(s *mcp.Server) {
 			as, err := d.Catalog.UploadImage(ctx, data, a)
 			return assetOut{ID: as.ID, URL: "/api/v1/assets/" + strconv.FormatInt(as.ID, 10)}, err
 		}))
-}
-
-// mergeRows turns tool rows into domain rows: an existing row keeps the cells
-// and position it is not given, a new row without a position goes last.
-func (t tools) mergeRows(ctx context.Context, in rowsIn) ([]domain.DataRow, error) {
-	v, err := t.d.Data.Get(ctx, in.Key)
-	if err != nil {
-		return nil, err
-	}
-	existing := map[int64]domain.DataRow{}
-	next := 0
-	for _, r := range v.Rows {
-		existing[r.ID] = r
-		next = max(next, r.Position+1)
-	}
-	rows := make([]domain.DataRow, 0, len(in.Rows))
-	for i, r := range in.Rows {
-		row := domain.DataRow{Cells: map[string]json.RawMessage{}}
-		if r.ID != nil {
-			old, ok := existing[*r.ID]
-			if !ok {
-				return nil, inputError("row %d: no row with id %d in %s", i, *r.ID, in.Key)
-			}
-			row.ID, row.Position = old.ID, old.Position
-			for k, c := range old.Cells {
-				row.Cells[k] = c
-			}
-		} else {
-			row.Position = next
-			next++
-		}
-		if r.Position != nil {
-			row.Position = *r.Position
-		}
-		for k, c := range r.Cells {
-			raw, err := rawJSON(c)
-			if err != nil {
-				return nil, err
-			}
-			row.Cells[k] = raw
-		}
-		rows = append(rows, row)
-	}
-	return rows, nil
 }

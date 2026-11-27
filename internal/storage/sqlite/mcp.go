@@ -91,7 +91,8 @@ func (r MCP) ListGrants(ctx context.Context, userID int64) ([]domain.MCPGrant, e
 	return out, rows.Err()
 }
 
-// SetGrantRevoked sets or clears revoked_at; setting it revokes the grant's tokens.
+// SetGrantRevoked sets or clears revoked_at; setting it deletes the grant's
+// tokens, so a later reuse of one is not mistaken for a stolen rotated token.
 func (r MCP) SetGrantRevoked(ctx context.Context, id int64, at *time.Time) error {
 	return r.DB.InTx(ctx, func(ctx context.Context) error {
 		q := r.DB.Q(ctx)
@@ -105,9 +106,14 @@ func (r MCP) SetGrantRevoked(ctx context.Context, id int64, at *time.Time) error
 		if at == nil {
 			return nil
 		}
-		_, err = q.ExecContext(ctx, `UPDATE mcp_tokens SET revoked_at = ? WHERE grant_id = ? AND revoked_at IS NULL`, fmtTime(*at), id)
-		return err
+		return r.DeleteGrantTokens(ctx, id)
 	})
+}
+
+// DeleteGrantTokens deletes every token of a grant.
+func (r MCP) DeleteGrantTokens(ctx context.Context, grantID int64) error {
+	_, err := r.DB.Q(ctx).ExecContext(ctx, `DELETE FROM mcp_tokens WHERE grant_id = ?`, grantID)
+	return err
 }
 
 // TouchGrant records when the grant was last used.

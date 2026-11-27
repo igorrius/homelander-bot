@@ -24,6 +24,10 @@ const (
 	mcpMaxRedirects  = 10
 	mcpMaxClientName = 100
 	mcpTouchEvery    = time.Minute
+	// mcpReuseGrace lets a client's parallel refreshes race: a rotated refresh
+	// token presented again within it is refused without consequences; later,
+	// it means the token leaked and the grant is revoked.
+	mcpReuseGrace = 30 * time.Second
 )
 
 // McpAuthService is Homelander's OAuth 2.1 authorization server for MCP
@@ -124,6 +128,11 @@ func (s *McpAuthService) Approve(ctx context.Context, u User, req MCPAuthRequest
 		}
 		g, err := s.R.MCP.GrantFor(ctx, u.ID, c.ID)
 		if err != nil {
+			return err
+		}
+		// A new consent replaces the old connection: tokens issued under the
+		// earlier one (perhaps leaked) stop working.
+		if err := s.R.MCP.DeleteGrantTokens(ctx, g.ID); err != nil {
 			return err
 		}
 		if fresh {
@@ -230,6 +239,13 @@ func (s *McpAuthService) Exchange(ctx context.Context, code, clientID, redirectU
 // Refresh rotates a refresh token: the old one is revoked and a new pair is
 // issued. Access tokens already issued stay valid until they expire.
 func (s *McpAuthService) Refresh(ctx context.Context, refresh, clientID string) (MCPTokens, error) {
+	if t, err := s.R.MCP.GetToken(ctx, hashToken(refresh)); err == nil && t.Kind == MCPRefresh && t.RevokedAt != nil &&
+		s.Now().Sub(*t.RevokedAt) > mcpReuseGrace {
+		if err := s.revokeReused(ctx, t.GrantID); err != nil {
+			return MCPTokens{}, err
+		}
+		return MCPTokens{}, ErrInvalidGrant
+	}
 	var out MCPTokens
 	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
 		t, err := s.R.MCP.GetToken(ctx, hashToken(refresh))
@@ -258,6 +274,22 @@ func (s *McpAuthService) Refresh(ctx context.Context, refresh, clientID string) 
 		return err
 	})
 	return out, err
+}
+
+// revokeReused revokes a grant whose rotated refresh token came back: someone
+// else holds a copy of the token chain.
+func (s *McpAuthService) revokeReused(ctx context.Context, grantID int64) error {
+	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
+		g, err := s.R.MCP.GetGrant(ctx, grantID)
+		if err != nil || g.RevokedAt != nil {
+			return err
+		}
+		now := s.Now()
+		if err := s.R.MCP.SetGrantRevoked(ctx, g.ID, &now); err != nil {
+			return err
+		}
+		return s.audit(ctx, Actor{}, ActMCPClientRevoked, g.UserID, map[string]any{"client": g.ClientName, "reason": "refresh_reuse"})
+	})
 }
 
 // Verify returns who an access token acts as. The user must still be active,
@@ -321,4 +353,27 @@ func (s *McpAuthService) Revoke(ctx context.Context, grantID int64, a Actor) err
 		}
 		return s.audit(ctx, a, ActMCPClientRevoked, g.UserID, map[string]any{"client": g.ClientName})
 	})
+}
+
+// revokeUserGrants disconnects every agent of a user who lost Admin, MCP or
+// an active account, so restoring them later does not revive old tokens.
+// Run it inside the transaction of the change.
+func revokeUserGrants(ctx context.Context, r Repos, now time.Time, userID int64, a Actor, reason string) error {
+	if r.MCP == nil {
+		return nil
+	}
+	gs, err := r.MCP.ListGrants(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, g := range gs {
+		if err := r.MCP.SetGrantRevoked(ctx, g.ID, &now); err != nil {
+			return err
+		}
+		if err := r.Audit.Add(ctx, AuditEntry{At: now, ActorUserID: a.UserID, Action: ActMCPClientRevoked, Target: UserTarget(userID),
+			Details: a.AuditDetails(map[string]any{"client": g.ClientName, "reason": reason}), IP: a.IP}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

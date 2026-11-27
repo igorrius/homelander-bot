@@ -95,9 +95,11 @@ type MCPRepo interface {
 	GrantFor(ctx context.Context, userID int64, clientID string) (MCPGrant, error)
 	// ListGrants returns the user's grants that are not revoked.
 	ListGrants(ctx context.Context, userID int64) ([]MCPGrant, error)
-	// SetGrantRevoked sets or (nil) clears revoked_at; setting it also revokes
+	// SetGrantRevoked sets or (nil) clears revoked_at; setting it also deletes
 	// the grant's tokens.
 	SetGrantRevoked(ctx context.Context, id int64, at *time.Time) error
+	// DeleteGrantTokens deletes every token of a grant.
+	DeleteGrantTokens(ctx context.Context, grantID int64) error
 	TouchGrant(ctx context.Context, id int64, at time.Time) error
 	CreateCode(ctx context.Context, c MCPCode) error
 	// UseCode marks an unused code used and returns it; ErrNotFound when the

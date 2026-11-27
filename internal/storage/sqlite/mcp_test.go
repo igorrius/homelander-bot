@@ -86,8 +86,8 @@ func TestMCPRepoRoundTrip(t *testing.T) {
 	if err := r.SetGrantRevoked(ctx, g.ID, &at); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := r.GetToken(ctx, "t2"); got.RevokedAt == nil {
-		t.Fatal("revoking a grant keeps its tokens")
+	if _, err := r.GetToken(ctx, "t2"); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("revoking a grant keeps its tokens: %v", err)
 	}
 	if list, _ := r.ListGrants(ctx, u.ID); len(list) != 0 {
 		t.Fatalf("revoked grant listed: %v", list)
