@@ -143,7 +143,8 @@ func (r Outbox) DeleteFinishedBefore(ctx context.Context, t time.Time) (int, err
 	return int(n), err
 }
 
-const regTokenColumns = `id, token_hash, channel_type, external_id, chat_id, username, phone, expires_at, used_at, created_at`
+// regTokenColumns lists columns, not credentials.
+const regTokenColumns = `id, token_hash, channel_type, external_id, chat_id, username, phone, expires_at, used_at, created_at` //nolint:gosec // column names
 
 // Create inserts t and sets its ID.
 func (r RegTokens) Create(ctx context.Context, t *domain.RegistrationToken) error {

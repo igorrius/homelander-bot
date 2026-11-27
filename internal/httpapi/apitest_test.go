@@ -85,12 +85,21 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	pub, _ := url.Parse("https://example.com")
 	cfg := config.Config{PublicURL: pub, SessionMaxTTL: 168 * time.Hour, DefaultLocale: "uk"}
 	locs := []string{"uk", "en"}
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	defLocale := func(context.Context) string { return "uk" }
+	silent := slog.New(slog.NewTextHandler(io.Discard, nil))
+	notifier := &domain.Notifier{R: r, Now: clock, I18n: tr, DefaultLocale: defLocale}
 	e.api = httpapi.API{
-		Users:   &domain.UserService{R: r, Now: clock, Limits: limits, Region: "UA", PendingCap: 200, Locales: locs},
-		Catalog: &domain.CatalogService{R: r, Now: clock, Locales: locs},
-		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: []byte("0123456789abcdef0123456789abcdef"),
+		Users: &domain.UserService{R: r, Now: clock, Limits: limits, Region: "UA", PendingCap: 200, Locales: locs,
+			Secret: secret, Notifier: notifier, I18n: tr, PublicURL: "https://example.com", DefaultLocale: defLocale},
+		Chats:    &domain.ChatService{R: r, Now: clock, Messengers: domain.Messengers{"telegram": e.msgr}, Log: silent, LeaveGrace: 2 * time.Minute},
+		Labels:   &domain.LabelService{R: r, Now: clock},
+		Notifier: notifier,
+		Catalog:  &domain.CatalogService{R: r, Now: clock, Locales: locs},
+		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: secret,
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
-			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() }},
+			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() },
+			PublicURL: "https://example.com", TokenTTL: time.Hour},
 		Messenger: e.msgr,
 		Cfg:       cfg,
 	}

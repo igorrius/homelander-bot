@@ -8,7 +8,7 @@ import (
 
 const outboxRetention = 30 * 24 * time.Hour
 
-// ErrChatNotAccepted: a test send found nothing that may receive it.
+// ErrChatNotAccepted is returned when a test send finds nothing that may receive it.
 var ErrChatNotAccepted = errors.New("chat_not_accepted")
 
 // Notifier queues messages in the outbox. Call it inside the transaction of
@@ -166,6 +166,11 @@ func (n *Notifier) TestLabel(ctx context.Context, labelID int64) ([]int64, error
 		return nil
 	})
 	return ids, err
+}
+
+// Status returns one queued message (for showing a test send's outcome).
+func (n *Notifier) Status(ctx context.Context, id int64) (OutboxItem, error) {
+	return n.R.Outbox.Get(ctx, id)
 }
 
 // Clean deletes sent and failed rows older than 30 days.
