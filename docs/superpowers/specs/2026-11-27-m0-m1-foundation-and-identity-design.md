@@ -7,18 +7,21 @@
 
 ## 1. Intent
 
-Homelander is a bot and a closed admin system for **one resident community**: the people of one or
-several houses who share common chats (a Telegram group split into forum topics today, maybe Discord
-later). Over time the system will post automatic information into those chats (power outage
-schedules first), identify residents, control the yard gate, and run simple user-built automations.
-Features beyond the core come as optional **modules** (WASM, see M3).
+Homelander is a bot and a web system for **one resident community**: the people of one or several
+houses who share common chats (a Telegram group split into forum topics today, maybe Discord later).
+Over time the system will post automatic information into those chats (power outage schedules
+first), show residents a page with the state of their houses (power, batteries, gates), identify
+residents, control the yard gate, and run simple user-built automations. Features beyond the core
+come as optional **modules** (WASM, see M3).
 
-Before any of that, the system has to know **who is a resident** and has to let a small number of
-trusted people manage it **safely**. That is M0 + M1:
+Before any of that, the system has to know **who is a resident**, with a **verified phone number and
+a verified messenger account**, and has to let a few trusted people manage it **safely**. That is
+M0 + M1:
 
 - M0 lays the groundwork every later milestone builds on: one Go binary, storage, configuration,
-  i18n, the admin UI shell, CI.
-- M1 delivers secure login, invitations, residents, houses and apartments.
+  i18n, the web app shell, CI.
+- M1 delivers registration applications, approval, activation through the bot, login with a second
+  factor, users, houses and apartments, and a first resident page.
 
 The product is not tied to any particular house. The owner will run the first deployment for their
 own community (two houses), but nothing about that community goes into the repository.
@@ -27,59 +30,69 @@ own community (two houses), but nothing about that community goes into the repos
 
 ### Goals (M0 + M1)
 
-1. An admin logs in to the admin panel with a **phone number + one-time code delivered to their
-   linked Telegram account**. There is no password and no open sign-up.
-2. An admin **invites a resident** by phone number. The person opens the invitation page, enters
-   first and last name, picks house, apartment and residency status from lists. An admin **approves**
-   the registration. After that the person opens the bot, shares their phone number, and the bot
-   links their Telegram account — no per-person link has to be sent.
-3. An admin manages **houses** (name, number of apartments), the **residency status dictionary**
-   (e.g. owner / tenant) and **users**: a searchable list (first name, last name, phone) and a user
-   card page where the **Resident** and **Admin** flags are switched on and off.
-4. The **first admin** is defined by environment configuration and links Telegram the same way.
-5. Every user-facing text, in the bot and in the UI, goes through **i18n**; Ukrainian is the
+1. **One public registration link** (`/register`) that can be pinned in the community chat. A person
+   enters phone, first name, last name, picks house, apartment and residency status, and submits an
+   **application**.
+2. An admin **reviews** applications: corrects details if needed, approves or rejects.
+3. An admin can **add a user directly** (first name, last name, phone; Resident and Admin flags) —
+   for admins and other non-resident people. No application needed.
+4. **Every account is activated only through the bot**: the person opens the bot and shares their
+   own phone number. Telegram proves the number is theirs; the system links the Telegram account and
+   the user becomes active. This link is where second-factor codes go.
+5. **Login** for every active user: phone number + one-time code delivered to the linked Telegram
+   account. No passwords.
+6. Two web areas behind the same login:
+   - `/` — the **resident page**: a welcome with the community name and a picture of the houses
+     (configured in the admin panel). Later milestones add house data here.
+   - `/admin` — the **admin panel**, only for users with the Admin flag.
+7. Admins manage **houses** (name, number of apartments), the **residency status dictionary**
+   (owner / tenant), **users** (searchable list and a user card page with Resident and Admin flags)
+   and **site settings** (community name, welcome text, picture, default language).
+8. The **first admin** is defined by environment configuration and activates through the bot.
+9. Every user-facing text, in the bot and on the web, goes through **i18n**; Ukrainian is the
    default, English is the second locale.
-6. The bot receives Telegram updates by **long polling by default**, switchable to a **webhook** by
-   configuration (needed for Railway).
-7. Security-relevant actions are written to an **audit log**.
+10. The bot receives Telegram updates by **long polling by default**, switchable to a **webhook** by
+    configuration (needed for Railway).
+11. Security-relevant actions are written to an **audit log**.
 
 ### Non-goals (later milestones)
 
+- House data on the resident page (power, batteries, gates): comes with modules (M3+).
 - Registration started from the bot, marking unidentified chat members, chats/topics routing (M2).
 - Modules, module catalog, module settings (M3), outage schedules (M4), flow editor (M5), gate (M6).
-- Fine-grained roles / RBAC. M1 has exactly two flags on a user: resident and admin.
-- A panel for regular residents. Residents use the bot only; the only web page they see is the
-  invitation page.
-- Notifying a person in Telegram that their registration was approved: they are not linked yet,
-  so the bot cannot write to them (the post-registration page tells them what to do).
-- Discord or any messenger other than Telegram — but see the messenger abstraction (section 5.3).
+- Fine-grained roles / RBAC. M1 has exactly two flags on a user: Resident and Admin.
+- Discord or any messenger other than Telegram for activation — but see the messenger abstraction
+  (section 5.3).
 - Entrances/sections of a house. A big house with sections is entered as several houses
   ("7, section 1", "7, section 2").
+- Notifying a person that their application was approved: they are not linked yet, so the bot
+  cannot write to them. The page after submitting tells them what to do.
 - Multi-tenancy: one deployment serves one community.
 
 ### Anti-goals (would be a failure even if it works)
 
-- A secret, a real phone number, address or apartment in the public repository (code, fixtures,
-  issues, docs).
-- Any way to get an admin session without possession of the linked Telegram account.
+- A secret, a real phone number, address, apartment or picture of a real house in the public
+  repository (code, fixtures, issues, docs). Community name, welcome text and picture are settings.
+- Any way to get a session without possession of the linked Telegram account.
+- An application that gives anything before an admin approved it **and** the person activated it.
 - Identity tied to Telegram so tightly that adding another messenger means reworking users.
 - Hard-coded Ukrainian (or any) strings outside locale files.
 
 ## 3. Constraints
 
 - **Public repository.** All configuration that differs per deployment, and every secret, comes from
-  environment variables. `.env.example` lists them with placeholder values only. `.env` is ignored.
-- **Pure Go, no CGO.** SQLite via `modernc.org/sqlite`, the same driver as the owner's Ganglion
-  project. One static binary.
+  environment variables or from settings stored in the database. `.env.example` lists variables with
+  placeholder values only. `.env` is ignored.
+- **Pure Go, no CGO.** SQLite via `modernc.org/sqlite`, the same driver as the owner's other projects.
+  One static binary.
 - **Storage behind an interface.** SQLite is the main and, for now, only implementation; the domain
   never imports the driver.
 - **First deployment target: Railway.** One service, one replica, a volume for the SQLite file,
-  public HTTPS domain available. The same binary must run at home behind NAT (polling, no public
-  listener needed for the bot).
-- **Telegram limits that shape the design:**
+  public HTTPS domain available. The same binary must run at home behind NAT (polling; the bot needs
+  no public listener).
+- **Telegram facts that shape the design:**
   - A bot cannot find a user by phone number and cannot write first to someone who never started it.
-    So a code can only be delivered **after** the person linked Telegram, and the **invitation is
-    delivered by the admin** (copy a link, send it any way they like).
+    So activation is started by the person, in the bot.
   - Phone ownership on Telegram is proven by the user tapping **"Share contact"** (`request_contact`
     keyboard button). The bot must check that the shared contact's `user_id` equals the sender's
     id, otherwise someone could forward another person's contact.
@@ -91,32 +104,36 @@ own community (two houses), but nothing about that community goes into the repos
 
 ## 4. Approaches considered
 
-### Invitation and Telegram linking
+### Where identity starts
 
-**A. Bot first.** The invitation is a deep link `t.me/<bot>?start=<token>`. The bot asks for the
-contact, checks the phone against the invitation, then sends a one-time link to a web form for name,
-house, apartment, status.
-*Trade-off:* one step shorter for the person, but the person's very first step and their identity
-are inside Telegram; a Discord-only community would need a parallel flow.
+**A. Bot first.** The person starts in the bot, which collects the data and links Telegram at once.
+*Trade-off:* fewest steps, but identity begins inside Telegram; another messenger would need a
+parallel sign-up.
 
 **B. Web first, messenger linked as a channel. — Chosen by the owner.**
-The invitation is a web link. The page shows the prefilled phone, the person fills in the form, an
-admin approves it, then the person links Telegram by opening the bot and tapping "Share contact".
-The user record lives in the system; Telegram is one linked channel.
-*Trade-off:* one extra hop for the person; in return identity is messenger-agnostic, which is what
-the owner asked for, and adding Discord later means adding a channel type, not a second sign-up.
+The person applies on the web; the account lives in the system; Telegram is a linked channel used
+for activation and codes.
+*Trade-off:* one extra hop; in return identity is messenger-agnostic.
+
+### How a resident reaches the application form
+
+**One shared link — chosen by the owner.** `/register` is public and pinned in the community chat;
+admins send nothing to anyone. Safe because an application gives nothing until an admin approves it
+and the person proves the phone in the bot. Spam is held back by rate limits and form validation.
+**Per-person invitation links** (phone prefilled) were rejected: more protection against strangers,
+but an admin would have to send a link to every resident.
 
 ### Process shape
 
-**One binary** (my call): HTTP API, admin UI (embedded static build), invitation page and the bot
-worker run in one Go process, separated internally into packages. Separate services were rejected:
-one replica on Railway, SQLite in a file, and a tiny community make distribution pure cost.
+**One binary** (Claude's call): HTTP API, web app (embedded static build) and the bot worker run in
+one Go process, separated internally into packages. Separate services were rejected: one replica on
+Railway, SQLite in a file, and a small community make distribution pure cost.
 
-### Admin UI framework
+### Web framework
 
-**React + TypeScript** (my call, the owner left it open). The flow editor planned for M5 will use
-xyflow, which exists for React (React Flow) and Svelte (Svelte Flow); React Flow is the more mature
-of the two, and the admin panel's tables and forms have far more ready-made components in React.
+**React + TypeScript** (Claude's call, the owner left it open). The flow editor planned for M5 will
+use xyflow, which exists for React (React Flow) and Svelte (Svelte Flow); React Flow is the more
+mature of the two, and tables and forms have far more ready-made components in React.
 
 ## 5. Design
 
@@ -125,12 +142,12 @@ of the two, and the admin panel's tables and forms have far more ready-made comp
 ```
 cmd/homelander/        main: wires config, storage, HTTP server, bot worker
 internal/config/       env parsing and validation
-internal/domain/       entities and service logic: users, houses, invitations, auth
+internal/domain/       entities and service logic: users, houses, applications, auth, settings
 internal/storage/      repository interfaces
 internal/storage/sqlite/  implementation + embedded migrations
 internal/messenger/    Messenger interface, channel types
 internal/messenger/telegram/  Telegram implementation (polling + webhook)
-internal/httpapi/      REST API, sessions, middleware, static UI serving
+internal/httpapi/      REST API, sessions, middleware, static web serving
 internal/i18n/         backend localization
 locales/               uk.json, en.json for backend/bot texts
 web/                   React app (Vite); builds into web/dist, embedded via go:embed
@@ -143,20 +160,30 @@ All ids are integers (SQLite rowid); timestamps are UTC.
 
 | Table | Key fields | Notes |
 |---|---|---|
-| `users` | id, phone (E.164, unique), first_name, last_name (nullable until filled), locale, is_resident, is_admin, status (`pending` / `active` / `rejected` / `disabled`), approved_by, approved_at, created_at | A user is a person. Registration through an invitation creates a `pending` user with `is_resident = true`. `is_admin` gives access to the admin panel. Both flags are independent: an admin need not be a resident; turning `is_resident` off removes resident abilities in the bot (residencies are kept but ignored). |
-| `channels` | id, user_id, type (`telegram`), external_id (Telegram user id), chat_id, username, linked_at | One row per linked messenger account. Unique (type, external_id). A user may have at most one channel per type in M1. |
+| `users` | id, phone (E.164, unique), first_name, last_name, locale, is_resident, is_admin, status, source (`application` / `admin` / `bootstrap`), approved_by, approved_at, activated_at, created_at | A user is a person. Flags are independent: an admin need not be a resident; turning Resident off removes resident abilities (residencies are kept but ignored). |
+| `channels` | id, user_id, type (`telegram`), external_id (Telegram user id), chat_id, username, linked_at | One row per linked messenger account. Unique (type, external_id). At most one channel per type per user in M1. |
 | `houses` | id, name (free text, e.g. "22" or "7, section 1"), apartments_count, sort_order, archived | Apartments are numbered 1..apartments_count. |
-| `residency_statuses` | id, code, names (JSON: `{"uk": "Власник", "en": "Owner"}`), sort_order, archived | Dictionary edited in the UI, one name per supported locale (a missing locale falls back to the default locale's name). Seeded with `owner` / `tenant`. |
-| `residencies` | id, user_id, house_id, apartment_number, status_id, created_at | Many-to-many: one person may live in or own several apartments; one apartment may have several residents. Unique (user_id, house_id, apartment_number). |
-| `invitations` | id, phone, token_hash, created_by, expires_at, used_at, revoked_at, user_id | Invites a resident. One-time. Token is shown once to the admin, only its hash is stored. |
+| `residency_statuses` | id, code, names (JSON: `{"uk": "Власник", "en": "Owner"}`), sort_order, archived | Dictionary edited in the admin panel; a missing locale falls back to the default locale's name. Seeded with `owner` / `tenant`. |
+| `residencies` | id, user_id, house_id, apartment_number, status_id, created_at | One person may have several apartments; one apartment may have several residents. Unique (user_id, house_id, apartment_number). |
 | `login_codes` | id, user_id, code_hash, expires_at, attempts, used_at, ip | One active code per user; a new request invalidates the old one. |
-| `sessions` | id, user_id, token_hash, created_at, last_seen_at, expires_at, ip, user_agent | Server-side sessions; cookie holds the raw token. |
+| `sessions` | id, user_id, token_hash, created_at, last_seen_at, expires_at, ip, user_agent | Server-side sessions; the cookie holds the raw token. |
 | `audit_log` | id, at, actor_user_id, action, target, details (JSON), ip | Append-only. |
-| `settings` | key, value | System settings editable in the UI (e.g. default locale). Secrets never go here. |
+| `settings` | key, value (JSON) | Community name and welcome text (per locale), default locale. Secrets never go here. |
+| `assets` | id, kind (`hero`), content_type, data (BLOB), sha256, uploaded_by, uploaded_at | Uploaded site picture. In the database so it is backed up with everything else. |
+
+**User status:**
+
+```
+application ──▶ pending_approval ──approve──▶ awaiting_activation ──bot: phone shared──▶ active
+                       │                              ▲
+                       └──reject──▶ rejected          │
+admin adds user / bootstrap ──────────────────────────┘
+active ◀──▶ disabled (admin)
+```
 
 Migrations: SQL files embedded in the binary, applied at start, forward-only, versions in a
-`schema_migrations` table (the same approach as Ganglion ADR-0016; a small own migrator or `goose`
-— builder's call).
+`schema_migrations` table (a small own migrator as in the owner's Ganglion project, or `goose` —
+builder's call).
 
 The domain talks to storage through repository interfaces (`UserRepo`, `HouseRepo`, …) plus a
 transaction runner, so a second database can be added without touching the domain.
@@ -172,114 +199,135 @@ type Messenger interface {
 ```
 
 Inbound events (`/start`, a contact shared) are turned by the Telegram adapter into
-messenger-neutral domain calls (`LinkChannel(type, externalID, chatID, verifiedPhone)`). The domain never
-sees a Telegram type. Discord later implements the same interface with its own linking proof.
+messenger-neutral domain calls (`ActivateChannel(type, externalID, chatID, verifiedPhone)`). The
+domain never sees a Telegram type. Discord later implements the same interface with its own proof.
 
 **Telegram adapter.** Library: `gotgbot/v2` for Bot API calls (no dependencies, generated from the
-Bot API spec; the owner's Ganglion research rated it the best fit for "methods only"). Receiving:
+Bot API spec; the owner's Ganglion research rated it the best fit). Receiving:
 
 - `TELEGRAM_UPDATES=polling` (default): long polling.
 - `TELEGRAM_UPDATES=webhook`: the HTTP server exposes `POST /telegram/webhook/<random path>`;
   at start the bot calls `setWebhook(PUBLIC_URL + path, secret_token=TELEGRAM_WEBHOOK_SECRET)`;
   the handler compares the `X-Telegram-Bot-Api-Secret-Token` header in constant time.
 - Switching back to polling calls `deleteWebhook` at start.
-- Whether to use the library's own updater or a thin own loop is the builder's call; for M1 losing
-  a `/start` on a crash is acceptable (the person just taps again).
+- Library updater or a thin own loop is the builder's call; losing a `/start` on a crash is
+  acceptable in M1 (the person just taps again).
+- The bot only talks in private chats in M1; it ignores group messages (group work is M2).
 
 ### 5.4 Flows
 
-**Linking a messenger (bot).** Used by everyone, including the first admin.
-1. The person opens the bot (`t.me/<bot>`, shown on the post-registration page and easy to pin in the
-   community chat) and sends `/start`. The bot replies with a "Share my phone number" keyboard button.
+**Apply (resident, public web, `/register`).**
+1. Form: phone, first name, last name, house (select), apartment (select 1..N of that house),
+   residency status (select), consent checkbox for storing the data. Captcha is not used.
+2. Submit → validation (phone normalized to E.164 with `DEFAULT_PHONE_REGION`, `UA`; apartment exists
+   in the house) → a `pending_approval` user with `is_resident = true` and the residency.
+3. If the phone already belongs to a user, nothing is created or changed, but the answer is the same
+   (no way to probe which numbers are registered). A `rejected` user may apply again: the row is
+   reused and goes back to `pending_approval`.
+4. Final screen: "Application received. After an administrator approves it, open the bot and share
+   your phone number" with the bot button and a QR code for desktop.
+5. Rate limits: per IP (e.g. 5 applications / hour) and a global cap on pending applications
+   (e.g. 200) after which the form says "try later".
+
+**Review (admin).** The admin panel shows pending applications with a counter in the menu. The admin
+may correct name/house/apartment/status, then **approves** (`awaiting_activation`) or **rejects**
+(`rejected`).
+
+**Add user (admin).** Form: first name, last name, phone, Resident and Admin flags (if Resident:
+residencies can be added on the user card). The user is created as `awaiting_activation`.
+
+**Activate (bot).** Used by everyone, including the first admin.
+1. The person opens the bot and sends `/start`. The bot replies with a "Share my phone number"
+   keyboard button.
 2. Contact received → the bot checks `contact.user_id == from.id` (the person shared **their own**
    number, which Telegram has verified) and normalizes the phone.
 3. The domain looks the phone up:
-   - an `active` user without a Telegram channel → channel created, bot greets them in their language;
-   - a `pending` user → "your registration is waiting for an administrator's approval";
-   - a `rejected`/`disabled` user, an unknown phone, or a phone whose user already has a different
-     Telegram account linked → one neutral "this number is not registered in the system, contact an
-     administrator" (no hint which case it is);
-   - the same Telegram account already linked → "you are already connected".
+   - `awaiting_activation` → channel linked, user `active`, the bot greets them and gives the web
+     link;
+   - `active` with this same Telegram account → "you are already connected";
+   - `pending_approval` → "your application is waiting for an administrator's approval";
+   - anything else (unknown, `rejected`, `disabled`, or `active` with a different Telegram account)
+     → one neutral "this number is not registered, contact an administrator".
 4. Rate limit per Telegram account (e.g. 5 attempts / hour).
 
-**Bootstrap.** If `BOOTSTRAP_ADMIN_PHONE` is set and no admin exists, the first contact shared from
-that phone creates an `active` user with `is_admin = true`, `is_resident = false`, links the channel
-and asks them to log in to the web and fill in their name. No tokens, nothing printed to logs,
-restarts are harmless. Once an admin exists, the variable is ignored.
+**Bootstrap.** If `BOOTSTRAP_ADMIN_PHONE` is set and no admin exists, a contact shared from that
+phone creates an `active` user with `is_admin = true`, `is_resident = false`, `source = bootstrap`,
+links the channel and asks them to fill in their name on the web. No tokens, nothing printed to
+logs, restarts are harmless. Once an admin exists, the variable is ignored.
 
-**Invite (admin).** Admin enters a phone → system normalizes it to E.164 (default region from
-`DEFAULT_PHONE_REGION`, `UA`) → rejects if a user or a live invitation already has it → creates an
-invitation (default lifetime 7 days, `INVITE_TTL`) → shows the link `PUBLIC_URL/invite/<token>` with a
-copy button; the admin sends it any way they like. The admin can list, revoke and re-issue
-invitations. Invitations always invite a resident; admin rights are granted later on the user card.
-
-**Register (invitee, web).**
-1. `/invite/<token>`: valid → form with phone (read-only), first name, last name, house (select),
-   apartment (select 1..N of that house), status (select). Invalid/expired/used → a neutral error page.
-2. Submit → `pending` user (`is_resident = true`) + residency created, invitation marked used.
-3. Final screen: "Thank you. After an administrator approves your registration, open the bot and
-   share your phone number" with the bot button and a QR code for desktop.
-
-**Approve (admin).** The admin panel shows pending registrations (a counter in the menu). The admin
-checks the details, may correct name/house/apartment/status, then **approves** (`active`) or
-**rejects** (`rejected`). A rejected phone can be invited again later, which reuses the user row.
-
-**Phone mismatch.** If the person's Telegram phone differs from the invited one, the bot answers
-"not registered". An admin can **edit the phone of a user who has no linked channel** (uniqueness
-still enforced). Changing the phone of a linked user requires unlinking the channel first (which
-also ends their sessions).
-
-**Login (admin, web).**
+**Login (web, any active user).**
 1. Phone → `POST /api/v1/auth/code`. The response is always the same ("if this number has access, a
-   code was sent"). A code is sent only if the user exists, is active, is admin and has a channel.
+   code was sent"). A code is sent only if the user is `active` and has a channel.
 2. Code: 6 digits, stored as HMAC-SHA256 with `APP_SECRET`, lifetime 5 minutes, max 5 attempts,
-   one active code per user. The Telegram message includes the IP/time of the request and "if it
+   one active code per user. The Telegram message includes the time of the request and "if it
    wasn't you, ignore this".
-3. `POST /api/v1/auth/verify` → session created; old code invalidated.
-4. Rate limits: per phone (e.g. 3 codes / 15 min) and per IP (e.g. 10 requests / 15 min); in-memory
-   limiter is enough for one replica.
+3. `POST /api/v1/auth/verify` → session created; the code is used up. After login an admin lands on
+   `/admin`, everyone else on `/`.
+4. Rate limits: per phone (e.g. 3 codes / 15 min) and per IP (e.g. 10 requests / 15 min); an
+   in-memory limiter is enough for one replica.
 
 **Sessions.** 32 random bytes in a cookie `__Host-session` (`HttpOnly`, `Secure`, `SameSite=Strict`,
 `Path=/`); the database keeps only a hash. Idle timeout 12 h, absolute lifetime 7 days (configurable).
-Logout deletes the row. Revoking admin, disabling a user or unlinking their channel deletes all their
-sessions. Mutating API calls also require a custom header (`X-Requested-With`) as a CSRF backstop.
+Logout deletes the row. Revoking admin, disabling a user, unlinking their channel or changing their
+phone deletes all their sessions. Mutating API calls also require a custom header
+(`X-Requested-With`) as a CSRF backstop.
 
-**User card (admin).** A separate page per user: name, phone, status, linked channels (with
-"unlink"), residencies (add/edit/remove), the **Resident** and **Admin** checkboxes, disable/enable,
-recent audit entries for this user. An admin can grant or revoke `is_admin` on any active user; the
-last admin cannot lose admin or be disabled. Granting admin to a user without a linked channel is
-allowed, but they cannot log in until they link one.
+**User card (admin).** A separate page per user: name, phone, status, source, linked channels (with
+"unlink", which returns the user to `awaiting_activation`), residencies (add/edit/remove), the
+**Resident** and **Admin** checkboxes, disable/enable, recent audit entries for this user. The last
+active admin cannot lose admin or be disabled. An admin can edit the phone of a user who is not
+active yet (uniqueness enforced); an active user's phone changes only after unlinking.
 
 ### 5.5 HTTP surface
 
-- `/api/v1/...` JSON REST. Public: `auth/code`, `auth/verify`, `invitations/{token}` (read + submit).
-  Everything else requires an admin session.
-- `/invite/*` and `/` — the React app (one SPA with a public invitation route and the protected admin
-  area). Unknown non-API paths fall back to `index.html`.
+- `/api/v1/...` JSON REST.
+  - Public: `site` (community name, welcome text, picture URL, bot URL), `register/options`
+    (houses with apartment counts, statuses), `register` (submit), `auth/code`, `auth/verify`,
+    `assets/{id}`.
+  - Signed in: `me`, `auth/logout`.
+  - Admin only: everything else.
+- Web routes (one React app): `/` resident page, `/register`, `/login`, `/admin/*`. Unknown non-API
+  paths fall back to `index.html`.
 - `/healthz` for Railway.
 - `/telegram/webhook/<path>` only in webhook mode.
 - Security headers: CSP (self only), `X-Content-Type-Options`, `Referrer-Policy: no-referrer`,
   `frame-ancestors 'none'`.
+- Uploaded pictures: PNG, JPEG or WebP only (no SVG), up to 5 MB, served with their stored content
+  type and `X-Content-Type-Options: nosniff`.
 
-### 5.6 Admin UI (M1 screens)
+### 5.6 Web app (M1 screens)
 
-Login (phone → code), Users (list with search by first name, last name, phone; filters by house,
-resident/admin flag, status), User card (separate page, see 5.4), Pending registrations (approve /
-reject), Invitations (create, list, revoke),
-Houses (CRUD, apartments count), Residency statuses (CRUD), Audit log (read-only list),
-Settings (default locale). Language switcher (uk/en).
+**Resident page `/`.** Header with the community name; a large picture of the houses (the uploaded
+picture, or a neutral built-in illustration); the welcome text. A guest sees a "Log in" button and a
+"Register" link; a signed-in user sees their name, their apartments and "Log out"; an admin also sees
+a link to the admin panel. Placeholders for future house data are not shown. The owner's K7 project
+(a page with a house scene) is a reference for the look.
+
+**Register `/register`.** The application form and the final screen (5.4).
+
+**Login `/login`.** Phone → code.
+
+**Admin `/admin`.** Applications (approve / reject, counter), Users (list with search by first name,
+last name, phone; filters by house, Resident/Admin flag, status; "Add user"), User card (separate
+page, 5.4), Houses (CRUD, apartments count), Residency statuses (CRUD), Site (community name and
+welcome text per locale, picture upload, default language, the public registration link with a copy
+button and QR code), Audit log (read-only list). Language switcher (uk/en) everywhere.
 
 Stack: React + TypeScript + Vite, `react-router`, `react-i18next`, TanStack Query for API calls.
-Component library is the builder's call (Mantine is my suggestion: complete admin-style components,
-no Tailwind setup). Dev mode: Vite dev server proxies `/api` to the Go server.
+Component library is the builder's call (Mantine suggested: complete admin-style components, no
+Tailwind setup). Dev mode: the Vite dev server proxies `/api` to the Go server.
+
+The picture of the owner's own houses (an L-shaped building with an arch, drawn from the map) is made
+outside the repository and uploaded through Site settings. It is not part of M1's code.
 
 ### 5.7 i18n
 
 - Backend/bot: locale files `locales/uk.json`, `locales/en.json` embedded in the binary, loaded by
   `nicksnyder/go-i18n/v2` (plural forms). Bot message language: the user's `locale`, else the
   Telegram `language_code` if supported, else the system default.
-- UI: `web/src/locales/{uk,en}.json` with `react-i18next`.
-- Default locale from `DEFAULT_LOCALE` (`uk`), overridable in Settings.
+- Web: `web/src/locales/{uk,en}.json` with `react-i18next`.
+- Content entered by admins (community name, welcome text, status names) is stored per locale.
+- Default locale from `DEFAULT_LOCALE` (`uk`), overridable in Site settings.
 - A CI check fails if a key exists in one locale and not the other.
 
 ### 5.8 Configuration (environment only)
@@ -287,7 +335,7 @@ no Tailwind setup). Dev mode: Vite dev server proxies `/api` to the Go server.
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `APP_SECRET` | yes | — | HMAC key for codes and tokens (≥ 32 bytes) |
-| `PUBLIC_URL` | yes | — | Base URL for invitation links and webhook |
+| `PUBLIC_URL` | yes | — | Base URL for links and the webhook |
 | `HTTP_ADDR` | no | `:8080` (or `:$PORT` on Railway) | Listen address |
 | `DATABASE_PATH` | no | `./data/homelander.db` | SQLite file |
 | `TELEGRAM_BOT_TOKEN` | yes | — | Bot token |
@@ -296,7 +344,7 @@ no Tailwind setup). Dev mode: Vite dev server proxies `/api` to the Go server.
 | `BOOTSTRAP_ADMIN_PHONE` | no | — | First admin's phone |
 | `DEFAULT_LOCALE` | no | `uk` | Default language |
 | `DEFAULT_PHONE_REGION` | no | `UA` | Region for phone normalization |
-| `INVITE_TTL`, `SESSION_IDLE_TTL`, `SESSION_MAX_TTL` | no | `168h`, `12h`, `168h` | Lifetimes |
+| `SESSION_IDLE_TTL`, `SESSION_MAX_TTL` | no | `12h`, `168h` | Session lifetimes |
 | `LOG_LEVEL` | no | `info` | Logging |
 
 The process refuses to start on a missing required variable and never logs secret values.
@@ -311,33 +359,39 @@ scope for M1 (a follow-up issue).
 
 ### 5.10 Testing
 
-- Domain services: unit tests with an in-memory/temporary SQLite database.
-- Auth: tests for code expiry, attempt limit, one-active-code, rate limits, session idle/absolute
-  expiry, revocation on admin removal, generic responses.
-- Linking: a forwarded contact (contact.user_id ≠ from.id) rejected; pending, rejected, disabled and unknown phones get the right answers; bootstrap only while no admin exists.
-- Registration: pending → approve / reject; flags resident and admin independent; last admin protected.
+- Domain services: unit tests with a temporary SQLite database.
+- Status machine: every allowed transition, and every forbidden one refused.
+- Applications: duplicate phone answered the same and changes nothing; rejected user can reapply;
+  apartment outside the house refused; rate limits.
+- Activation: a forwarded contact (contact.user_id ≠ from.id) refused; each status gets the right
+  answer; bootstrap only while no admin exists.
+- Auth: code expiry, attempt limit, one active code, rate limits, session idle/absolute expiry,
+  sessions ended on admin removal / disable / unlink / phone change, identical responses.
+- Flags: Resident and Admin independent; last admin protected; admin-only API refuses residents.
 - Telegram adapter behind an interface; a fake messenger records sent messages for tests.
-- HTTP API: handler tests with `httptest`.
-- UI: type check + lint in CI; a few component tests for the login and invitation forms.
+- HTTP API: handler tests with `httptest`. Upload: SVG and oversized files refused.
+- Web: type check + lint in CI; component tests for the login and application forms.
 - CI (GitHub Actions): `go vet`, `golangci-lint`, `go test -race`, web lint/typecheck/test/build,
   locale key parity, Docker build.
 
 ## 6. Left to the builder
 
 Exact package names, migration tool (own vs `goose`), Telegram receive loop (library updater vs own),
-UI component library, HTTP router (`net/http` mux is enough), logging library (`log/slog` suggested),
-exact rate-limit numbers within the stated spirit, QR code library, test fixtures (synthetic data only).
+component library, HTTP router (`net/http` mux is enough), logging (`log/slog` suggested), exact
+rate-limit numbers within the stated spirit, QR code library, the neutral built-in illustration,
+test fixtures (synthetic data only).
 
 ## 7. Calls made by Claude (for the owner to check)
 
-- One binary, React + TS admin UI, `gotgbot/v2`, `go-i18n`, Mantine suggested.
-- A person can have several residencies; an apartment can have several residents.
-- Only admins can log in to the web; others get the same neutral response and no code.
-- Bootstrap admin: the first contact shared from `BOOTSTRAP_ADMIN_PHONE` creates the admin (not a resident).
-- Rejected registrations: the phone can be invited again.
-- The bot gives one neutral answer for unknown / disabled / rejected / conflicting phones.
-- Admins can fix the phone of a not-yet-linked user; a linked user's phone changes only after unlinking.
-- Status names stored per locale in the database.
-- Epics #1 and #2 have no sub-issues yet; the implementation plan defines them (one issue per PR-sized slice).
+- One binary; React + TS; `gotgbot/v2`; `go-i18n`; Mantine suggested.
+- A person can have several apartments; an apartment can have several residents.
+- Login is open to every active user; `/admin` only to admins.
+- Bootstrap: the first contact shared from `BOOTSTRAP_ADMIN_PHONE` creates the admin (not a resident).
+- Applications from an already registered phone get the same answer and change nothing; rejected
+  people may apply again.
+- The bot gives one neutral answer for unknown / rejected / disabled / conflicting phones.
+- Unlinking Telegram sends the user back to "awaiting activation".
+- The site picture is stored in the database; SVG uploads are refused.
+- A consent checkbox on the application form.
 - Session lifetimes 12 h idle / 7 days absolute; code 6 digits, 5 minutes, 5 attempts.
 - English as the second locale.
