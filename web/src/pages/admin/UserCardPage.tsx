@@ -1,11 +1,11 @@
-import { ActionIcon, Alert, Anchor, Badge, Button, Card, Group, Loader, Select, Stack, Switch, Table, Text, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Grid, Group, Loader, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
 import {
-  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserAction, useUserCard,
-  type UserAction, type UserPatch,
+  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
+  type UserPatch,
 } from '../../api/admin'
 import type { AdminUser, Residency, UserCard } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
@@ -15,7 +15,7 @@ import { formatDateTime, fullName } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
 import { AuditTable } from './AuditTable'
 import { ResidencyEditor } from './ResidencyEditor'
-import { StatusBadge } from './StatusBadge'
+import { UserSummary } from './UserSummary'
 
 function useSaved() {
   const { t } = useTranslation()
@@ -63,59 +63,6 @@ function Details({ user }: { user: AdminUser }) {
           </Group>
         </Stack>
       </form>
-    </Card>
-  )
-}
-
-/** Flags and status actions; their errors share one alert. */
-function Access({ card }: { card: UserCard }) {
-  const { t } = useTranslation()
-  const { user } = card
-  const patch = usePatchUser(user.id)
-  const action = useUserAction()
-  const saved = useSaved()
-  const busy = patch.isPending || action.isPending
-  const run = (a: UserAction) => {
-    patch.reset()
-    action.mutate({ id: user.id, action: a }, { onSuccess: saved })
-  }
-  const setFlag = (body: UserPatch) => {
-    action.reset()
-    patch.mutate(body, { onSuccess: saved })
-  }
-  const err = patch.error ?? action.error
-  return (
-    <Card withBorder>
-      <Stack>
-        <Title order={3}>{t('admin.user.access')}</Title>
-        <Group>
-          <Switch label={t('admin.user.isResident')} checked={user.isResident} disabled={busy} onChange={(e) => setFlag({ isResident: e.currentTarget.checked })} />
-          <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
-        </Group>
-        <Group>
-          {user.status === 'pending_approval' && (
-            <>
-              <Button color="green" loading={busy} onClick={() => run('approve')}>
-                {t('admin.user.approve')}
-              </Button>
-              <ConfirmButton color="red" variant="light" disabled={busy} message={t('admin.applications.rejectConfirm', { name: fullName(user) })} onConfirm={() => run('reject')}>
-                {t('admin.user.reject')}
-              </ConfirmButton>
-            </>
-          )}
-          {(user.status === 'active' || user.status === 'awaiting_activation') && (
-            <ConfirmButton color="red" variant="light" disabled={busy} message={t('admin.user.disableConfirm', { name: fullName(user) })} onConfirm={() => run('disable')}>
-              {t('admin.user.disable')}
-            </ConfirmButton>
-          )}
-          {user.status === 'disabled' && (
-            <Button loading={busy} onClick={() => run('enable')}>
-              {t('admin.user.enable')}
-            </Button>
-          )}
-        </Group>
-        {err && <Alert color="red">{errorText(t, err)}</Alert>}
-      </Stack>
     </Card>
   )
 }
@@ -234,7 +181,7 @@ function Residencies({ card }: { card: UserCard }) {
 }
 
 export function UserCardPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const id = Number(useParams().id)
   const card = useUserCard(id)
   if (card.isPending) return <Loader />
@@ -244,23 +191,21 @@ export function UserCardPage() {
   // key: sections keep form and error state; never show them on another user's card.
   return (
     <Stack key={id}>
-      <Anchor component={Link} to="/admin/users" size="sm">
-        ← {t('admin.nav.users')}
-      </Anchor>
-      <Group gap="sm">
-        <Title order={2}>{fullName(user)}</Title>
-        <StatusBadge status={user.status} />
-        <Badge variant="outline" color="gray">
-          {t(`admin.user.source.${user.source}`)}
-        </Badge>
-      </Group>
-      <Text size="sm" c="dimmed">
-        {t('admin.user.created', { at: formatDateTime(user.createdAt, i18n.language) })}
-        {user.approvedAt && ` · ${t('admin.user.approved', { at: formatDateTime(user.approvedAt, i18n.language) })}`}
-        {user.activatedAt && ` · ${t('admin.user.activated', { at: formatDateTime(user.activatedAt, i18n.language) })}`}
-      </Text>
+      <Breadcrumbs>
+        <Anchor component={Link} to="/admin/users" size="sm">
+          {t('admin.nav.users')}
+        </Anchor>
+        <Text size="sm" c="dimmed">
+          {fullName(user)}
+        </Text>
+      </Breadcrumbs>
+      <Grid gap="md" align="flex-start">
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <UserSummary card={card.data} />
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Stack>
       <Details key={detailsKey} user={user} />
-      <Access card={card.data} />
       <Channels card={card.data} />
       <Residencies card={card.data} />
       <Card withBorder>
@@ -274,6 +219,9 @@ export function UserCardPage() {
           <AuditTable entries={card.data.audit} />
         </Stack>
       </Card>
+          </Stack>
+        </Grid.Col>
+      </Grid>
     </Stack>
   )
 }

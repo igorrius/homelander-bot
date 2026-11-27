@@ -4,7 +4,7 @@ import type { UserCard } from '../../api/types'
 import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
 import { callsTo, mockApi, type Route } from '../../test/api'
-import { adminRoutes, houses, statuses, userCard } from '../../test/fixtures'
+import { adminRoutes, houses, site, statuses, userCard } from '../../test/fixtures'
 import { renderApp } from '../../test/render'
 import { choose } from '../../test/select'
 
@@ -28,12 +28,48 @@ describe('UserCardPage', () => {
     renderApp('/admin/users/5')
     expect(await screen.findByRole('heading', { name: 'Olena Test' })).toBeInTheDocument()
     expect(screen.getByText(uk.userStatus.active)).toBeInTheDocument()
-    expect(screen.getByText('@olena_test')).toBeInTheDocument()
+    expect(screen.getAllByText('@olena_test').length).toBeGreaterThan(0)
     const residencies = screen.getByRole('table', { name: uk.admin.user.residencies })
     expect(within(residencies).getByText('House A')).toBeInTheDocument()
     expect(within(residencies).getByText('12')).toBeInTheDocument()
     expect(within(residencies).getByRole('columnheader', { name: uk.admin.user.residencyStatus })).toBeInTheDocument()
     expect(screen.getByText(uk.audit.action.user.approved)).toBeInTheDocument()
+  })
+
+  it('offers the bot link to a person who has not activated yet', async () => {
+    mockApi(routes(userCard({ status: 'awaiting_activation', hasTelegram: false })))
+    renderApp('/admin/users/5')
+    expect(await screen.findByText(uk.admin.user.botLink.title)).toBeInTheDocument()
+    expect(await screen.findByText('https://t.me/test_bot')).toBeInTheDocument()
+    expect(screen.getByTitle(uk.qr.title)).toBeInTheDocument()
+  })
+
+  it('shows no bot link to an active person', async () => {
+    mockApi(routes(userCard()))
+    renderApp('/admin/users/5')
+    await screen.findByRole('heading', { name: 'Olena Test' })
+    expect(screen.queryByText(uk.admin.user.botLink.title)).toBeNull()
+  })
+
+  it('hides the bot link block when the bot link is unknown', async () => {
+    mockApi(routes(userCard({ status: 'awaiting_activation' }), { 'GET /site': { body: { ...site, botUrl: '' } } }))
+    renderApp('/admin/users/5')
+    await screen.findByRole('heading', { name: 'Olena Test' })
+    expect(screen.queryByText(uk.admin.user.botLink.title)).toBeNull()
+  })
+
+  it('has breadcrumbs back to the users list', async () => {
+    mockApi(routes(userCard()))
+    renderApp('/admin/users/5')
+    await screen.findByRole('heading', { name: 'Olena Test' })
+    const main = within(screen.getByRole('main'))
+    expect(main.getByRole('link', { name: uk.admin.nav.users })).toHaveAttribute('href', '/admin/users')
+  })
+
+  it('titles a nameless person by phone', async () => {
+    mockApi(routes(userCard({ firstName: '', lastName: '' })))
+    renderApp('/admin/users/5')
+    expect(await screen.findByRole('heading', { name: '+380500000002' })).toBeInTheDocument()
   })
 
   it('saves only changed details', async () => {
