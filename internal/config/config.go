@@ -28,11 +28,13 @@ var SupportedLocales = []string{"uk", "en"}
 
 const minSecretLen = 32
 
-// DefaultMCPRedirectURIs covers Claude (web, Desktop, mobile) and loopback
-// redirects of local clients such as Claude Code.
+// DefaultMCPRedirectURIs covers Claude (web, Desktop, mobile), ChatGPT (its
+// stable callback, used because we support RFC 9207) and loopback redirects
+// of local clients such as Claude Code.
 var DefaultMCPRedirectURIs = []string{
 	"https://claude.ai/api/mcp/auth_callback",
 	"https://claude.com/api/mcp/auth_callback",
+	"https://chatgpt.com/connector_platform_oauth_redirect",
 	"http://localhost:*",
 	"http://127.0.0.1:*",
 }

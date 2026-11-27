@@ -88,6 +88,9 @@ func TestOAuthMetadata(t *testing.T) {
 	if m, _ := j["token_endpoint_auth_methods_supported"].([]any); len(m) != 1 || m[0] != "none" {
 		t.Errorf("token_endpoint_auth_methods_supported = %v", j["token_endpoint_auth_methods_supported"])
 	}
+	if j["authorization_response_iss_parameter_supported"] != true {
+		t.Errorf("RFC 9207 not advertised: %v", j["authorization_response_iss_parameter_supported"])
+	}
 	if r.Header().Get("Access-Control-Allow-Origin") != "*" {
 		t.Error("no CORS on AS metadata")
 	}
@@ -149,13 +152,14 @@ func TestOAuthFullFlow(t *testing.T) {
 	}
 
 	r = e.do("POST", "/api/v1/oauth/authorize", authorizeBody(clientID, false), tok, "")
-	if red, _ := r.json()["redirect"].(string); r.Code != 200 || red != claudeCB+"?error=access_denied&state=xyz" {
+	if red, _ := r.json()["redirect"].(string); r.Code != 200 || red != claudeCB+"?error=access_denied&iss="+url.QueryEscape("https://example.com")+"&state=xyz" {
 		t.Errorf("deny = %d %s", r.Code, r.Body)
 	}
 	r = e.do("POST", "/api/v1/oauth/authorize", authorizeBody(clientID, true), tok, "")
 	red, _ := r.json()["redirect"].(string)
 	ru, err := url.Parse(red)
-	if r.Code != 200 || err != nil || !strings.HasPrefix(red, claudeCB+"?") || ru.Query().Get("state") != "xyz" || ru.Query().Get("code") == "" {
+	if r.Code != 200 || err != nil || !strings.HasPrefix(red, claudeCB+"?") || ru.Query().Get("state") != "xyz" || ru.Query().Get("code") == "" ||
+		ru.Query().Get("iss") != "https://example.com" {
 		t.Fatalf("approve = %d %s", r.Code, r.Body)
 	}
 	code := ru.Query().Get("code")

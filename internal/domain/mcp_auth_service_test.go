@@ -216,6 +216,10 @@ func TestMCPApproveRequest(t *testing.T) {
 	if _, err := m.auth.Approve(ctx, m.admin, ok, actor(m.admin)); err != nil {
 		t.Errorf("no resource = %v", err)
 	}
+	ok.Resource = "https://home.example" // ChatGPT names the server origin
+	if _, err := m.auth.Approve(ctx, m.admin, ok, actor(m.admin)); err != nil {
+		t.Errorf("origin as resource = %v", err)
+	}
 }
 
 func TestMCPApproveRequiresFlag(t *testing.T) {

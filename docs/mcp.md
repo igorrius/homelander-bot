@@ -1,7 +1,7 @@
 # Connecting an AI agent through MCP
 
 Homelander has an [MCP](https://modelcontextprotocol.io) server at `<PUBLIC_URL>/mcp`. An admin can
-connect an AI agent such as Claude to it; the agent then reads and changes the **data space** and
+connect an AI agent such as Claude or ChatGPT to it; the agent then reads and changes the **data space** and
 writes **drafts of the home page**. It never publishes: an admin previews a draft and publishes it in
 the panel (**Admin → Pages**).
 
@@ -33,6 +33,20 @@ it back on does not bring them back — each agent needs a new approval.
 Claude Code works the same way (`claude mcp add --transport http homelander <PUBLIC_URL>/mcp`); it
 uses a loopback address (`http://localhost:<port>/…`) for the answer.
 
+## Connect ChatGPT
+
+1. Turn MCP on on your own user card.
+2. Open [chatgpt.com/plugins](https://chatgpt.com/plugins), press **+ → Add custom MCP server**, give
+   it a name and set the URL to `<PUBLIC_URL>/mcp`. Choose OAuth if asked; no client ID or secret is
+   needed (ChatGPT registers itself). Custom MCP servers are not available on every ChatGPT plan; in
+   Business, Enterprise and Edu workspaces an admin may have to allow them first.
+3. ChatGPT opens the Homelander login and consent page. Check that the answer goes to
+   `chatgpt.com`, then press **Allow**.
+
+ChatGPT uses the fixed callback `https://chatgpt.com/connector_platform_oauth_redirect` because
+Homelander returns the issuer (`iss`, RFC 9207) in every authorization response. *(A real ChatGPT
+connection has not been tried yet.)*
+
 ## See and revoke connected agents
 
 The user card shows **Channels → Connected agents**: the agent's name, when it was connected and
@@ -47,6 +61,7 @@ Homelander accepts only agents whose answer address is on an allow-list. The def
 ```
 https://claude.ai/api/mcp/auth_callback
 https://claude.com/api/mcp/auth_callback
+https://chatgpt.com/connector_platform_oauth_redirect
 http://localhost:*
 http://127.0.0.1:*
 ```
@@ -56,7 +71,7 @@ Claude Code). To allow another agent, set `MCP_REDIRECT_URIS` to the full comma-
 including the defaults you want to keep, and restart:
 
 ```
-MCP_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback,http://localhost:*,http://127.0.0.1:*,https://agent.example/oauth/callback
+MCP_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback,https://chatgpt.com/connector_platform_oauth_redirect,http://localhost:*,http://127.0.0.1:*,https://agent.example/oauth/callback
 ```
 
 ## What the agent can do
@@ -79,7 +94,8 @@ There is no tool to publish, unpublish or delete a page version.
 - OAuth 2.1 with PKCE (S256), Homelander as its own authorization server: metadata at
   `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`,
   dynamic client registration at `/oauth/register`, tokens at `/oauth/token`, revocation at
-  `/oauth/revoke`. The consent page is `/oauth/authorize` in the web app.
+  `/oauth/revoke`. The consent page is `/oauth/authorize` in the web app. Authorization responses
+  carry `iss` (RFC 9207). The `resource` parameter may be the MCP URL or the server origin.
 - Access tokens last 1 hour, refresh tokens 30 days and are replaced on every use. A replaced
   refresh token that comes back more than 30 seconds later means the token chain leaked: the agent
   is disconnected. A new approval ends the tokens of the earlier one. Only hashes of codes and

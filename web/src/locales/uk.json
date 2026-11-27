@@ -166,6 +166,10 @@
         "step1": "У Claude відкрийте Settings → Connectors → Add custom connector і вставте адресу вище.",
         "step2": "Claude відкриє сторінку Homelander: увійдіть кодом із Telegram.",
         "step3": "Перевірте, що відповідь іде на claude.ai або claude.com, і натисніть «Дозволити».",
+        "chatgptTitle": "ChatGPT",
+        "chatgpt1": "Відкрийте chatgpt.com/plugins, натисніть + → Add custom MCP server і вставте адресу вище. Власні MCP-сервери доступні не на всіх тарифах; у Business, Enterprise та Edu їх, можливо, спершу має дозволити адміністратор робочого простору.",
+        "chatgpt2": "ChatGPT відкриє сторінку Homelander: увійдіть кодом із Telegram.",
+        "chatgpt3": "Перевірте, що відповідь іде на chatgpt.com, і натисніть «Дозволити».",
         "codeTitle": "Claude Code",
         "copyCommand": "Копіювати команду",
         "docs": "Докладніше про MCP (документація)"

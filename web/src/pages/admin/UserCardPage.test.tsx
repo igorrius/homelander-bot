@@ -314,6 +314,9 @@ describe('UserCardPage', () => {
     expect(screen.getByRole('button', { name: uk.admin.user.connect.copyUrl })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: uk.admin.user.connect.copyCommand })).toBeInTheDocument()
     expect(screen.queryByText(uk.admin.user.connect.turnOnFirst)).toBeNull()
+    expect(screen.getByText(uk.admin.user.connect.chatgptTitle)).toBeInTheDocument()
+    expect(screen.getByText(uk.admin.user.connect.chatgpt1)).toBeInTheDocument()
+    expect(screen.getByText(uk.admin.user.connect.chatgpt3)).toBeInTheDocument()
   })
 
   it('asks the admin to turn MCP on first', async () => {

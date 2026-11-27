@@ -49,6 +49,9 @@ func RegisterOAuth(s *Server, api API) {
 			"code_challenge_methods_supported":           []string{"S256"},
 			"token_endpoint_auth_methods_supported":      []string{"none"},
 			"revocation_endpoint_auth_methods_supported": []string{"none"},
+			// RFC 9207: every authorization response carries iss; ChatGPT then
+			// uses its stable redirect URI.
+			"authorization_response_iss_parameter_supported": true,
 		})
 	})))
 	s.Mount("/oauth/register", cors(http.MethodPost, h.limited(http.HandlerFunc(h.oauthRegister))))
@@ -257,7 +260,8 @@ func (h handlerCtx) authorize(w http.ResponseWriter, r *http.Request) {
 	if _, err := h.api.MCPAuth.CheckRequest(r.Context(), req); h.oauthRequestFailed(w, err) {
 		return
 	}
-	params := url.Values{}
+	// RFC 9207: the issuer, exactly as in the authorization-server metadata.
+	params := url.Values{"iss": {strings.TrimRight(h.api.Cfg.PublicURL.String(), "/")}}
 	if in.Approve {
 		u, _ := CurrentUser(r)
 		code, err := h.api.MCPAuth.Approve(r.Context(), u, req, h.actor(r))

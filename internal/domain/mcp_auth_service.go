@@ -102,8 +102,18 @@ func (s *McpAuthService) CheckRequest(ctx context.Context, req MCPAuthRequest) (
 	return c, nil
 }
 
+// resourceOK accepts no resource, the MCP URL, or the server's origin (ChatGPT
+// names the origin); trailing slashes are ignored.
 func (s *McpAuthService) resourceOK(r string) bool {
-	return r == "" || s.Resource == "" || strings.TrimRight(r, "/") == strings.TrimRight(s.Resource, "/")
+	if r == "" || s.Resource == "" {
+		return true
+	}
+	r = strings.TrimRight(r, "/")
+	if r == strings.TrimRight(s.Resource, "/") {
+		return true
+	}
+	u, err := url.Parse(s.Resource)
+	return err == nil && r == u.Scheme+"://"+u.Host
 }
 
 // Approve records u's consent and returns a single-use authorization code.

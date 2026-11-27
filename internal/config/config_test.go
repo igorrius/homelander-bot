@@ -183,7 +183,8 @@ func TestLoadWebhookSecretCharset(t *testing.T) {
 
 func TestConfigMCPRedirects(t *testing.T) {
 	cfg := mustLoad(t, required(nil))
-	want := []string{"https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback", "http://localhost:*", "http://127.0.0.1:*"}
+	want := []string{"https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback",
+		"https://chatgpt.com/connector_platform_oauth_redirect", "http://localhost:*", "http://127.0.0.1:*"}
 	if strings.Join(cfg.MCPRedirectURIs, " ") != strings.Join(want, " ") {
 		t.Errorf("default MCPRedirectURIs = %v", cfg.MCPRedirectURIs)
 	}

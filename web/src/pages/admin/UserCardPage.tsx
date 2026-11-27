@@ -167,6 +167,12 @@ function ConnectAgent({ user }: { user: AdminUser }) {
           <List.Item>{t('admin.user.connect.step2')}</List.Item>
           <List.Item>{t('admin.user.connect.step3')}</List.Item>
         </List>
+        <Text size="sm" fw={600}>{t('admin.user.connect.chatgptTitle')}</Text>
+        <List type="ordered" size="sm" spacing={4}>
+          <List.Item>{t('admin.user.connect.chatgpt1')}</List.Item>
+          <List.Item>{t('admin.user.connect.chatgpt2')}</List.Item>
+          <List.Item>{t('admin.user.connect.chatgpt3')}</List.Item>
+        </List>
         <Text size="sm" fw={600}>{t('admin.user.connect.codeTitle')}</Text>
         <CopyLine value={`claude mcp add --transport http homelander ${url}`} label={t('admin.user.connect.copyCommand')} />
         <Anchor href="https://github.com/igorrius/homelander-bot/blob/main/docs/mcp.md" target="_blank" rel="noopener noreferrer" size="sm">

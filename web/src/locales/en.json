@@ -166,6 +166,10 @@
         "step1": "In Claude open Settings → Connectors → Add custom connector and paste the address above.",
         "step2": "Claude opens a Homelander page: log in with the code from Telegram.",
         "step3": "Check that the answer goes to claude.ai or claude.com, then press Allow.",
+        "chatgptTitle": "ChatGPT",
+        "chatgpt1": "Open chatgpt.com/plugins, press + → Add custom MCP server, and paste the address above. Custom MCP servers are not available on every plan; in Business, Enterprise and Edu a workspace admin may have to allow them first.",
+        "chatgpt2": "ChatGPT opens a Homelander page: log in with the code from Telegram.",
+        "chatgpt3": "Check that the answer goes to chatgpt.com, then press Allow.",
         "codeTitle": "Claude Code",
         "copyCommand": "Copy command",
         "docs": "More about MCP (documentation)"
