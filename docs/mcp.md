@@ -14,7 +14,8 @@ Only a user with both **Admin** and **MCP** turned on. Any admin can switch MCP 
 admin, including themselves, on the user card (**Admin → Users → the user → Roles → MCP**). The
 switch has no effect without Admin.
 
-Turning MCP or Admin off, or disabling the user, cuts every connected agent off at its next request.
+Turning MCP or Admin off, or disabling the user, disconnects every agent of that user at once; turning
+it back on does not bring them back — each agent needs a new approval.
 
 ## Connect Claude
 
@@ -79,7 +80,9 @@ There is no tool to publish, unpublish or delete a page version.
   `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`,
   dynamic client registration at `/oauth/register`, tokens at `/oauth/token`, revocation at
   `/oauth/revoke`. The consent page is `/oauth/authorize` in the web app.
-- Access tokens last 1 hour, refresh tokens 30 days and are replaced on every use. Only hashes of
-  codes and tokens are stored.
+- Access tokens last 1 hour, refresh tokens 30 days and are replaced on every use. A replaced
+  refresh token that comes back more than 30 seconds later means the token chain leaked: the agent
+  is disconnected. A new approval ends the tokens of the earlier one. Only hashes of codes and
+  tokens are stored.
 - At most 300 MCP requests a minute per connected agent; 30 requests a minute per address on the
   OAuth endpoints.
