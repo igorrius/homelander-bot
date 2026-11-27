@@ -30,6 +30,7 @@ type Repos struct {
 	Labels        LabelRepo
 	Outbox        OutboxRepo
 	Data          DataRepo
+	Pages         PageRepo
 	RegTokens     RegTokenRepo
 	Notifications NotificationRepo
 }
