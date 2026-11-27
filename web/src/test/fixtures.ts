@@ -57,3 +57,11 @@ export const publicRoutes = {
   'GET /register/options': { body: registerOptions },
   'GET /me': { status: 401, body: { error: { code: 'unauthorized' } } },
 }
+
+/** Routes for an admin session with an empty queue. */
+export const adminRoutes = {
+  ...publicRoutes,
+  'GET /me': { body: admin },
+  'GET /admin/summary': { body: { pendingApplications: 0 } },
+  'GET /admin/users': { body: { items: [], total: 0 } },
+}

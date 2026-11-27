@@ -4,7 +4,7 @@ import { i18n } from './i18n'
 import en from './locales/en.json'
 import uk from './locales/uk.json'
 import { mockApi } from './test/api'
-import { publicRoutes } from './test/fixtures'
+import { adminRoutes, publicRoutes } from './test/fixtures'
 import { renderApp } from './test/render'
 
 describe('App routes', () => {
@@ -14,7 +14,8 @@ describe('App routes', () => {
   })
 
   it('shows the admin area under /admin', async () => {
-    renderApp('/admin/users/5')
+    mockApi(adminRoutes)
+    renderApp('/admin/users')
     expect(await screen.findByRole('heading', { name: uk.admin.title })).toBeInTheDocument()
   })
 

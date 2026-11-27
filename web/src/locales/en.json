@@ -45,7 +45,31 @@
     "resend": "Send again"
   },
   "admin": {
-    "title": "Admin panel"
+    "title": "Admin panel",
+    "menu": "Menu",
+    "residentPage": "Resident page",
+    "nav": {
+      "applications": "Applications",
+      "users": "Users",
+      "houses": "Houses",
+      "statuses": "Residency statuses",
+      "site": "Site",
+      "audit": "Audit log"
+    },
+    "applications": {
+      "title": "Applications",
+      "hint": "Open a person to correct the details before approving.",
+      "empty": "No applications are waiting.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectConfirm": "Reject the application of {{name}}?",
+      "appliedAt": "Applied"
+    },
+    "users": {
+      "name": "Name",
+      "phone": "Phone",
+      "apartments": "Apartments"
+    }
   },
   "notFound": {
     "title": "Page not found",
