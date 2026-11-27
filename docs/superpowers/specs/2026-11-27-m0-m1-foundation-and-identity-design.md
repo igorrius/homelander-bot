@@ -45,9 +45,14 @@ own community (two houses), but nothing about that community goes into the repos
    - `/` — the **resident page**: a welcome with the community name and a picture of the houses
      (configured in the admin panel). Later milestones add house data here.
    - `/admin` — the **admin panel**, only for users with the Admin flag.
-7. Admins manage **houses** (name, number of apartments), the **residency status dictionary**
-   (owner / tenant), **users** (searchable list and a user card page with Resident and Admin flags)
-   and **site settings** (community name, welcome text, picture, default language).
+7. **Everything is configured in the admin panel**, nothing about a community is in code:
+   - **site settings**: community name, welcome text, picture, default language;
+   - **houses**, each created separately with its own settings: name, real address (later used for
+     things like the weather forecast), number of floors, apartment number range;
+   - a **house page** with statistics: how many apartments have registered residents, how many
+     people live there, by residency status, and an apartment grid showing who is registered where;
+   - the **residency status dictionary** (owner / tenant);
+   - **users**: searchable list and a user card page with Resident and Admin flags.
 8. The **first admin** is defined by environment configuration and activates through the bot.
 9. Every user-facing text, in the bot and on the web, goes through **i18n**; Ukrainian is the
    default, English is the second locale.
@@ -162,9 +167,9 @@ All ids are integers (SQLite rowid); timestamps are UTC.
 |---|---|---|
 | `users` | id, phone (E.164, unique), first_name, last_name, locale, is_resident, is_admin, status, source (`application` / `admin` / `bootstrap`), approved_by, approved_at, activated_at, created_at | A user is a person. Flags are independent: an admin need not be a resident; turning Resident off removes resident abilities (residencies are kept but ignored). |
 | `channels` | id, user_id, type (`telegram`), external_id (Telegram user id), chat_id, username, linked_at | One row per linked messenger account. Unique (type, external_id). At most one channel per type per user in M1. |
-| `houses` | id, name (free text, e.g. "22" or "7, section 1"), apartments_count, sort_order, archived | Apartments are numbered 1..apartments_count. |
+| `houses` | id, name (free text, e.g. "22" or "7, section 1"), address (free text), latitude, longitude (optional), floors, apartment_from, apartment_to, sort_order, archived | Apartments are the numbers apartment_from..apartment_to (houses of one complex often continue each other's numbering, e.g. 1–120 and 121–240). Coordinates are entered by the admin (or filled from the address later); modules such as weather will read them. |
 | `residency_statuses` | id, code, names (JSON: `{"uk": "Власник", "en": "Owner"}`), sort_order, archived | Dictionary edited in the admin panel; a missing locale falls back to the default locale's name. Seeded with `owner` / `tenant`. |
-| `residencies` | id, user_id, house_id, apartment_number, status_id, created_at | One person may have several apartments; one apartment may have several residents. Unique (user_id, house_id, apartment_number). |
+| `residencies` | id, user_id, house_id, apartment_number, status_id, created_at | One person may have several apartments; **one apartment may have any number of residents** — a second person applying for an already registered apartment is normal. Unique (user_id, house_id, apartment_number). |
 | `login_codes` | id, user_id, code_hash, expires_at, attempts, used_at, ip | One active code per user; a new request invalidates the old one. |
 | `sessions` | id, user_id, token_hash, created_at, last_seen_at, expires_at, ip, user_agent | Server-side sessions; the cookie holds the raw token. |
 | `audit_log` | id, at, actor_user_id, action, target, details (JSON), ip | Append-only. |
@@ -217,7 +222,7 @@ Bot API spec; the owner's Ganglion research rated it the best fit). Receiving:
 ### 5.4 Flows
 
 **Apply (resident, public web, `/register`).**
-1. Form: phone, first name, last name, house (select), apartment (select 1..N of that house),
+1. Form: phone, first name, last name, house (select), apartment (select from that house's range),
    residency status (select), consent checkbox for storing the data. Captcha is not used.
 2. Submit → validation (phone normalized to E.164 with `DEFAULT_PHONE_REGION`, `UA`; apartment exists
    in the house) → a `pending_approval` user with `is_resident = true` and the residency.
@@ -282,7 +287,7 @@ active yet (uniqueness enforced); an active user's phone changes only after unli
 
 - `/api/v1/...` JSON REST.
   - Public: `site` (community name, welcome text, picture URL, bot URL), `register/options`
-    (houses with apartment counts, statuses), `register` (submit), `auth/code`, `auth/verify`,
+    (houses with apartment ranges, statuses), `register` (submit), `auth/code`, `auth/verify`,
     `assets/{id}`.
   - Signed in: `me`, `auth/logout`.
   - Admin only: everything else.
@@ -319,7 +324,10 @@ a link to the admin panel. Placeholders for future house data are not shown.
 
 **Admin `/admin`.** Applications (approve / reject, counter), Users (list with search by first name,
 last name, phone; filters by house, Resident/Admin flag, status; "Add user"), User card (separate
-page, 5.4), Houses (CRUD, apartments count), Residency statuses (CRUD), Site (community name and
+page, 5.4), Houses (list and a house page: settings — name, address, coordinates, floors,
+apartment range; statistics — apartments with registered residents out of total, number of people,
+split by residency status and by user status; an apartment grid where each cell shows how many
+people are registered and opens the list of them), Residency statuses (CRUD), Site (community name and
 welcome text per locale, picture upload, default language, the public registration link with a copy
 button and QR code), Audit log (read-only list). Language switcher (uk/en) everywhere.
 
@@ -395,6 +403,9 @@ test fixtures (synthetic data only).
 
 - One binary; React + TS; `gotgbot/v2`; `go-i18n`; Mantine suggested.
 - A person can have several apartments; an apartment can have several residents.
+- Apartments as a number range per house (not 1..N), so neighbouring houses can continue numbering; letters like "12a" are not supported in M1.
+- House coordinates entered manually in M1; geocoding from the address later.
+- Floors are stored as information only in M1 (no apartment-to-floor mapping).
 - Login is open to every active user; `/admin` only to admins.
 - Bootstrap: the first contact shared from `BOOTSTRAP_ADMIN_PHONE` creates the admin (not a resident).
 - Applications from an already registered phone get the same answer and change nothing; rejected
