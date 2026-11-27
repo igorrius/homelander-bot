@@ -146,7 +146,34 @@
         "history": "History"
       },
       "copyPhone": "Copy phone",
-      "copyLink": "Copy link"
+      "copyLink": "Copy link",
+      "isMcp": "MCP (AI agent)",
+      "agents": {
+        "title": "Connected agents",
+        "none": "No AI agents are connected.",
+        "connected": "connected {{at}}",
+        "lastUsed": "last used {{at}}",
+        "neverUsed": "not used yet",
+        "revoke": "Revoke",
+        "revokeConfirm": "Disconnect {{client}}? It loses access at once; connecting again needs a new approval."
+      },
+      "connect": {
+        "title": "Connect an AI agent",
+        "turnOnFirst": "Turn on MCP in Roles (on the left) first; without it the agent cannot be approved.",
+        "url": "MCP server address:",
+        "copyUrl": "Copy address",
+        "claudeTitle": "Claude (claude.ai, Desktop, mobile)",
+        "step1": "In Claude open Settings → Connectors → Add custom connector and paste the address above.",
+        "step2": "Claude opens a Homelander page: log in with the code from Telegram.",
+        "step3": "Check that the answer goes to claude.ai or claude.com, then press Allow.",
+        "chatgptTitle": "ChatGPT",
+        "chatgpt1": "Open chatgpt.com/plugins, press + → Add custom MCP server, and paste the address above. Custom MCP servers are not available on every plan; in Business, Enterprise and Edu a workspace admin may have to allow them first.",
+        "chatgpt2": "ChatGPT opens a Homelander page: log in with the code from Telegram.",
+        "chatgpt3": "Check that the answer goes to chatgpt.com, then press Allow.",
+        "codeTitle": "Claude Code",
+        "copyCommand": "Copy command",
+        "docs": "More about MCP (documentation)"
+      }
     },
     "audit": {
       "empty": "No entries.",
@@ -156,7 +183,8 @@
       "actor": "By",
       "ip": "IP",
       "title": "Audit log",
-      "clearFilter": "Show all entries"
+      "clearFilter": "Show all entries",
+      "viaMcp": "via MCP ({{client}})"
     },
     "houses": {
       "title": "Houses",
@@ -423,7 +451,8 @@
         "type": "{{path}}: this file type is not supported. Allowed: HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (lower-case extensions).",
         "invalid": "{{path}}: file name not allowed (Latin letters, digits, . _ - only; no preview/ folder).",
         "too_large": "{{path}}: file is larger than 5 MB."
-      }
+      },
+      "viaMcp": "MCP"
     }
   },
   "notFound": {
@@ -503,7 +532,9 @@
         "admin_revoked": "Admin rights revoked",
         "resident_set": "Marked as resident",
         "resident_unset": "No longer a resident",
-        "activated": "Activated on approval"
+        "activated": "Activated on approval",
+        "mcp_granted": "MCP turned on",
+        "mcp_revoked": "MCP turned off"
       },
       "channel": {
         "linked": "Messenger linked",
@@ -565,7 +596,25 @@
         "published": "Page published",
         "unpublished": "Built-in page restored",
         "deleted": "Page version deleted"
+      },
+      "mcp": {
+        "client_authorized": "AI agent connected",
+        "client_revoked": "AI agent disconnected"
       }
+    }
+  },
+  "oauth": {
+    "title": "Connect an AI agent",
+    "question": "Allow {{client}} to act as you in Homelander?",
+    "redirectHost": "The answer goes to {{host}}. Allow only if you started this connection yourself.",
+    "explain": "The agent will be able to read and change site data and write page drafts on your behalf. It cannot publish pages. Every action is recorded in the audit log as yours, via MCP.",
+    "allow": "Allow",
+    "login": "Log in",
+    "loginFirst": "{{client}} asks to act as you in Homelander. Log in first.",
+    "invalid": "This connection request is not valid. Start the connection again from the agent.",
+    "reason": {
+      "not_admin": "Only an admin can connect an AI agent.",
+      "mcp_off": "MCP is off for your account. Another admin (or you) can turn it on on your user card in the admin panel."
     }
   }
 }

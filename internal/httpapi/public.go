@@ -6,6 +6,7 @@ import (
 
 	"github.com/igorrius/homelander-bot/internal/config"
 	"github.com/igorrius/homelander-bot/internal/domain"
+	"github.com/igorrius/homelander-bot/internal/ratelimit"
 )
 
 // API bundles what the JSON handlers need.
@@ -18,6 +19,8 @@ type API struct {
 	Chats     *domain.ChatService
 	Labels    *domain.LabelService
 	Notifier  *domain.Notifier
+	MCPAuth   *domain.McpAuthService
+	Limits    *ratelimit.Limiter // nil disables the OAuth endpoint limits
 	Messenger domain.Messenger
 	Cfg       config.Config
 }

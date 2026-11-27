@@ -62,7 +62,7 @@ var (
 )
 
 func (s *DataService) audit(ctx context.Context, a Actor, action, key string, details map[string]any) error {
-	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: DataTarget(key), Details: details, IP: a.IP})
+	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: DataTarget(key), Details: a.AuditDetails(details), IP: a.IP})
 }
 
 // List returns every item without rows.
@@ -480,6 +480,65 @@ func (s *DataService) UpsertRows(ctx context.Context, key string, rows []DataRow
 			return err
 		}
 		return s.audit(ctx, a, ActDataRowsChanged, key, map[string]any{"upserted": len(rows), "deleted": 0})
+	})
+	return out, err
+}
+
+// RowPatch changes one table row: with ID only the given cells (and the
+// position, when set) change; without ID it is a new row, last unless
+// Position is set.
+type RowPatch struct {
+	ID       *int64
+	Position *int
+	Cells    map[string]json.RawMessage
+}
+
+// PatchRows merges patches into the current rows and saves them in one
+// transaction, so a concurrent edit of other cells is not overwritten with a
+// stale copy. It returns all rows of the table after the change.
+func (s *DataService) PatchRows(ctx context.Context, key string, patches []RowPatch, a Actor) ([]DataRow, error) {
+	var out []DataRow
+	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
+		it, err := s.table(ctx, key)
+		if err != nil {
+			return err
+		}
+		current, err := s.R.Data.Rows(ctx, it.ID)
+		if err != nil {
+			return err
+		}
+		byID := make(map[int64]DataRow, len(current))
+		next := 0
+		for _, r := range current {
+			byID[r.ID] = r
+			next = max(next, r.Position+1)
+		}
+		rows := make([]DataRow, 0, len(patches))
+		for _, p := range patches {
+			row := DataRow{Cells: map[string]json.RawMessage{}}
+			if p.ID != nil {
+				old, ok := byID[*p.ID]
+				if !ok {
+					return &ValidationError{Fields: map[string]string{"rows": "unknown_id"}, Details: map[string]string{"id": strconv.FormatInt(*p.ID, 10)}}
+				}
+				row.ID, row.Position = old.ID, old.Position
+				for k, c := range old.Cells {
+					row.Cells[k] = c
+				}
+			} else {
+				row.Position = next
+				next++
+			}
+			if p.Position != nil {
+				row.Position = *p.Position
+			}
+			for k, c := range p.Cells {
+				row.Cells[k] = c
+			}
+			rows = append(rows, row)
+		}
+		out, err = s.UpsertRows(ctx, key, rows, a)
+		return err
 	})
 	return out, err
 }

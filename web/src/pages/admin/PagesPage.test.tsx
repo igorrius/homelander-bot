@@ -13,11 +13,11 @@ const author = { id: 1, name: 'Admin A' }
 // Synthetic data only.
 const versions: PageVersion[] = [
   { id: 3, status: 'draft', note: 'New look', files: [file('index.html', 1200), file('app.js', 300, 'text/javascript; charset=utf-8')],
-    totalSize: 1500, createdAt: '2026-11-27T12:00:00Z', createdBy: { id: 2, name: 'Admin B' }, publishedAt: null, publishedBy: null },
+    totalSize: 1500, createdAt: '2026-11-27T12:00:00Z', createdBy: { id: 2, name: 'Admin B' }, createdVia: 'Claude', publishedAt: null, publishedBy: null },
   { id: 2, status: 'published', note: '', files: [file('index.html', 800)], totalSize: 800, createdAt: '2026-11-26T12:00:00Z',
-    createdBy: author, publishedAt: '2026-11-26T13:00:00Z', publishedBy: author },
+    createdBy: author, createdVia: '', publishedAt: '2026-11-26T13:00:00Z', publishedBy: author },
   { id: 1, status: 'archived', note: 'First', files: [file('index.html', 500)], totalSize: 500, createdAt: '2026-11-25T12:00:00Z',
-    createdBy: author, publishedAt: '2026-11-25T13:00:00Z', publishedBy: author },
+    createdBy: author, createdVia: '', publishedAt: '2026-11-25T13:00:00Z', publishedBy: author },
 ]
 
 const routes = {
@@ -46,6 +46,15 @@ describe('PagesPage', () => {
     expect(within(first).getByText(uk.admin.pages.status.archived)).toBeInTheDocument()
     expect(screen.getAllByText(uk.admin.pages.status.published).length).toBeGreaterThan(0)
     expect(screen.getByRole('link', { name: uk.admin.nav.pages })).toBeInTheDocument()
+  })
+
+  it('marks a version an agent wrote through MCP', async () => {
+    mockApi(routes)
+    renderApp('/admin/pages')
+    const draft = (await screen.findByText('New look')).closest('tr') as HTMLElement
+    expect(within(draft).getByTitle('Claude')).toHaveTextContent(uk.admin.pages.viaMcp)
+    const first = screen.getByText('First').closest('tr') as HTMLElement
+    expect(within(first).queryByText(uk.admin.pages.viaMcp)).toBeNull()
   })
 
   it('uploads a zip and opens the new draft', async () => {

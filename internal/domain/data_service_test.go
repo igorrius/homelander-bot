@@ -261,3 +261,38 @@ func TestDataAssetRefs(t *testing.T) {
 	}
 	check(img1, true)
 }
+
+func TestDataPatchRows(t *testing.T) {
+	e := newEnv(t)
+	a := e.dataAdmin()
+	cols := []domain.DataColumn{{Name: "name", Label: "Name", Type: domain.DataText}, {Name: "phone", Label: "Phone", Type: domain.DataPhone}}
+	if _, err := e.data.Create(ctx, domain.DataInput{Key: "contacts", Kind: domain.DataTable, Columns: &cols}, a); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := e.data.PatchRows(ctx, "contacts", []domain.RowPatch{
+		{Cells: map[string]json.RawMessage{"name": raw(`"Office"`), "phone": raw(`"+380500000001"`)}},
+		{Cells: map[string]json.RawMessage{"name": raw(`"Guard"`)}},
+	}, a)
+	if err != nil || len(rows) != 2 || rows[0].Position >= rows[1].Position {
+		t.Fatalf("add = %+v, %v", rows, err)
+	}
+	// The panel changes the name meanwhile; the agent then changes only the phone.
+	office := rows[0]
+	office.Cells["name"] = raw(`"Front office"`)
+	if _, err := e.data.UpsertRows(ctx, "contacts", []domain.DataRow{office}, a); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = e.data.PatchRows(ctx, "contacts", []domain.RowPatch{{ID: &office.ID, Cells: map[string]json.RawMessage{"phone": raw(`"+380500000009"`)}}}, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := rows[0]
+	if string(got.Cells["name"]) != `"Front office"` || string(got.Cells["phone"]) != `"+380500000009"` || got.Position != office.Position {
+		t.Errorf("patched row = %+v", got)
+	}
+	missing := int64(9999)
+	var ve *domain.ValidationError
+	if _, err := e.data.PatchRows(ctx, "contacts", []domain.RowPatch{{ID: &missing}}, a); !errors.As(err, &ve) || ve.Fields["rows"] != "unknown_id" {
+		t.Errorf("unknown id = %v", err)
+	}
+}

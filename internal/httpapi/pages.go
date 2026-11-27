@@ -117,13 +117,14 @@ type pageVersionDTO struct {
 	TotalSize   int               `json:"totalSize"`
 	CreatedAt   time.Time         `json:"createdAt"`
 	CreatedBy   *userRef          `json:"createdBy"`
+	CreatedVia  string            `json:"createdVia"`
 	PublishedAt *time.Time        `json:"publishedAt"`
 	PublishedBy *userRef          `json:"publishedBy"`
 }
 
 func toPageVersion(ctx context.Context, n *namer, v domain.PageVersion) pageVersionDTO {
 	d := pageVersionDTO{ID: v.ID, Status: v.Status, Note: v.Note, Files: make([]pageFileDTO, 0, len(v.Files)),
-		TotalSize: v.TotalSize, CreatedAt: v.CreatedAt, PublishedAt: v.PublishedAt}
+		TotalSize: v.TotalSize, CreatedAt: v.CreatedAt, CreatedVia: v.CreatedVia, PublishedAt: v.PublishedAt}
 	for _, f := range v.Files {
 		d.Files = append(d.Files, pageFileDTO{f.Path, f.ContentType, f.Size})
 	}

@@ -4,7 +4,7 @@ import { i18n } from '../i18n'
 import uk from '../locales/uk.json'
 import { callsTo, mockApi } from '../test/api'
 import { admin, publicRoutes, resident } from '../test/fixtures'
-import { renderApp } from '../test/render'
+import { currentLocation, renderApp } from '../test/render'
 
 const codeOk = { status: 202, body: { status: 'sent_if_allowed' } }
 
@@ -88,5 +88,23 @@ describe('LoginPage', () => {
     mockApi({ ...publicRoutes, 'GET /me': { body: admin } })
     renderApp('/login')
     await waitFor(() => expect(screen.getByRole('heading', { name: uk.admin.title })).toBeInTheDocument())
+  })
+
+  it('goes back to a same-site next address after login', async () => {
+    mockApi({ ...publicRoutes, 'POST /auth/code': codeOk, 'POST /auth/verify': { body: { user: admin } }, 'GET /oauth/authorize-info': { body: { clientName: 'Claude', redirectHost: 'claude.ai', signedIn: true, allowed: true } } })
+    const { user } = renderApp('/login?next=' + encodeURIComponent('/oauth/authorize?client_id=c1'))
+    await enterPhone(user)
+    await enterCode(user, '123456')
+    await user.click(screen.getByRole('button', { name: uk.login.submit }))
+    await waitFor(() => expect(currentLocation()).toBe('/oauth/authorize?client_id=c1'))
+  })
+
+  it('ignores a next address on another site', async () => {
+    mockApi({ ...publicRoutes, 'POST /auth/code': codeOk, 'POST /auth/verify': { body: { user: admin } } })
+    const { user } = renderApp('/login?next=' + encodeURIComponent('//evil.example/x'))
+    await enterPhone(user)
+    await enterCode(user, '123456')
+    await user.click(screen.getByRole('button', { name: uk.login.submit }))
+    await waitFor(() => expect(currentLocation()).toBe('/admin'))
   })
 })

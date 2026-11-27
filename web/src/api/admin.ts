@@ -97,12 +97,21 @@ export function useUserCard(id: number) {
   return useQuery({ queryKey: qka.user(id), queryFn: () => api<UserCard>(`/admin/users/${id}`) })
 }
 
-export type UserPatch = Partial<Pick<Me, 'firstName' | 'lastName' | 'phone' | 'locale' | 'isResident' | 'isAdmin'>>
+export type UserPatch = Partial<Pick<Me, 'firstName' | 'lastName' | 'phone' | 'locale' | 'isResident' | 'isAdmin'>> & { isMcp?: boolean }
 
 export function usePatchUser(id: number) {
   const qc = useQueryClient()
   return useMutation<UserCard, ApiError, UserPatch>({
     mutationFn: (body) => api<UserCard>(`/admin/users/${id}`, json('PATCH', body)),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+/** Disconnects an AI agent from the user (revokes its tokens). */
+export function useRevokeGrant(userId: number) {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, number>({
+    mutationFn: (grantId) => api<UserCard>(`/admin/users/${userId}/mcp-grants/${grantId}`, json('DELETE')),
     onSuccess: (card) => cardChanged(qc, card),
   })
 }

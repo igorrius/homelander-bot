@@ -102,6 +102,9 @@ func newAPIEnv(t *testing.T) *apiEnv {
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
 			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() },
 			PublicURL: "https://example.com", TokenTTL: time.Hour},
+		MCPAuth: &domain.McpAuthService{R: r, Now: clock, Resource: "https://example.com/mcp", Allowed: domain.RedirectPolicy{
+			"https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback", "http://localhost:*", "http://127.0.0.1:*"}},
+		Limits:    limits,
 		Messenger: e.msgr,
 		Cfg:       cfg,
 	}
@@ -109,6 +112,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	s.WithSession(e.api.Auth)
 	httpapi.RegisterPublic(s, e.api)
 	httpapi.RegisterAdmin(s, e.api)
+	httpapi.RegisterOAuth(s, e.api)
 	s.MountPrefix("/site/", httpapi.SiteHandler(e.api))
 	e.h = s.Handler()
 	sts, _ := r.Statuses.List(ctx, false)

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/igorrius/homelander-bot/internal/domain"
 	"github.com/igorrius/homelander-bot/internal/httpapi"
 	"github.com/igorrius/homelander-bot/internal/i18n"
+	"github.com/igorrius/homelander-bot/internal/mcpserver"
 	"github.com/igorrius/homelander-bot/internal/messenger/telegram"
 	"github.com/igorrius/homelander-bot/internal/ratelimit"
 	"github.com/igorrius/homelander-bot/internal/storage/sqlite"
@@ -123,9 +125,15 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 
 	server := httpapi.New(cfg, httpapi.Deps{DB: rawDB, I18n: tr, Log: log, Static: web.Dist()})
 	server.WithSession(auth)
-	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Pages: pages, Auth: auth, Chats: chats, Labels: labels, Notifier: notifier, Messenger: bot, Cfg: cfg}
+	mcpAuth := &domain.McpAuthService{R: repos, Now: now, Allowed: domain.RedirectPolicy(cfg.MCPRedirectURIs),
+		Resource: strings.TrimRight(cfg.PublicURL.String(), "/") + httpapi.MCPPath}
+	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Pages: pages, Auth: auth, Chats: chats, Labels: labels,
+		Notifier: notifier, Messenger: bot, Cfg: cfg, MCPAuth: mcpAuth, Limits: limits}
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
+	httpapi.RegisterOAuth(server, api)
+	server.Mount(httpapi.MCPPath, mcpserver.New(mcpserver.Deps{Auth: mcpAuth, Data: data, Pages: pages, Catalog: catalog,
+		Limits: limits, PublicURL: cfg.PublicURL.String(), Now: now, Log: log}))
 	server.MountPrefix("/site/", httpapi.SiteHandler(api))
 	webhookPath := telegram.WebhookPath(cfg.AppSecret)
 	if cfg.TelegramUpdates == config.UpdatesWebhook {

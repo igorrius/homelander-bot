@@ -30,6 +30,7 @@ type PageVersion struct {
 	Status      PageStatus
 	Note        string
 	CreatedBy   *int64
+	CreatedVia  string // the agent's client name when written through MCP
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	PublishedBy *int64

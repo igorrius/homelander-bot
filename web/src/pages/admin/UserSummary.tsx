@@ -11,7 +11,8 @@ import { errorText } from '../../lib/errors'
 import { formatDateTime, fullName } from '../../lib/format'
 import { StatusBadge } from './StatusBadge'
 
-function Copy({ value, label }: { value: string; label: string }) {
+/** A small copy-to-clipboard icon button. */
+export function Copy({ value, label }: { value: string; label: string }) {
   const { t } = useTranslation()
   return (
     <CopyButton value={value}>
@@ -125,6 +126,8 @@ export function UserSummary({ card }: { card: UserCard }) {
           </Text>
           <Switch label={t('admin.user.isResident')} checked={user.isResident} disabled={busy} onChange={(e) => setFlag({ isResident: e.currentTarget.checked })} />
           <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy || firstAdmin} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
+          <Switch label={t('admin.user.isMcp')} checked={user.isAdmin && !!user.isMcp}
+            disabled={busy || !user.isAdmin} onChange={(e) => setFlag({ isMcp: e.currentTarget.checked })} />
         </Stack>
 
         <Text size="xs" c="dimmed">

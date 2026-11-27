@@ -33,6 +33,15 @@ describe('AuditPage', () => {
     expect(screen.getByText('house:1')).toBeInTheDocument()
   })
 
+  it('marks actions done through MCP with the agent name', async () => {
+    const viaMcp = [{ id: 7, at: '2026-11-27T10:00:00Z', action: 'data.created', target: 'data:house.address', targetName: '', targetNames: null,
+      actorUserId: 1, actorName: 'Adam Admin', details: { via: 'mcp', client: 'Claude' }, ip: '' }]
+    mockApi({ ...adminRoutes, 'GET /admin/audit': { body: { items: viaMcp, total: 1 } } })
+    renderApp('/admin/audit')
+    const link = await screen.findByRole('link', { name: 'Adam Admin' })
+    expect(link.closest('td')!.textContent).toContain(i18n.t('admin.audit.viaMcp', { client: 'Claude' }))
+  })
+
   it('names houses and statuses with links', async () => {
     const named = [
       { ...base, id: 3, at: '2026-11-21T09:00:00Z', action: 'house.created', target: 'house:2', targetName: 'House B' },

@@ -12,7 +12,7 @@ type Pages struct{ DB DB }
 
 var _ domain.PageRepo = Pages{}
 
-const pageColumns = `id, status, note, created_by, published_by, created_at, updated_at, published_at`
+const pageColumns = `id, status, note, created_by, created_via, published_by, created_at, updated_at, published_at`
 
 func scanPage(s scanner) (domain.PageVersion, error) {
 	var (
@@ -22,7 +22,7 @@ func scanPage(s scanner) (domain.PageVersion, error) {
 		created, updated       string
 		published              sql.NullString
 	)
-	if err := s.Scan(&v.ID, &status, &v.Note, &createdBy, &publishedBy, &created, &updated, &published); err != nil {
+	if err := s.Scan(&v.ID, &status, &v.Note, &createdBy, &v.CreatedVia, &publishedBy, &created, &updated, &published); err != nil {
 		return domain.PageVersion{}, mapErr(err)
 	}
 	v.Status = domain.PageStatus(status)
@@ -33,9 +33,9 @@ func scanPage(s scanner) (domain.PageVersion, error) {
 
 // Create inserts v and sets its ID.
 func (r Pages) Create(ctx context.Context, v *domain.PageVersion) error {
-	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO page_versions (status, note, created_by, published_by,
-		created_at, updated_at, published_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		string(v.Status), v.Note, nullInt(v.CreatedBy), nullInt(v.PublishedBy),
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO page_versions (status, note, created_by, created_via, published_by,
+		created_at, updated_at, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		string(v.Status), v.Note, nullInt(v.CreatedBy), v.CreatedVia, nullInt(v.PublishedBy),
 		fmtTime(v.CreatedAt), fmtTime(v.UpdatedAt), fmtTimePtr(v.PublishedAt))
 	if err != nil {
 		return mapErr(err)

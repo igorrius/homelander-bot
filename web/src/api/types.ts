@@ -30,6 +30,8 @@ export interface AdminUser extends Me {
   status: UserStatus
   source: 'application' | 'admin' | 'bootstrap'
   hasTelegram: boolean
+  /** Stored MCP flag; effective only together with Admin on an active user. */
+  isMcp?: boolean
   createdAt: string
   approvedAt?: string
   activatedAt?: string
@@ -106,11 +108,20 @@ export interface AuditEntry {
   ip: string
 }
 
+/** An AI agent connected through MCP on behalf of a user. */
+export interface McpGrant {
+  id: number
+  clientName: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+
 export interface UserCard {
   user: AdminUser
   channels: Channel[]
   residencies: Residency[]
   audit: AuditEntry[]
+  mcpGrants?: McpGrant[]
 }
 
 export interface Page<T> {
@@ -230,6 +241,8 @@ export interface PageVersion {
   totalSize: number
   createdAt: string
   createdBy: { id: number; name: string } | null
+  /** The agent's client name when written through MCP; empty otherwise. */
+  createdVia: string
   publishedAt: string | null
   publishedBy: { id: number; name: string } | null
 }

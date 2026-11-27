@@ -1,15 +1,17 @@
 import { Alert, Button, Group, PinInput, Stack, Text, TextInput } from '@mantine/core'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, useNavigate } from 'react-router'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { useMe, useRequestCode, useVerifyCode } from '../api/public'
 import { PageShell } from '../components/PageShell'
 import { errorText, fieldErrors } from '../lib/errors'
+import { safeNext } from '../lib/redirect'
 import { useOnce } from '../lib/useOnce'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const next = safeNext(useSearchParams()[0].get('next'))
   const me = useMe()
   const requestCode = useRequestCode()
   const verify = useVerifyCode()
@@ -26,14 +28,14 @@ export function LoginPage() {
   const submitCode = useOnce(async () => {
     try {
       const { user } = await verify.mutateAsync({ phone: phone.trim(), code })
-      navigate(user.isAdmin ? '/admin' : '/', { replace: true })
+      navigate(next ?? (user.isAdmin ? '/admin' : '/'), { replace: true })
     } catch (err) {
       setCode('')
       throw err
     }
   })
 
-  if (me.data && !verify.isSuccess) return <Navigate to={me.data.isAdmin ? '/admin' : '/'} replace />
+  if (me.data && !verify.isSuccess) return <Navigate to={next ?? (me.data.isAdmin ? '/admin' : '/')} replace />
 
   const onPhone = (e: FormEvent) => {
     e.preventDefault()

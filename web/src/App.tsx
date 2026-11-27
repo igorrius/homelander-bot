@@ -4,6 +4,7 @@ import { SiteLocale } from './components/SiteLocale'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { OAuthAuthorizePage } from './pages/OAuthAuthorizePage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="applications" element={<ApplicationsPage />} />

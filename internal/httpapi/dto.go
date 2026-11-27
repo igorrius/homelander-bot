@@ -27,6 +27,7 @@ type userDTO struct {
 	Locale      string         `json:"locale"`
 	IsResident  bool           `json:"isResident"`
 	IsAdmin     bool           `json:"isAdmin"`
+	IsMCP       *bool          `json:"isMcp,omitempty"`
 	Status      string         `json:"status,omitempty"`
 	Source      string         `json:"source,omitempty"`
 	HasTelegram *bool          `json:"hasTelegram,omitempty"`
@@ -156,6 +157,7 @@ func (n *namer) toUser(u domain.User, rs []domain.Residency) userDTO {
 func (n *namer) toAdminUser(u domain.User, rs []domain.Residency, hasTelegram bool) userDTO {
 	d := n.toUser(u, rs)
 	d.Status, d.Source, d.HasTelegram = string(u.Status), string(u.Source), &hasTelegram
+	d.IsMCP = &u.IsMCP
 	d.CreatedAt, d.ApprovedAt, d.ActivatedAt = &u.CreatedAt, u.ApprovedAt, u.ActivatedAt
 	return d
 }

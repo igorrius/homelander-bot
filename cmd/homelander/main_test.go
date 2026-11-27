@@ -171,6 +171,15 @@ func TestRunEndToEnd(t *testing.T) {
 	if !strings.Contains(string(opts), `"name":"1"`) {
 		t.Errorf("options %s", opts)
 	}
+	if prm := get(t, base+"/.well-known/oauth-protected-resource/mcp"); !strings.Contains(string(prm), `"resource":"http://localhost:8080/mcp"`) {
+		t.Errorf("protected resource metadata %s", prm)
+	}
+	if r, err := http.Post(base+"/mcp", "application/json", strings.NewReader(`{}`)); err != nil || r.StatusCode != 401 ||
+		!strings.Contains(r.Header.Get("WWW-Authenticate"), "resource_metadata=") {
+		t.Errorf("/mcp without a token = %v %v", r, err)
+	} else {
+		_ = r.Body.Close()
+	}
 
 	cancel()
 	select {

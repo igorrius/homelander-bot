@@ -77,7 +77,7 @@ func PageContentType(p string) (string, string) {
 
 func (s *PageService) audit(ctx context.Context, a Actor, action string, id int64, details map[string]any) error {
 	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: PageTarget(id),
-		Details: details, IP: a.IP})
+		Details: a.AuditDetails(details), IP: a.IP})
 }
 
 // toFiles validates inputs and turns them into files.
@@ -161,7 +161,7 @@ func (s *PageService) CreateDraft(ctx context.Context, in []PageFileInput, note 
 		return PageVersion{}, err
 	}
 	now := s.Now()
-	v := PageVersion{Status: PageDraft, Note: note, CreatedBy: a.UserID, CreatedAt: now, UpdatedAt: now}
+	v := PageVersion{Status: PageDraft, Note: note, CreatedBy: a.UserID, CreatedVia: a.Client, CreatedAt: now, UpdatedAt: now}
 	err = s.R.Tx.InTx(ctx, func(ctx context.Context) error {
 		if err := s.R.Pages.Create(ctx, &v); err != nil {
 			return err
@@ -180,7 +180,7 @@ func (s *PageService) CreateDraft(ctx context.Context, in []PageFileInput, note 
 // PutFiles changes a draft: stores put (replacing by path), removes del.
 // Published and archived versions → ErrConflict.
 func (s *PageService) PutFiles(ctx context.Context, id int64, put []PageFileInput, del []string, a Actor) (PageVersion, error) {
-	if len(put) > MaxPageFiles {
+	if len(put) > MaxPageFiles || len(del) > MaxPageFiles {
 		return PageVersion{}, &ValidationError{Fields: map[string]string{"files": "too_many"}}
 	}
 	files, err := toFiles(put)
@@ -226,6 +226,14 @@ func (s *PageService) PutFiles(ctx context.Context, id int64, put []PageFileInpu
 	return s.R.Pages.Get(ctx, id)
 }
 
+// Files returns the files of version id with their content.
+func (s *PageService) Files(ctx context.Context, id int64) ([]PageFile, error) {
+	if _, err := s.R.Pages.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.R.Pages.Files(ctx, id)
+}
+
 // CopyToDraft makes a new draft with the files of version id.
 func (s *PageService) CopyToDraft(ctx context.Context, id int64, a Actor) (PageVersion, error) {
 	src, err := s.R.Pages.Get(ctx, id)
@@ -237,7 +245,7 @@ func (s *PageService) CopyToDraft(ctx context.Context, id int64, a Actor) (PageV
 		return PageVersion{}, err
 	}
 	now := s.Now()
-	v := PageVersion{Status: PageDraft, Note: src.Note, CreatedBy: a.UserID, CreatedAt: now, UpdatedAt: now}
+	v := PageVersion{Status: PageDraft, Note: src.Note, CreatedBy: a.UserID, CreatedVia: a.Client, CreatedAt: now, UpdatedAt: now}
 	err = s.R.Tx.InTx(ctx, func(ctx context.Context) error {
 		if err := s.R.Pages.Create(ctx, &v); err != nil {
 			return err

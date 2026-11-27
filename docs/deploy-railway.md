@@ -68,6 +68,9 @@ Service `homelander` → **Variables**. Add:
 | `TELEGRAM_BOT_TOKEN` | the token from step 1 |
 | `BOOTSTRAP_ADMIN_PHONE` | your phone, e.g. `+380…`; used only until the first admin exists |
 
+Optional: `MCP_REDIRECT_URIS` (comma-separated) lists the redirect URIs AI agents may register to
+connect through MCP. Leave it unset for Claude and local clients; see [mcp.md](mcp.md).
+
 Never paste these values into a chat, an issue or a file in the repository. `.railway/railway.ts`
 keeps them with `preserve()`, so later `apply` runs leave them as they are.
 

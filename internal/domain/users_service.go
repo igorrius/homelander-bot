@@ -33,12 +33,31 @@ type Repos struct {
 	Pages         PageRepo
 	RegTokens     RegTokenRepo
 	Notifications NotificationRepo
+	MCP           MCPRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).
 type Actor struct {
 	UserID *int64
 	IP     string
+	// Via is how the user acted when not through the panel ("mcp"), with the
+	// agent's client name in Client.
+	Via    string
+	Client string
+}
+
+// AuditDetails returns d with "via" and "client" added when the actor acted
+// through an agent; d is not changed.
+func (a Actor) AuditDetails(d map[string]any) map[string]any {
+	if a.Via == "" {
+		return d
+	}
+	out := make(map[string]any, len(d)+2)
+	for k, v := range d {
+		out[k] = v
+	}
+	out["via"], out["client"] = a.Via, a.Client
+	return out
 }
 
 // Application is what a resident submits through the public registration form.
@@ -71,6 +90,7 @@ type UserPatch struct {
 	Locale     *string
 	IsResident *bool
 	IsAdmin    *bool
+	IsMCP      *bool
 }
 
 // UserCard is everything the admin user page shows.
@@ -516,6 +536,17 @@ func (s *UserService) Update(ctx context.Context, id int64, p UserPatch, actor A
 			}
 			u.IsAdmin = *p.IsAdmin
 		}
+		if p.IsMCP != nil && *p.IsMCP != u.IsMCP {
+			if *p.IsMCP && !u.IsAdmin {
+				return &ValidationError{Fields: map[string]string{"isMcp": "invalid"}}
+			}
+			u.IsMCP = *p.IsMCP
+			if u.IsMCP {
+				actions = append(actions, ActUserMCPGranted)
+			} else {
+				actions = append(actions, ActUserMCPRevoked)
+			}
+		}
 		if p.IsResident != nil && *p.IsResident != u.IsResident {
 			u.IsResident = *p.IsResident
 			if u.IsResident {
@@ -530,6 +561,14 @@ func (s *UserService) Update(ctx context.Context, id int64, p UserPatch, actor A
 		if endSessions {
 			if err := s.R.Sessions.DeleteByUser(ctx, u.ID); err != nil {
 				return err
+			}
+		}
+		for _, act := range actions {
+			if act == ActUserAdminRevoked || act == ActUserMCPRevoked {
+				if err := revokeUserGrants(ctx, s.R, s.Now(), u.ID, actor, act); err != nil {
+					return err
+				}
+				break
 			}
 		}
 		if p.FirstName != nil || p.LastName != nil || p.Phone != nil || p.Locale != nil {
@@ -569,6 +608,9 @@ func (s *UserService) Disable(ctx context.Context, id int64, actor Actor) error 
 			return err
 		}
 		if err := s.R.Sessions.DeleteByUser(ctx, u.ID); err != nil {
+			return err
+		}
+		if err := revokeUserGrants(ctx, s.R, s.Now(), u.ID, actor, ActUserDisabled); err != nil {
 			return err
 		}
 		return s.audit(ctx, actor, ActUserDisabled, UserTarget(id), nil)

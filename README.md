@@ -17,7 +17,7 @@ make run
 ```
 
 Configuration comes only from environment variables; see [.env.example](.env.example).
-Details: [docs/development.md](docs/development.md). Deploying: [docs/deploy-railway.md](docs/deploy-railway.md). Decisions: [docs/adr](docs/adr/README.md).
+Details: [docs/development.md](docs/development.md). Deploying: [docs/deploy-railway.md](docs/deploy-railway.md). Connecting an AI agent (Claude) through MCP: [docs/mcp.md](docs/mcp.md). Decisions: [docs/adr](docs/adr/README.md).
 
 ## Licence
 
