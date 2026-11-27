@@ -12,6 +12,8 @@ import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { cleanLocalized } from '../../lib/localized'
 
+const maxPictureBytes = 5 << 20
+
 function Texts({ site }: { site: Site }) {
   const { t } = useTranslation()
   const save = useSaveSite()
@@ -52,6 +54,7 @@ function Picture({ site }: { site: Site }) {
   const houses = useHouses()
   const upload = useUploadPicture()
   const remove = useDeletePicture()
+  const [tooBig, setTooBig] = useState(false)
   const { message, fields } = useApiErrors(upload.error ?? remove.error)
   return (
     <Card withBorder>
@@ -69,9 +72,14 @@ function Picture({ site }: { site: Site }) {
           <FileInput label={t('admin.site.upload')} description={t('admin.site.pictureHint')} accept="image/png,image/jpeg,image/webp"
             value={null} onChange={(f) => {
               remove.reset()
-              if (f) upload.mutate(f, { onSuccess: () => notifications.show({ message: t('common.saved'), color: 'green' }) })
+              upload.reset()
+              // Checked here too: the server may cut an oversized upload off before it can answer.
+              setTooBig(!!f && f.size > maxPictureBytes)
+              if (f && f.size <= maxPictureBytes) {
+                upload.mutate(f, { onSuccess: () => notifications.show({ message: t('common.saved'), color: 'green' }) })
+              }
             }}
-            error={fields.picture} disabled={upload.isPending} w={280} clearable={false} />
+            error={tooBig ? t('validation.size') : fields.picture} disabled={upload.isPending} w={280} clearable={false} />
           {upload.isPending && <Loader size="sm" />}
           {site.pictureUrl && (
             <ConfirmButton color="red" variant="light" loading={remove.isPending} message={t('admin.site.removePictureConfirm')}

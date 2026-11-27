@@ -68,4 +68,13 @@ describe('SitePage', () => {
     expect(screen.getByRole('button', { name: uk.common.copy })).toBeInTheDocument()
     expect(screen.getByTitle(uk.qr.title)).toBeInTheDocument()
   })
+
+  it('refuses a picture over 5 MB without uploading it', async () => {
+    const { calls } = mockApi(routes)
+    const { user, container } = renderApp('/admin/site')
+    await screen.findByText(uk.admin.site.picture)
+    await user.upload(fileInput(container), new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'big.jpg', { type: 'image/jpeg' }))
+    expect(await screen.findByText(uk.validation.size)).toBeInTheDocument()
+    expect(callsTo(calls, 'PUT /admin/site/picture')).toHaveLength(0)
+  })
 })

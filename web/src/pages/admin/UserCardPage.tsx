@@ -75,7 +75,10 @@ function Access({ card }: { card: UserCard }) {
   const action = useUserAction()
   const saved = useSaved()
   const busy = patch.isPending || action.isPending
-  const run = (a: UserAction) => action.mutate({ id: user.id, action: a }, { onSuccess: saved })
+  const run = (a: UserAction) => {
+    patch.reset()
+    action.mutate({ id: user.id, action: a }, { onSuccess: saved })
+  }
   const setFlag = (body: UserPatch) => {
     action.reset()
     patch.mutate(body, { onSuccess: saved })
@@ -238,8 +241,9 @@ export function UserCardPage() {
   if (card.isError) return <Alert color="red">{errorText(t, card.error)}</Alert>
   const { user } = card.data
   const detailsKey = [user.firstName, user.lastName, user.phone, user.locale].join('|')
+  // key: sections keep form and error state; never show them on another user's card.
   return (
-    <Stack>
+    <Stack key={id}>
       <Anchor component={Link} to="/admin/users" size="sm">
         ← {t('admin.nav.users')}
       </Anchor>

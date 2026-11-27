@@ -133,4 +133,38 @@ describe('UserCardPage', () => {
     renderApp('/admin/users/99')
     expect(await screen.findByText(uk.errors.not_found)).toBeInTheDocument()
   })
+
+  it('clears a refused flag error after a later action succeeds', async () => {
+    mockApi(
+      routes(userCard({ status: 'pending_approval', isAdmin: true }), {
+        'PATCH /admin/users/5': { status: 409, body: { error: { code: 'last_admin' } } },
+        'POST /admin/users/5/approve': { body: userCard({ status: 'awaiting_activation', isAdmin: true }) },
+      }),
+    )
+    const { user } = renderApp('/admin/users/5')
+    await user.click(await screen.findByRole('switch', { name: uk.admin.user.isAdmin }))
+    expect(await screen.findByText(uk.errors.last_admin)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: uk.admin.user.approve }))
+    expect(await screen.findByText(uk.userStatus.awaiting_activation)).toBeInTheDocument()
+    expect(screen.queryByText(uk.errors.last_admin)).not.toBeInTheDocument()
+  })
+
+  it("does not carry one user's errors to another user's cached card", async () => {
+    const other = userCard({ id: 1, firstName: 'Adam', lastName: 'Admin', isAdmin: true })
+    mockApi(
+      routes(userCard({ isAdmin: true }), {
+        'GET /admin/users/1': { body: other },
+        'PATCH /admin/users/5': { status: 409, body: { error: { code: 'last_admin' } } },
+      }),
+    )
+    const { user } = renderApp('/admin/users/1')
+    expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
+    // Card 1 lists an audit entry targeting user:5; open it, fail a change there, then go back.
+    await user.click(screen.getByRole('link', { name: 'user:5' }))
+    await user.click(await screen.findByRole('switch', { name: uk.admin.user.isAdmin }))
+    expect(await screen.findByText(uk.errors.last_admin)).toBeInTheDocument()
+    await user.click(screen.getAllByRole('link', { name: 'user:1' })[0])
+    expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
+    expect(screen.queryByText(uk.errors.last_admin)).not.toBeInTheDocument()
+  })
 })
