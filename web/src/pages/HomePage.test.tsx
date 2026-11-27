@@ -73,6 +73,25 @@ describe('HomePage', () => {
     expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1)
   })
 
+  it('shows the published page in a frame under our header', async () => {
+    mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, pageUrl: '/site/index.html' } } })
+    renderApp('/')
+    const frame = await screen.findByTitle('Тестова громада')
+    expect(frame.tagName).toBe('IFRAME')
+    expect(frame).toHaveAttribute('src', '/site/index.html?lang=uk')
+    expect(screen.getByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
+    expect(screen.queryByText('Привіт')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('house')).not.toBeInTheDocument()
+  })
+
+  it('shows the built-in page when nothing is published', async () => {
+    mockApi(publicRoutes)
+    renderApp('/')
+    expect(await screen.findByText('Привіт')).toBeInTheDocument()
+    expect(screen.queryByTitle('Тестова громада')).not.toBeInTheDocument()
+  })
+
   it('applies the site default language when the visitor chose none', async () => {
     mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, defaultLocale: 'en' } } })
     renderApp('/')

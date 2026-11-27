@@ -42,6 +42,8 @@ export interface Site {
   pictureUrl: string | null
   botUrl: string
   registerUrl: string
+  /** The published home page, framed under our header; null shows the built-in page. */
+  pageUrl: string | null
 }
 
 export interface HouseOption {
