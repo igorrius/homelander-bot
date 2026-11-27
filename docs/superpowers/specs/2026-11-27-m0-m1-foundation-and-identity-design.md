@@ -64,6 +64,10 @@ own community (two houses), but nothing about that community goes into the repos
 
 - House data on the resident page (power, batteries, gates): comes with modules (M3+).
 - Registration started from the bot, marking unidentified chat members, chats/topics routing (M2).
+- Reacting to group messages. In M1 the bot already receives messages from the community chats it
+  is added to and hands them to an event sink that does nothing; it never replies in a group. How it
+  reacts is configured later as flows in the visual editor (M5) running WASM modules (M3). Modules
+  are written in **Go** (owner, 2026-11-27): TinyGo or standard Go compiled for `wasip1`.
 - Modules, module catalog, module settings (M3), outage schedules (M4), flow editor (M5), gate (M6).
 - Fine-grained roles / RBAC. M1 has exactly two flags on a user: Resident and Admin.
 - Discord or any messenger other than Telegram for activation — but see the messenger abstraction
