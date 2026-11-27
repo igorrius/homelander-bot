@@ -124,7 +124,7 @@ func (r Data) List(ctx context.Context, publicOnly bool) ([]domain.DataItem, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []domain.DataItem{}
 	for rows.Next() {
 		it, err := scanDataItem(rows)
@@ -143,7 +143,7 @@ func (r Data) Rows(ctx context.Context, itemID int64) ([]domain.DataRow, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []domain.DataRow{}
 	for rows.Next() {
 		var (
@@ -225,7 +225,7 @@ func (r Data) SetAssetRefs(ctx context.Context, itemID int64, assetIDs []int64) 
 // AssetIsPublic reports whether the site picture is this asset or a public
 // item refers to it.
 func (r Data) AssetIsPublic(ctx context.Context, assetID int64) (bool, error) {
-	site, err := Site{DB: r.DB}.Get(ctx)
+	site, err := Site(r).Get(ctx)
 	if err != nil {
 		return false, err
 	}

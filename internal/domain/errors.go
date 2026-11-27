@@ -17,6 +17,7 @@ var (
 	ErrInvalidCode  = errors.New("invalid_code")
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrLastAdmin    = errors.New("last_admin")
+	ErrFirstAdmin   = errors.New("first_admin")
 	ErrTokenInvalid = errors.New("token_invalid")
 )
 

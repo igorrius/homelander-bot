@@ -37,6 +37,8 @@ func writeDomainError(w http.ResponseWriter, log *slog.Logger, err error) {
 		WriteError(w, http.StatusNotFound, "not_found")
 	case errors.Is(err, domain.ErrLastAdmin):
 		WriteError(w, http.StatusConflict, "last_admin")
+	case errors.Is(err, domain.ErrFirstAdmin):
+		WriteError(w, http.StatusConflict, "first_admin")
 	case errors.Is(err, domain.ErrConflict):
 		WriteError(w, http.StatusConflict, "conflict")
 	case errors.Is(err, domain.ErrForbidden):

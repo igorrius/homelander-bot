@@ -499,6 +499,9 @@ func (s *UserService) Update(ctx context.Context, id int64, p UserPatch, actor A
 		var actions []string
 		if p.IsAdmin != nil && *p.IsAdmin != u.IsAdmin {
 			if !*p.IsAdmin {
+				if u.Source == SourceBootstrap {
+					return ErrFirstAdmin
+				}
 				last, err := s.isLastActiveAdmin(ctx, u)
 				if err != nil {
 					return err
@@ -551,6 +554,9 @@ func (s *UserService) Disable(ctx context.Context, id int64, actor Actor) error 
 		}
 		if u.Status == StatusDisabled {
 			return nil
+		}
+		if u.Source == SourceBootstrap {
+			return ErrFirstAdmin
 		}
 		if last, err := s.isLastActiveAdmin(ctx, u); err != nil {
 			return err

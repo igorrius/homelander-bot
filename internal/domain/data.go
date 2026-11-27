@@ -9,6 +9,7 @@ import (
 // DataKind says whether a data item holds one value or a table.
 type DataKind string
 
+// Data kinds.
 const (
 	DataValue DataKind = "value"
 	DataTable DataKind = "table"
@@ -17,6 +18,7 @@ const (
 // DataType is the type of a value item or of a table column.
 type DataType string
 
+// Data types; url and phone are for columns only.
 const (
 	DataText          DataType = "text"
 	DataLocalizedText DataType = "localized_text"
