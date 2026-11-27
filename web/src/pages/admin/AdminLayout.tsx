@@ -1,11 +1,13 @@
-import { AppShell, Avatar, Box, type MantineColorScheme, useMantineColorScheme, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { AppShell, Avatar, Box, Button, type MantineColorScheme, useMantineColorScheme, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconBell,
   IconBuildingCommunity,
   IconCheck,
-  IconDeviceDesktop,
   IconChevronDown,
+  IconDatabase,
+  IconDeviceDesktop,
+  IconExternalLink,
   IconHistory,
   IconHome,
   IconInbox,
@@ -17,7 +19,6 @@ import {
   IconTags,
   IconUsers,
   IconWorld,
-  IconDatabase,
   type Icon,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -183,6 +184,10 @@ export function AdminLayout() {
             </Title>
           </Group>
           <Group gap="sm" wrap="nowrap">
+            <Button component="a" href="/" target="_blank" rel="noopener" variant="default" size="xs"
+              aria-label={t('admin.openSite')} title={t('admin.openSite')} leftSection={<IconExternalLink size={16} />}>
+              <Box component="span" visibleFrom="sm">{t('admin.openSite')}</Box>
+            </Button>
             <LanguageSwitcher />
             <UserMenu me={me.data} />
           </Group>

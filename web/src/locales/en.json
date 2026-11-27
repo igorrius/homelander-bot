@@ -485,7 +485,8 @@
         "invalid_page_name": "{{path}}: a page name may use only lower-case Latin letters, digits and hyphens (e.g. contacts.html)."
       },
       "viaMcp": "MCP"
-    }
+    },
+    "openSite": "Open site"
   },
   "notFound": {
     "title": "Page not found",
