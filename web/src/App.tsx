@@ -17,6 +17,8 @@ import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
 import { DataPage } from './pages/admin/DataPage'
 import { DataItemPage } from './pages/admin/DataItemPage'
+import { PagesPage } from './pages/admin/PagesPage'
+import { PagePreviewPage } from './pages/admin/PagePreviewPage'
 import { StatusesPage } from './pages/admin/StatusesPage'
 import { UserCardPage } from './pages/admin/UserCardPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -43,6 +45,8 @@ export default function App() {
           <Route path="site" element={<SitePage />} />
           <Route path="data" element={<DataPage />} />
           <Route path="data/:key" element={<DataItemPage />} />
+          <Route path="pages" element={<PagesPage />} />
+          <Route path="pages/:id" element={<PagePreviewPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />

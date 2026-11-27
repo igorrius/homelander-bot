@@ -9,3 +9,10 @@ export function formatDateTime(iso: string | undefined | null, lang: string): st
 export function fullName(u: { firstName: string; lastName: string; phone: string }): string {
   return `${u.firstName} ${u.lastName}`.trim() || u.phone
 }
+
+/** A byte count as KB or MB. */
+export function formatSize(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(1)} MB`
+}
