@@ -84,7 +84,8 @@ func TestApproveFlow(t *testing.T) {
 	if r.Code != 200 || r.json()["user"].(map[string]any)["status"] != "awaiting_activation" {
 		t.Errorf("approve = %d %s", r.Code, r.Body)
 	}
-	if v := e.do("GET", "/api/v1/admin/summary", nil, tok, "").json(); v["pendingApplications"] != float64(0) {
+	if v := e.do("GET", "/api/v1/admin/summary", nil, tok, "").json(); v["pendingApplications"] != float64(0) ||
+		v["awaitingActivation"] != float64(1) || v["activeUsers"] != float64(1) {
 		t.Errorf("summary after = %v", v)
 	}
 	if r := e.do("POST", "/api/v1/admin/users/"+strconv.FormatInt(id, 10)+"/approve", nil, tok, ""); r.Code != 409 {

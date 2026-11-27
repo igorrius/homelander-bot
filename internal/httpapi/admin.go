@@ -99,12 +99,20 @@ func page(r *http.Request) (limit, offset int) {
 }
 
 func (h handlerCtx) summary(w http.ResponseWriter, r *http.Request) {
-	n, err := h.api.Users.PendingCount(r.Context())
-	if err != nil {
-		h.fail(w, err)
-		return
+	out := map[string]int{}
+	for key, st := range map[string]domain.UserStatus{
+		"pendingApplications": domain.StatusPendingApproval,
+		"awaitingActivation":  domain.StatusAwaitingActivation,
+		"activeUsers":         domain.StatusActive,
+	} {
+		n, err := h.api.Users.CountByStatus(r.Context(), st)
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		out[key] = n
 	}
-	WriteJSON(w, http.StatusOK, map[string]int{"pendingApplications": n})
+	WriteJSON(w, http.StatusOK, out)
 }
 
 // adminUser builds the admin view of one user.

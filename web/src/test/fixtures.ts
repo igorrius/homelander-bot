@@ -62,6 +62,6 @@ export const publicRoutes = {
 export const adminRoutes = {
   ...publicRoutes,
   'GET /me': { body: admin },
-  'GET /admin/summary': { body: { pendingApplications: 0 } },
+  'GET /admin/summary': { body: { pendingApplications: 0, awaitingActivation: 0, activeUsers: 1 } },
   'GET /admin/users': { body: { items: [], total: 0 } },
 }

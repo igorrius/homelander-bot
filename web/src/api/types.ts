@@ -110,3 +110,10 @@ export interface Page<T> {
   items: T[]
   total: number
 }
+
+/** Counters for the admin menu and overview. */
+export interface Summary {
+  pendingApplications: number
+  awaitingActivation: number
+  activeUsers: number
+}
