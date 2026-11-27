@@ -28,6 +28,15 @@ var SupportedLocales = []string{"uk", "en"}
 
 const minSecretLen = 32
 
+// DefaultMCPRedirectURIs covers Claude (web, Desktop, mobile) and loopback
+// redirects of local clients such as Claude Code.
+var DefaultMCPRedirectURIs = []string{
+	"https://claude.ai/api/mcp/auth_callback",
+	"https://claude.com/api/mcp/auth_callback",
+	"http://localhost:*",
+	"http://127.0.0.1:*",
+}
+
 // webhookSecret is the character set Telegram accepts for secret_token.
 var webhookSecret = regexp.MustCompile(`^[A-Za-z0-9_-]{1,256}$`)
 
@@ -46,6 +55,9 @@ type Config struct {
 	SessionIdleTTL        time.Duration
 	SessionMaxTTL         time.Duration
 	LogLevel              slog.Level
+	// MCPRedirectURIs are the redirect URIs MCP agents may register (exact,
+	// or http://localhost:* / http://127.0.0.1:* for any loopback port).
+	MCPRedirectURIs []string
 	// TrustProxy takes the client IP from the rightmost X-Forwarded-For entry
 	// (set it behind Railway's proxy).
 	TrustProxy bool
@@ -136,6 +148,23 @@ func Load(getenv func(string) string) (Config, error) {
 	case "false", "0", "no":
 	default:
 		errs = append(errs, errors.New("TRUST_PROXY must be true or false"))
+	}
+
+	cfg.MCPRedirectURIs = DefaultMCPRedirectURIs
+	if raw := get("MCP_REDIRECT_URIS", ""); raw != "" {
+		cfg.MCPRedirectURIs = nil
+		for _, p := range strings.Split(raw, ",") {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			u, err := url.Parse(strings.Replace(p, ":*", "", 1))
+			if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+				errs = append(errs, fmt.Errorf("MCP_REDIRECT_URIS: %q is not an http(s) URL", p))
+				continue
+			}
+			cfg.MCPRedirectURIs = append(cfg.MCPRedirectURIs, p)
+		}
 	}
 
 	if err := cfg.LogLevel.UnmarshalText([]byte(get("LOG_LEVEL", "info"))); err != nil {

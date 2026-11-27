@@ -180,3 +180,16 @@ func TestLoadWebhookSecretCharset(t *testing.T) {
 	mustFail(t, webhook(strings.Repeat("a", 257)), "TELEGRAM_WEBHOOK_SECRET")
 	mustLoad(t, webhook("Abc_123-xyz"))
 }
+
+func TestConfigMCPRedirects(t *testing.T) {
+	cfg := mustLoad(t, required(nil))
+	want := []string{"https://claude.ai/api/mcp/auth_callback", "https://claude.com/api/mcp/auth_callback", "http://localhost:*", "http://127.0.0.1:*"}
+	if strings.Join(cfg.MCPRedirectURIs, " ") != strings.Join(want, " ") {
+		t.Errorf("default MCPRedirectURIs = %v", cfg.MCPRedirectURIs)
+	}
+	cfg = mustLoad(t, required(map[string]string{"MCP_REDIRECT_URIS": " https://cursor.example/cb , http://localhost:* ,"}))
+	if strings.Join(cfg.MCPRedirectURIs, " ") != "https://cursor.example/cb http://localhost:*" {
+		t.Errorf("override = %v", cfg.MCPRedirectURIs)
+	}
+	mustFail(t, required(map[string]string{"MCP_REDIRECT_URIS": "not a url"}), "MCP_REDIRECT_URIS")
+}

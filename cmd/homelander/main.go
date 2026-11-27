@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -123,9 +124,13 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 
 	server := httpapi.New(cfg, httpapi.Deps{DB: rawDB, I18n: tr, Log: log, Static: web.Dist()})
 	server.WithSession(auth)
-	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Pages: pages, Auth: auth, Chats: chats, Labels: labels, Notifier: notifier, Messenger: bot, Cfg: cfg}
+	mcpAuth := &domain.McpAuthService{R: repos, Now: now, Allowed: domain.RedirectPolicy(cfg.MCPRedirectURIs),
+		Resource: strings.TrimRight(cfg.PublicURL.String(), "/") + httpapi.MCPPath}
+	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Pages: pages, Auth: auth, Chats: chats, Labels: labels,
+		Notifier: notifier, Messenger: bot, Cfg: cfg, MCPAuth: mcpAuth, Limits: limits}
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
+	httpapi.RegisterOAuth(server, api)
 	server.MountPrefix("/site/", httpapi.SiteHandler(api))
 	webhookPath := telegram.WebhookPath(cfg.AppSecret)
 	if cfg.TelegramUpdates == config.UpdatesWebhook {

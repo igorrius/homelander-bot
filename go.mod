@@ -3,6 +3,8 @@ module github.com/igorrius/homelander-bot
 go 1.27
 
 require (
+	github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.37
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nicksnyder/go-i18n/v2 v2.7.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	golang.org/x/text v0.44.0
@@ -10,12 +12,14 @@ require (
 )
 
 require (
-	github.com/PaulSonOfLars/gotgbot/v2 v2.0.0-rc.37 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.4 // indirect
+	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	modernc.org/libc v1.80.1 // indirect
