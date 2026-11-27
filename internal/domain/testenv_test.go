@@ -29,6 +29,7 @@ type env struct {
 	users   *domain.UserService
 	catalog *domain.CatalogService
 	data    *domain.DataService
+	pages   *domain.PageService
 	owner   domain.ResidencyStatus
 	house   domain.House
 }
@@ -42,6 +43,7 @@ func newEnv(t *testing.T) *env {
 	e.users = &domain.UserService{R: r, Now: c.Now, Limits: ratelimit.New(c.Now), Region: "UA", PendingCap: 200}
 	e.catalog = &domain.CatalogService{R: r, Now: c.Now, Locales: []string{"uk", "en"}}
 	e.data = &domain.DataService{R: r, Now: c.Now, Limits: ratelimit.New(c.Now), Locales: []string{"uk", "en"}}
+	e.pages = &domain.PageService{R: r, Now: c.Now, Secret: []byte("test-secret")}
 	sts, _ := r.Statuses.List(ctx, false)
 	e.owner = sts[0]
 	e.house = e.mkHouse("1", 1, 10)
