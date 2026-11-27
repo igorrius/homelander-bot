@@ -57,7 +57,9 @@
       "statuses": "Residency statuses",
       "site": "Site",
       "audit": "Audit log",
-      "overview": "Overview"
+      "overview": "Overview",
+      "chats": "Chats",
+      "notifications": "Notifications"
     },
     "applications": {
       "title": "Applications",
@@ -215,6 +217,73 @@
         "status": "Add a residency status",
         "community": "Fill in the community name"
       }
+    },
+    "chats": {
+      "title": "Chats",
+      "description": "Groups, forums and topics the bot is in. Hang labels on them to say what goes where.",
+      "tabs": {
+        "chats": "Chats",
+        "labels": "Labels"
+      },
+      "state": {
+        "new": "New",
+        "accepted": "Accepted",
+        "left": "Left"
+      },
+      "newHint": "The bot is in this chat, but nobody has confirmed it yet. Accept it so it can receive messages, or make the bot leave.",
+      "leaveSoon": "Added by someone who is not an administrator: the bot will leave at {{time}} unless you accept the chat.",
+      "accept": "Accept",
+      "leave": "Leave",
+      "leaveConfirm": "The bot will leave “{{title}}”. To bring it back, add it to the group again.",
+      "kind": {
+        "group": "group",
+        "forum": "forum",
+        "channel": "channel",
+        "topic": "topic"
+      },
+      "messenger": {
+        "telegram": "TG"
+      },
+      "bot": {
+        "member": "member",
+        "administrator": "admin",
+        "restricted": "restricted",
+        "unknown": "rights unknown"
+      },
+      "cannotSend": "The bot cannot send messages here. Check its rights in the group.",
+      "topics": "Topics",
+      "unnamedTopic": "Topic #{{id}} (no name yet)",
+      "gone": "deleted",
+      "rename": "Rename",
+      "topicTitle": "Topic name",
+      "editLabels": "Labels",
+      "noLabels": "No labels",
+      "test": "Send test",
+      "testSent": "Delivered",
+      "testFailed": "Not delivered: {{reason}}",
+      "testQueued": "Waiting to be sent…",
+      "leftChats": "Left chats",
+      "addedBy": "Added by Telegram user {{id}}",
+      "emptyTitle": "The bot is not in any chat yet",
+      "emptyText": "A chat appears here when an administrator adds the bot to it, or when someone writes in a chat the bot is already in.",
+      "setupGuide": "Bot setup guide"
+    },
+    "labels": {
+      "title": "Labels",
+      "description": "A label names a place to write to. Modules and notices write to a label; you decide which chats carry it.",
+      "add": "New label",
+      "name": "Name",
+      "descriptionField": "Description",
+      "newLabel": "New label",
+      "create": "Create",
+      "usedByApplications": "New applications",
+      "where": "Where",
+      "usedBy": "Used by",
+      "nowhere": "Not on any chat yet",
+      "empty": "No labels yet.",
+      "deleteConfirm": "Delete the label “{{name}}”?",
+      "deleteLoses": "It will be removed from: {{places}}.",
+      "deleteSetting": "These notices will stop: {{settings}}."
     }
   },
   "notFound": {
@@ -250,7 +319,9 @@
     "invalid_code": "The code is wrong or has expired.",
     "unauthorized": "Please log in.",
     "internal": "Something went wrong on the server. Please try again.",
-    "unknown": "Something went wrong. Please try again."
+    "unknown": "Something went wrong. Please try again.",
+    "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
+    "token_invalid": "This link has expired or was already used."
   },
   "validation": {
     "required": "Required",
@@ -286,7 +357,8 @@
         "admin_granted": "Admin rights granted",
         "admin_revoked": "Admin rights revoked",
         "resident_set": "Marked as resident",
-        "resident_unset": "No longer a resident"
+        "resident_unset": "No longer a resident",
+        "activated": "Activated on approval"
       },
       "channel": {
         "linked": "Messenger linked",
@@ -313,6 +385,27 @@
       },
       "bootstrap": {
         "admin_created": "First administrator created"
+      },
+      "chat": {
+        "added": "Bot added to a chat",
+        "auto_left": "Bot left a chat added by a stranger",
+        "accepted": "Chat accepted",
+        "left": "Bot left the chat",
+        "removed": "Bot removed from the chat",
+        "moved": "Chat got a new ID"
+      },
+      "topic": {
+        "renamed": "Topic renamed"
+      },
+      "label": {
+        "created": "Label created",
+        "updated": "Label changed",
+        "deleted": "Label deleted",
+        "bound": "Label added",
+        "unbound": "Label removed"
+      },
+      "notifications": {
+        "updated": "Notification settings changed"
       }
     }
   }

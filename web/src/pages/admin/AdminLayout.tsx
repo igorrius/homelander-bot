@@ -8,6 +8,7 @@ import {
   IconInbox,
   IconLayoutDashboard,
   IconLogout,
+  IconMessages,
   IconTags,
   IconUsers,
   IconWorld,
@@ -40,6 +41,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
   const { pathname } = useLocation()
   const summary = useSummary()
   const pending = summary.data?.pendingApplications ?? 0
+  const newChats = summary.data?.newChats ?? 0
   const groups: NavGroup[] = [
     { items: [{ to: '/admin', icon: IconLayoutDashboard, label: t('admin.nav.overview'), exact: true }] },
     {
@@ -49,8 +51,13 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
         { to: '/admin/users', icon: IconUsers, label: t('admin.nav.users') },
       ],
     },
-    // M2 adds "Chats" to this group.
-    { label: t('admin.navGroup.community'), items: [{ to: '/admin/houses', icon: IconBuildingCommunity, label: t('admin.nav.houses') }] },
+    {
+      label: t('admin.navGroup.community'),
+      items: [
+        { to: '/admin/houses', icon: IconBuildingCommunity, label: t('admin.nav.houses') },
+        { to: '/admin/chats', icon: IconMessages, label: t('admin.nav.chats'), badge: newChats },
+      ],
+    },
     {
       label: t('admin.navGroup.settings'),
       items: [

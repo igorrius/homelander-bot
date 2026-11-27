@@ -8,8 +8,10 @@ import { RegisterPage } from './pages/RegisterPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
+import { ChatsPage } from './pages/admin/ChatsPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
+import { LabelsPage } from './pages/admin/LabelsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
 import { StatusesPage } from './pages/admin/StatusesPage'
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="users/:id" element={<UserCardPage />} />
           <Route path="houses" element={<HousesPage />} />
           <Route path="houses/:id" element={<HousePage />} />
+          <Route path="chats" element={<ChatsPage />} />
+          <Route path="chats/labels" element={<LabelsPage />} />
           <Route path="statuses" element={<StatusesPage />} />
           <Route path="site" element={<SitePage />} />
           <Route path="audit" element={<AuditPage />} />

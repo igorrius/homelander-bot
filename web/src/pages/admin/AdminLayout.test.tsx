@@ -36,6 +36,14 @@ describe('AdminLayout', () => {
     expect(await within(link).findByText('3')).toBeInTheDocument()
   })
 
+  it('shows the new chats badge under Community', async () => {
+    mockApi({ ...adminRoutes, 'GET /admin/summary': { body: { pendingApplications: 0, newChats: 2 } } })
+    renderApp('/admin')
+    const link = await screen.findByRole('link', { name: new RegExp(uk.admin.nav.chats) })
+    expect(await within(link).findByText('2')).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/admin/chats')
+  })
+
   it('groups the menu', async () => {
     mockApi(adminRoutes)
     renderApp('/admin/users')
