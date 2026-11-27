@@ -636,14 +636,14 @@ func (h handlerCtx) patchStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handlerCtx) writeSite(w http.ResponseWriter, r *http.Request, st domain.SiteSettings) {
-	pageURL, err := h.pageURL(r.Context())
+	pageURL, pages, err := h.pageURL(r.Context())
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"communityName": st.CommunityName, "welcomeText": st.WelcomeText,
 		"defaultLocale": st.DefaultLocale, "pictureUrl": assetURL(st.PictureAssetID),
-		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL})
+		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL, "pages": pages})
 }
 
 func (h handlerCtx) adminSite(w http.ResponseWriter, r *http.Request) {

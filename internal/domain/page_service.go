@@ -368,18 +368,37 @@ func (s *PageService) PreviewToken(id int64) string {
 	return ids + "." + exp + "." + s.sign(ids, exp)
 }
 
-// PreviewFile returns a file of the version a valid, unexpired token names;
-// any bad token → ErrNotFound.
-func (s *PageService) PreviewFile(ctx context.Context, token, p string) (PageFile, error) {
+// previewID returns the version id a valid, unexpired token names.
+func (s *PageService) previewID(token string) (int64, bool) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return PageFile{}, ErrNotFound
+		return 0, false
 	}
 	id, err1 := strconv.ParseInt(parts[0], 10, 64)
 	exp, err2 := strconv.ParseInt(parts[1], 10, 64)
 	if err1 != nil || err2 != nil || !hmac.Equal([]byte(parts[2]), []byte(s.sign(parts[0], parts[1]))) ||
 		!s.Now().Before(time.Unix(exp, 0)) {
+		return 0, false
+	}
+	return id, true
+}
+
+// PreviewFile returns a file of the version a valid, unexpired token names;
+// any bad token → ErrNotFound.
+func (s *PageService) PreviewFile(ctx context.Context, token, p string) (PageFile, error) {
+	id, ok := s.previewID(token)
+	if !ok {
 		return PageFile{}, ErrNotFound
 	}
 	return s.R.Pages.File(ctx, id, p)
+}
+
+// PreviewVersion returns the version (file list only) a valid token names;
+// any bad token → ErrNotFound.
+func (s *PageService) PreviewVersion(ctx context.Context, token string) (PageVersion, error) {
+	id, ok := s.previewID(token)
+	if !ok {
+		return PageVersion{}, ErrNotFound
+	}
+	return s.R.Pages.Get(ctx, id)
 }

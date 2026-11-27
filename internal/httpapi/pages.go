@@ -3,6 +3,8 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -18,6 +20,28 @@ import (
 const pageCSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation; " +
 	"default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'"
+
+//go:embed preview_nav.js
+var previewNavJS string
+
+// injectPreviewNav adds the preview navigation script, listing the draft's
+// page paths, before the last </body> (or at the end when there is none).
+func injectPreviewNav(data []byte, pages []domain.SitePage) []byte {
+	paths := make([]string, 0, len(pages))
+	for _, p := range pages {
+		paths = append(paths, p.Path)
+	}
+	list, _ := json.Marshal(paths) // page paths are [a-z0-9-/] only
+	script := []byte("<script>" + strings.Replace(previewNavJS, "__PAGES__", string(list), 1) + "</script>")
+	at := bytes.LastIndex(bytes.ToLower(data), []byte("</body>"))
+	if at < 0 {
+		at = len(data)
+	}
+	out := make([]byte, 0, len(data)+len(script))
+	out = append(out, data[:at]...)
+	out = append(out, script...)
+	return append(out, data[at:]...)
+}
 
 // publishedPageURL is where the shell frames the published page.
 const publishedPageURL = "/site/index.html"
@@ -45,6 +69,12 @@ func SiteHandler(api API) http.Handler {
 				return
 			}
 			f, err = api.Pages.PreviewFile(r.Context(), token, indexIfEmpty(p))
+			if err == nil && strings.HasPrefix(f.ContentType, "text/html") {
+				var v domain.PageVersion
+				if v, err = api.Pages.PreviewVersion(r.Context(), token); err == nil {
+					f.Data = injectPreviewNav(f.Data, domain.PagesOf(v.Files))
+				}
+			}
 		} else {
 			f, err = api.Pages.PublishedFile(r.Context(), indexIfEmpty(rest))
 		}
@@ -77,16 +107,21 @@ func indexIfEmpty(p string) string {
 	return p
 }
 
-// pageURL is the published page's address for the home page shell, or nil.
-func (h handlerCtx) pageURL(ctx context.Context) (any, error) {
+// pageURL is the published page's address for the home page shell, or nil,
+// and the site paths of the published pages ([] when nothing is published).
+func (h handlerCtx) pageURL(ctx context.Context) (any, []string, error) {
+	paths := []string{}
 	if h.api.Pages == nil {
-		return nil, nil
+		return nil, paths, nil
 	}
-	_, ok, err := h.api.Pages.Published(ctx)
+	v, ok, err := h.api.Pages.Published(ctx)
 	if err != nil || !ok {
-		return nil, err
+		return nil, paths, err
 	}
-	return publishedPageURL, nil
+	for _, p := range domain.PagesOf(v.Files) {
+		paths = append(paths, p.Path)
+	}
+	return publishedPageURL, paths, nil
 }
 
 // maxPageUpload caps a page zip upload.
@@ -109,11 +144,25 @@ type pageFileDTO struct {
 	Size        int    `json:"size"`
 }
 
+type sitePageDTO struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+func toSitePages(files []domain.PageFile) []sitePageDTO {
+	out := []sitePageDTO{}
+	for _, p := range domain.PagesOf(files) {
+		out = append(out, sitePageDTO{p.Name, p.Path})
+	}
+	return out
+}
+
 type pageVersionDTO struct {
 	ID          int64             `json:"id"`
 	Status      domain.PageStatus `json:"status"`
 	Note        string            `json:"note"`
 	Files       []pageFileDTO     `json:"files"`
+	Pages       []sitePageDTO     `json:"pages"`
 	TotalSize   int               `json:"totalSize"`
 	CreatedAt   time.Time         `json:"createdAt"`
 	CreatedBy   *userRef          `json:"createdBy"`
@@ -124,6 +173,7 @@ type pageVersionDTO struct {
 
 func toPageVersion(ctx context.Context, n *namer, v domain.PageVersion) pageVersionDTO {
 	d := pageVersionDTO{ID: v.ID, Status: v.Status, Note: v.Note, Files: make([]pageFileDTO, 0, len(v.Files)),
+		Pages:     toSitePages(v.Files),
 		TotalSize: v.TotalSize, CreatedAt: v.CreatedAt, CreatedVia: v.CreatedVia, PublishedAt: v.PublishedAt}
 	for _, f := range v.Files {
 		d.Files = append(d.Files, pageFileDTO{f.Path, f.ContentType, f.Size})
