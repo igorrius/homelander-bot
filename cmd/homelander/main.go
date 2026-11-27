@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/igorrius/homelander-bot/internal/config"
+	"github.com/igorrius/homelander-bot/internal/storage/sqlite"
 )
 
 func main() {
@@ -30,6 +31,14 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) erro
 	}
 	log := slog.New(slog.NewJSONHandler(stderr, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	log.Info("starting", "config", cfg)
-	_ = ctx
+
+	db, err := sqlite.Open(ctx, cfg.DatabasePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	if err := sqlite.Migrate(ctx, db, sqlite.Migrations); err != nil {
+		return err
+	}
 	return nil
 }
