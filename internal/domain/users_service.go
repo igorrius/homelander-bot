@@ -71,6 +71,7 @@ type UserPatch struct {
 	Locale     *string
 	IsResident *bool
 	IsAdmin    *bool
+	IsMCP      *bool
 }
 
 // UserCard is everything the admin user page shows.
@@ -515,6 +516,17 @@ func (s *UserService) Update(ctx context.Context, id int64, p UserPatch, actor A
 				actions = append(actions, ActUserAdminGranted)
 			}
 			u.IsAdmin = *p.IsAdmin
+		}
+		if p.IsMCP != nil && *p.IsMCP != u.IsMCP {
+			if *p.IsMCP && !u.IsAdmin {
+				return &ValidationError{Fields: map[string]string{"isMcp": "invalid"}}
+			}
+			u.IsMCP = *p.IsMCP
+			if u.IsMCP {
+				actions = append(actions, ActUserMCPGranted)
+			} else {
+				actions = append(actions, ActUserMCPRevoked)
+			}
 		}
 		if p.IsResident != nil && *p.IsResident != u.IsResident {
 			u.IsResident = *p.IsResident

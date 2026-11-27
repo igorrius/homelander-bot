@@ -385,3 +385,17 @@ func TestAuditNamesForChatsTopicsLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminPatchMCP(t *testing.T) {
+	e, tok := adminEnv(t)
+	me, _ := e.r.Users.GetByPhone(ctx, "+380500000099")
+	r := e.do("PATCH", "/api/v1/admin/users/"+strconv.FormatInt(me.ID, 10), map[string]any{"isMcp": true}, tok, "")
+	if r.Code != 200 || r.json()["user"].(map[string]any)["isMcp"] != true {
+		t.Errorf("patch isMcp = %d %s", r.Code, r.Body)
+	}
+	other := e.mkUser("+380500000001")
+	r = e.do("PATCH", "/api/v1/admin/users/"+strconv.FormatInt(other.ID, 10), map[string]any{"isMcp": true}, tok, "")
+	if r.Code != 422 {
+		t.Errorf("isMcp on a resident = %d %s", r.Code, r.Body)
+	}
+}

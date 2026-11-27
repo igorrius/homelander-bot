@@ -316,3 +316,48 @@ func TestCardHasAuditNewestFirst(t *testing.T) {
 		t.Errorf("card = %+v", card)
 	}
 }
+
+func TestMCPFlag(t *testing.T) {
+	e := newEnv(t)
+	adm := e.mkUser("+380500000099", admin)
+	other := e.mkUser("+380500000098", admin)
+	u, err := e.users.Update(ctx, other.ID, domain.UserPatch{IsMCP: ptr(true)}, actor(adm))
+	if err != nil || !e.get(other.ID).IsMCP || !u.MCPEnabled() {
+		t.Fatalf("grant mcp: %v %+v", err, e.get(other.ID))
+	}
+	if e.auditCount(domain.ActUserMCPGranted) != 1 {
+		t.Error("no mcp_granted audit")
+	}
+	resident := e.mkUser("+380500000097")
+	var ve *domain.ValidationError
+	if _, err := e.users.Update(ctx, resident.ID, domain.UserPatch{IsMCP: ptr(true)}, actor(adm)); !errors.As(err, &ve) || ve.Fields["isMcp"] != "invalid" {
+		t.Errorf("mcp on non-admin = %v", err)
+	}
+	if _, err := e.users.Update(ctx, other.ID, domain.UserPatch{IsAdmin: ptr(false)}, actor(adm)); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.get(other.ID); !got.IsMCP || got.MCPEnabled() {
+		t.Errorf("after admin revoked: IsMCP=%v enabled=%v", got.IsMCP, got.MCPEnabled())
+	}
+	if _, err := e.users.Update(ctx, other.ID, domain.UserPatch{IsAdmin: ptr(true)}, actor(adm)); err != nil {
+		t.Fatal(err)
+	}
+	if !e.get(other.ID).MCPEnabled() {
+		t.Error("admin back: MCP should be effective again")
+	}
+	if err := e.users.Disable(ctx, other.ID, actor(adm)); err != nil {
+		t.Fatal(err)
+	}
+	if e.get(other.ID).MCPEnabled() {
+		t.Error("disabled admin has MCP enabled")
+	}
+	if _, err := e.users.Update(ctx, adm.ID, domain.UserPatch{IsMCP: ptr(true)}, actor(adm)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.users.Update(ctx, adm.ID, domain.UserPatch{IsMCP: ptr(false)}, actor(adm)); err != nil || e.get(adm.ID).IsMCP {
+		t.Fatalf("revoke own mcp: %v", err)
+	}
+	if e.auditCount(domain.ActUserMCPRevoked) != 1 {
+		t.Error("no mcp_revoked audit")
+	}
+}

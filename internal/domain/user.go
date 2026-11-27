@@ -36,6 +36,7 @@ type User struct {
 	Locale      string
 	IsResident  bool
 	IsAdmin     bool
+	IsMCP       bool // effective only with IsAdmin on an active user, see MCPEnabled
 	Status      UserStatus
 	Source      UserSource
 	ApprovedBy  *int64
@@ -87,3 +88,7 @@ type ChannelRepo interface {
 	GetByExternal(ctx context.Context, typ, externalID string) (Channel, error)
 	Delete(ctx context.Context, id int64) error
 }
+
+// MCPEnabled reports whether the user may act through an MCP agent: active,
+// Admin and MCP all on.
+func (u User) MCPEnabled() bool { return u.Status == StatusActive && u.IsAdmin && u.IsMCP }

@@ -41,6 +41,8 @@ const (
 	ActUserEnabled        = "user.enabled"
 	ActUserAdminGranted   = "user.admin_granted"
 	ActUserAdminRevoked   = "user.admin_revoked"
+	ActUserMCPGranted     = "user.mcp_granted"
+	ActUserMCPRevoked     = "user.mcp_revoked"
 	ActUserResidentSet    = "user.resident_set"
 	ActUserResidentUnset  = "user.resident_unset"
 	ActChannelLinked      = "channel.linked"

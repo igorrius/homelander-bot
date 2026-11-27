@@ -320,6 +320,7 @@ func (h handlerCtx) patchUser(w http.ResponseWriter, r *http.Request) {
 		Locale     *string `json:"locale"`
 		IsResident *bool   `json:"isResident"`
 		IsAdmin    *bool   `json:"isAdmin"`
+		IsMCP      *bool   `json:"isMcp"`
 	}
 	if err := decode(r, &in); err != nil {
 		h.fail(w, err)

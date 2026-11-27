@@ -14,7 +14,7 @@ type Users struct{ DB DB }
 
 var _ domain.UserRepo = Users{}
 
-const userColumns = `id, phone, first_name, last_name, locale, is_resident, is_admin, status, source,
+const userColumns = `id, phone, first_name, last_name, locale, is_resident, is_admin, is_mcp, status, source,
 	approved_by, approved_at, activated_at, created_at, updated_at`
 
 func searchText(u *domain.User) string {
@@ -32,9 +32,9 @@ func (r Users) Create(ctx context.Context, u *domain.User) error {
 	t := now()
 	u.CreatedAt, u.UpdatedAt = t, t
 	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO users (phone, first_name, last_name, locale, is_resident,
-		is_admin, status, source, approved_by, approved_at, activated_at, created_at, updated_at, search_text)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		u.Phone, u.FirstName, u.LastName, u.Locale, boolInt(u.IsResident), boolInt(u.IsAdmin), u.Status, u.Source,
+		is_admin, is_mcp, status, source, approved_by, approved_at, activated_at, created_at, updated_at, search_text)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.Phone, u.FirstName, u.LastName, u.Locale, boolInt(u.IsResident), boolInt(u.IsAdmin), boolInt(u.IsMCP), u.Status, u.Source,
 		nullInt(u.ApprovedBy), fmtTimePtr(u.ApprovedAt), fmtTimePtr(u.ActivatedAt), fmtTime(t), fmtTime(t), searchText(u))
 	if err != nil {
 		return mapErr(err)
@@ -47,9 +47,9 @@ func (r Users) Create(ctx context.Context, u *domain.User) error {
 func (r Users) Update(ctx context.Context, u *domain.User) error {
 	u.UpdatedAt = now()
 	res, err := r.DB.Q(ctx).ExecContext(ctx, `UPDATE users SET phone = ?, first_name = ?, last_name = ?, locale = ?,
-		is_resident = ?, is_admin = ?, status = ?, source = ?, approved_by = ?, approved_at = ?, activated_at = ?,
+		is_resident = ?, is_admin = ?, is_mcp = ?, status = ?, source = ?, approved_by = ?, approved_at = ?, activated_at = ?,
 		updated_at = ?, search_text = ? WHERE id = ?`,
-		u.Phone, u.FirstName, u.LastName, u.Locale, boolInt(u.IsResident), boolInt(u.IsAdmin), u.Status, u.Source,
+		u.Phone, u.FirstName, u.LastName, u.Locale, boolInt(u.IsResident), boolInt(u.IsAdmin), boolInt(u.IsMCP), u.Status, u.Source,
 		nullInt(u.ApprovedBy), fmtTimePtr(u.ApprovedAt), fmtTimePtr(u.ActivatedAt), fmtTime(u.UpdatedAt), searchText(u), u.ID)
 	if err != nil {
 		return mapErr(err)
@@ -65,7 +65,7 @@ type scanner interface{ Scan(dest ...any) error }
 // userRow scans userColumns into a domain.User.
 type userRow struct {
 	u                     *domain.User
-	resident, admin       int
+	resident, admin, mcp  int
 	approvedBy            sql.NullInt64
 	approvedAt, activated sql.NullString
 	createdAt, updatedAt  string
@@ -73,13 +73,13 @@ type userRow struct {
 
 func (r *userRow) dest() []any {
 	u := r.u
-	return []any{&u.ID, &u.Phone, &u.FirstName, &u.LastName, &u.Locale, &r.resident, &r.admin, &u.Status, &u.Source,
+	return []any{&u.ID, &u.Phone, &u.FirstName, &u.LastName, &u.Locale, &r.resident, &r.admin, &r.mcp, &u.Status, &u.Source,
 		&r.approvedBy, &r.approvedAt, &r.activated, &r.createdAt, &r.updatedAt}
 }
 
 func (r *userRow) finish() {
 	u := r.u
-	u.IsResident, u.IsAdmin = r.resident == 1, r.admin == 1
+	u.IsResident, u.IsAdmin, u.IsMCP = r.resident == 1, r.admin == 1, r.mcp == 1
 	u.ApprovedBy = intPtr(r.approvedBy)
 	u.ApprovedAt, u.ActivatedAt = parseTimePtr(r.approvedAt), parseTimePtr(r.activated)
 	u.CreatedAt, u.UpdatedAt = parseTime(r.createdAt), parseTime(r.updatedAt)
