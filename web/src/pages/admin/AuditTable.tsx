@@ -4,14 +4,24 @@ import { Link } from 'react-router'
 import type { AuditEntry } from '../../api/types'
 import { useAuditAction } from '../../lib/audit'
 import { formatDateTime } from '../../lib/format'
+import { useLocalized } from '../../lib/localized'
 
-/** "user:5" → link to the user card; other targets as text. */
-function Target({ target }: { target: string }) {
-  const m = /^user:(\d+)$/.exec(target)
-  if (!m) return <>{target}</>
+/** Where an audit target links to, by its kind ("user:5" → that user's card). */
+function targetHref(target: string): string | null {
+  const m = /^(user|house|status):(\d+)$/.exec(target)
+  if (!m) return null
+  if (m[1] === 'user') return `/admin/users/${m[2]}`
+  if (m[1] === 'house') return `/admin/houses/${m[2]}`
+  return '/admin/statuses'
+}
+
+/** A target by name when the API sent one, linked to its page; otherwise the raw target. */
+function Target({ target, name }: { target: string; name: string }) {
+  const href = targetHref(target)
+  if (!name || !href) return <>{target}</>
   return (
-    <Anchor component={Link} to={`/admin/users/${m[1]}`}>
-      {target}
+    <Anchor component={Link} to={href}>
+      {name}
     </Anchor>
   )
 }
@@ -19,6 +29,7 @@ function Target({ target }: { target: string }) {
 export function AuditTable({ entries }: { entries: AuditEntry[] }) {
   const { t, i18n } = useTranslation()
   const action = useAuditAction()
+  const text = useLocalized()
   if (entries.length === 0) return <Text c="dimmed">{t('admin.audit.empty')}</Text>
   return (
     <Table.ScrollContainer minWidth={640}>
@@ -38,9 +49,9 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
               <Table.Td>{formatDateTime(e.at, i18n.language)}</Table.Td>
               <Table.Td>{action(e.action)}</Table.Td>
               <Table.Td>
-                <Target target={e.target} />
+                <Target target={e.target} name={text(e.targetNames ?? {}) || e.targetName} />
               </Table.Td>
-              <Table.Td>{e.actorUserId ? <Target target={`user:${e.actorUserId}`} /> : '—'}</Table.Td>
+              <Table.Td>{e.actorUserId ? <Target target={`user:${e.actorUserId}`} name={e.actorName} /> : null}</Table.Td>
               <Table.Td>{e.ip}</Table.Td>
             </Table.Tr>
           ))}

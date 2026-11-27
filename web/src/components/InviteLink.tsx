@@ -1,4 +1,5 @@
 import { ActionIcon, Anchor, Button, CopyButton, Group, Paper, Stack, Text, Tooltip } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useRef } from 'react'
@@ -10,21 +11,26 @@ const downloadSize = 1024
  * Saves the QR code as a large PNG: the SVG is drawn onto a canvas once the browser has loaded it.
  * A data: URL, not a blob: URL, because the site's CSP allows only 'self' and data: images.
  */
-function downloadPng(svg: SVGSVGElement | null) {
+function downloadPng(svg: SVGSVGElement | null, onFail: () => void) {
   if (!svg) return
   const img = new Image()
   img.onload = () => {
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = downloadSize
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.imageSmoothingEnabled = false
-    ctx.drawImage(img, 0, 0, downloadSize, downloadSize)
-    const a = document.createElement('a')
-    a.href = canvas.toDataURL('image/png')
-    a.download = 'registration-qr.png'
-    a.click()
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = downloadSize
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('no canvas')
+      ctx.imageSmoothingEnabled = false
+      ctx.drawImage(img, 0, 0, downloadSize, downloadSize)
+      const a = document.createElement('a')
+      a.href = canvas.toDataURL('image/png')
+      a.download = 'registration-qr.png'
+      a.click()
+    } catch {
+      onFail()
+    }
   }
+  img.onerror = onFail
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
 }
 
@@ -56,7 +62,7 @@ export function InviteLink({ url }: { url: string }) {
           </CopyButton>
         </Group>
         <Group>
-          <Button variant="default" size="xs" leftSection={<IconDownload size={16} />} onClick={() => downloadPng(svg.current)}>
+          <Button variant="default" size="xs" leftSection={<IconDownload size={16} />} onClick={() => downloadPng(svg.current, () => notifications.show({ color: 'red', message: t('admin.invite.downloadFailed') }))}>
             {t('admin.invite.download')}
           </Button>
         </Group>

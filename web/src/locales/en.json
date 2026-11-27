@@ -66,7 +66,6 @@
       "approve": "Approve",
       "reject": "Reject",
       "rejectConfirm": "Reject the application of {{name}}?",
-      "appliedAt": "Applied",
       "emptyHint": "New applications appear here. Share the registration link in the community chat."
     },
     "users": {
@@ -96,7 +95,6 @@
       "saveDetails": "Save details",
       "locale": "Language of bot messages",
       "phoneLocked": "Unlink Telegram to change the phone of an activated user.",
-      "access": "Access",
       "approve": "Approve",
       "reject": "Reject",
       "disable": "Disable",
@@ -139,7 +137,9 @@
         "apartments": "Apartments",
         "channels": "Messengers",
         "history": "History"
-      }
+      },
+      "copyPhone": "Copy phone",
+      "copyLink": "Copy link"
     },
     "audit": {
       "empty": "No entries.",
@@ -212,7 +212,8 @@
       "title": "Invite residents",
       "hint": "Pin this link in the community chat or print the QR code. Residents apply with it; you approve each application.",
       "download": "Download QR",
-      "open": "Registration link"
+      "open": "Registration link",
+      "downloadFailed": "Could not save the QR code. Try another browser or take a screenshot."
     },
     "overview": {
       "title": "Overview",

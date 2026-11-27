@@ -74,6 +74,13 @@ describe('UserCardPage', () => {
     expect(await screen.findByRole('dialog', { name: uk.admin.user.removeResidency })).toBeInTheDocument()
   })
 
+  it('labels the two copy buttons apart', async () => {
+    mockApi(routes(userCard({ status: 'awaiting_activation' })))
+    renderApp('/admin/users/5')
+    expect(await screen.findByRole('button', { name: uk.admin.user.copyPhone })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: uk.admin.user.copyLink })).toBeInTheDocument()
+  })
+
   it('counts apartments and messengers in the tab names', async () => {
     mockApi(routes(userCard()))
     renderApp('/admin/users/5')
@@ -241,12 +248,12 @@ describe('UserCardPage', () => {
     )
     const { user } = renderApp('/admin/users/1?tab=history')
     expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
-    // Card 1 lists an audit entry targeting user:5; open it, fail a change there, then go back.
-    await user.click(screen.getByRole('link', { name: 'user:5' }))
+    // Card 1 lists an audit entry targeting user 5; open it, fail a change there, then go back.
+    await user.click(screen.getByRole('link', { name: 'Olena Test' }))
     await user.click(await screen.findByRole('switch', { name: uk.admin.user.isAdmin }))
     expect(await screen.findByText(uk.errors.last_admin)).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: uk.admin.user.tabs.history }))
-    await user.click((await screen.findAllByRole('link', { name: 'user:1' }))[0])
+    await user.click((await screen.findAllByRole('link', { name: 'Adam Admin' }))[0])
     expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
     expect(screen.queryByText(uk.errors.last_admin)).not.toBeInTheDocument()
   })

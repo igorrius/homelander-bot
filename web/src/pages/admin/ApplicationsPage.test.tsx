@@ -59,6 +59,14 @@ describe('ApplicationsPage', () => {
     await waitFor(() => expect(callsTo(calls, 'POST /admin/users/5/reject')).toHaveLength(1))
   })
 
+  it('explains in the dialog when the registration link cannot be loaded', async () => {
+    mockApi({ ...routes, 'GET /site': { status: 500, body: { error: { code: 'internal' } } } })
+    const { user } = renderApp('/admin/applications')
+    await user.click(await screen.findByRole('button', { name: uk.admin.invite.open }))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(uk.errors.internal)).toBeInTheDocument()
+  })
+
   it('shows the empty state', async () => {
     mockApi(adminRoutes)
     renderApp('/admin/applications')

@@ -55,6 +55,20 @@ describe('InviteLink', () => {
     expect(decodeURIComponent(sources[0])).toContain(`viewBox="0 0 ${shown + 6} ${shown + 6}"`)
   })
 
+  it('says so when the QR picture cannot be made', async () => {
+    vi.stubGlobal('Image', class {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_: string) {
+        queueMicrotask(() => this.onerror?.())
+      }
+    })
+    const user = userEvent.setup()
+    render(<Providers env="test"><InviteLink url="http://localhost/register" /></Providers>)
+    await user.click(screen.getByRole('button', { name: uk.admin.invite.download }))
+    expect(await screen.findByText(uk.admin.invite.downloadFailed)).toBeInTheDocument()
+  })
+
   it('does not throw when the browser cannot draw the QR picture', async () => {
     const user = userEvent.setup()
     render(<Providers env="test"><InviteLink url="http://localhost/register" /></Providers>)
