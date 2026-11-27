@@ -25,10 +25,12 @@ type Deps struct {
 
 // Server routes requests to the API, the health check and the web app.
 type Server struct {
-	cfg  config.Config
-	deps Deps
-	api  *http.ServeMux
-	spa  http.Handler
+	cfg    config.Config
+	deps   Deps
+	api    *http.ServeMux
+	spa    http.Handler
+	mounts map[string]http.Handler
+	auth   Authenticator
 }
 
 // New builds a server. API routes are registered later on API().
@@ -36,12 +38,16 @@ func New(cfg config.Config, d Deps) *Server {
 	if d.Log == nil {
 		d.Log = slog.Default()
 	}
-	return &Server{cfg: cfg, deps: d, api: http.NewServeMux(), spa: newSPA(d.Static)}
+	return &Server{cfg: cfg, deps: d, api: http.NewServeMux(), spa: newSPA(d.Static), mounts: map[string]http.Handler{}}
 }
 
 // API returns the mux for JSON routes. Patterns are full paths, e.g.
 // "POST /api/v1/register".
 func (s *Server) API() *http.ServeMux { return s.api }
+
+// Mount serves h at exactly path (e.g. the Telegram webhook). Other paths
+// under /telegram/ answer 404 instead of the web app.
+func (s *Server) Mount(path string, h http.Handler) { s.mounts[path] = h }
 
 // Handler returns the server's root handler with middleware applied.
 func (s *Server) Handler() http.Handler {
@@ -51,6 +57,10 @@ func (s *Server) Handler() http.Handler {
 			s.healthz(w, r)
 		case p == "/api" || strings.HasPrefix(p, "/api/"):
 			s.serveAPI(w, r)
+		case s.mounts[p] != nil:
+			s.mounts[p].ServeHTTP(w, r)
+		case strings.HasPrefix(p, "/telegram/"):
+			http.NotFound(w, r)
 		default:
 			s.spa.ServeHTTP(w, r)
 		}
@@ -63,6 +73,10 @@ func (s *Server) serveAPI(w http.ResponseWriter, r *http.Request) {
 	// r.Pattern and the path values the route's handler reads.
 	if _, pattern := s.api.Handler(r); pattern == "" {
 		WriteError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	r, ok := s.prepareAPI(w, r)
+	if !ok {
 		return
 	}
 	s.api.ServeHTTP(w, r)

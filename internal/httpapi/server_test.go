@@ -169,3 +169,14 @@ func TestAPIRoutePathValues(t *testing.T) {
 		t.Errorf("got %d %q", rec.Code, rec.Body.String())
 	}
 }
+
+func TestMountedHandlerServed(t *testing.T) {
+	s, _ := newTestServer(t, testStatic())
+	s.Mount("/telegram/webhook/abc", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) }))
+	if rec := get(t, s.Handler(), "/telegram/webhook/abc"); rec.Code != http.StatusTeapot {
+		t.Errorf("mounted path code %d", rec.Code)
+	}
+	if rec := get(t, s.Handler(), "/telegram/webhook/other"); rec.Code != http.StatusNotFound {
+		t.Errorf("other path under the prefix code %d, want 404", rec.Code)
+	}
+}
