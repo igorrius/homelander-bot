@@ -1,7 +1,9 @@
 import { Anchor, Table, Text } from '@mantine/core'
+import { IconHistory } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import type { AuditEntry } from '../../api/types'
+import { EmptyState } from '../../components/EmptyState'
 import { useAuditAction } from '../../lib/audit'
 import { formatDateTime } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
@@ -15,14 +17,25 @@ function targetHref(target: string): string | null {
   return '/admin/statuses'
 }
 
-/** A target by name when the API sent one, linked to its page; otherwise the raw target. */
+/**
+ * A target by name when the API sent one, linked to its page; otherwise the raw target.
+ * People's names are not unique (residents choose their own), so their number stays visible.
+ */
 function Target({ target, name }: { target: string; name: string }) {
   const href = targetHref(target)
   if (!name || !href) return <>{target}</>
+  const user = /^user:(\d+)$/.exec(target)
   return (
-    <Anchor component={Link} to={href}>
-      {name}
-    </Anchor>
+    <>
+      <Anchor component={Link} to={href}>
+        {name}
+      </Anchor>
+      {user && (
+        <Text span size="xs" c="dimmed" ml={4}>
+          #{user[1]}
+        </Text>
+      )}
+    </>
   )
 }
 
@@ -30,7 +43,7 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
   const { t, i18n } = useTranslation()
   const action = useAuditAction()
   const text = useLocalized()
-  if (entries.length === 0) return <Text c="dimmed">{t('admin.audit.empty')}</Text>
+  if (entries.length === 0) return <EmptyState icon={IconHistory} title={t('admin.audit.empty')} />
   return (
     <Table.ScrollContainer minWidth={640}>
       <Table striped>

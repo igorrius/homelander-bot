@@ -25,6 +25,10 @@ describe('AuditPage', () => {
     expect(screen.getByText('module.x')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Olena Test' })).toHaveAttribute('href', '/admin/users/5')
     expect(screen.getByRole('link', { name: 'Adam Admin' })).toHaveAttribute('href', '/admin/users/1')
+    // Names are not unique: the user's number stays visible beside it.
+    const row = screen.getByRole('link', { name: 'Olena Test' }).closest('tr')!
+    expect(row.textContent).toContain('#5')
+    expect(row.textContent).toContain('#1')
     // No name came with it: the raw target stays.
     expect(screen.getByText('house:1')).toBeInTheDocument()
   })

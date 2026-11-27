@@ -157,7 +157,7 @@
       "showArchived": "Show archived",
       "archived": "Archived",
       "apartments": "Apartments",
-      "empty": "No houses yet. Add the houses of your community to open registration.",
+      "empty": "No houses yet.",
       "emptyHint": "Add the community houses: registration does not open without them."
     },
     "house": {
