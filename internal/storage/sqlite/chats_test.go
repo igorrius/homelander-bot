@@ -11,7 +11,6 @@ import (
 	"github.com/igorrius/homelander-bot/internal/storage/sqlite/sqlitetest"
 )
 
-
 type chatRepos struct {
 	db     sqlite.DB
 	chats  sqlite.Chats

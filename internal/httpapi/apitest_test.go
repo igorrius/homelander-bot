@@ -66,11 +66,7 @@ type apiEnv struct {
 func newAPIEnv(t *testing.T) *apiEnv {
 	t.Helper()
 	db := sqlitetest.New(t)
-	r := domain.Repos{
-		Tx: db, Users: sqlite.Users{DB: db}, Channels: sqlite.Channels{DB: db}, Houses: sqlite.Houses{DB: db},
-		Statuses: sqlite.Statuses{DB: db}, Residencies: sqlite.Residencies{DB: db}, Codes: sqlite.Codes{DB: db},
-		Sessions: sqlite.Sessions{DB: db}, Site: sqlite.Site{DB: db}, Audit: sqlite.Audit{DB: db},
-	}
+	r := sqlite.NewRepos(db)
 	e := &apiEnv{t: t, db: db, r: r, msgr: &fakeMessenger{}, now: time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)}
 	clock := func() time.Time { return e.now }
 	tr, err := i18n.New(locales.FS, "uk", []string{"uk", "en"})

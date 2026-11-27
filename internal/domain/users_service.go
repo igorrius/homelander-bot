@@ -14,19 +14,22 @@ import (
 
 // Repos bundles the repositories services use.
 type Repos struct {
-	Tx          storage.TxRunner
-	Users       UserRepo
-	Channels    ChannelRepo
-	Houses      HouseRepo
-	Statuses    StatusRepo
-	Residencies ResidencyRepo
-	Codes       CodeRepo
-	Sessions    SessionRepo
-	Site        SiteRepo
-	Audit       AuditRepo
-	Chats       ChatRepo
-	Topics      TopicRepo
-	Labels      LabelRepo
+	Tx            storage.TxRunner
+	Users         UserRepo
+	Channels      ChannelRepo
+	Houses        HouseRepo
+	Statuses      StatusRepo
+	Residencies   ResidencyRepo
+	Codes         CodeRepo
+	Sessions      SessionRepo
+	Site          SiteRepo
+	Audit         AuditRepo
+	Chats         ChatRepo
+	Topics        TopicRepo
+	Labels        LabelRepo
+	Outbox        OutboxRepo
+	RegTokens     RegTokenRepo
+	Notifications NotificationRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).
