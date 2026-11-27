@@ -43,3 +43,6 @@ go.work.sum
 
 # Railway deployment description: local only (see docs/railway.example.ts)
 /.railway/
+
+# Superpowers scratch (brainstorm mockups, plan ledgers)
+.superpowers/
