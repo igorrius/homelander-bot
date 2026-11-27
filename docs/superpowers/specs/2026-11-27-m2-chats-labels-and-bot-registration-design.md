@@ -1,7 +1,7 @@
 # M2: The bot in the community chats — chats, labels, notifications, registration from the bot — design
 
 - **Date:** 2026-11-27
-- **Status:** Draft, waiting for the owner's approval
+- **Status:** Approved by the owner (2026-11-27)
 - **Owner:** Igor Artasevych
 - **Tracks:** epic #3 (M2 Bot in the community chats)
 - **Builds on:** [M0 + M1 design](2026-11-27-m0-m1-foundation-and-identity-design.md), [ADR-0001](../../adr/0001-stack-and-process-shape.md)
