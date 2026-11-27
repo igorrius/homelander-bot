@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 
 const width = 150
 const gap = 30
-const ground = 300
+const ground = 340
 const floorsPattern = [6, 8, 5, 7]
 const palette = ['#e8a87c', '#85b7c9', '#c38d9e', '#9ab87a', '#e2c275']
 
@@ -43,7 +43,7 @@ export function HousesIllustration({ houses }: { houses: { id: number; name: str
   const total = items.length * width + (items.length + 1) * gap
   return (
     <svg role="img" aria-label={t('home.illustration')} viewBox={`0 0 ${total} ${ground + 44}`} width="100%" style={{ maxHeight: 360 }}>
-      <circle cx={total - 50} cy={50} r={24} fill="#f6d365" />
+      <circle cx={total - 40} cy={36} r={20} fill="#f6d365" />
       <rect x={0} y={ground} width={total} height={6} fill="#7a9a5a" />
       {items.map((it, i) => (
         <House key={it.key} index={i} x={gap + i * (width + gap)} name={it.name} />

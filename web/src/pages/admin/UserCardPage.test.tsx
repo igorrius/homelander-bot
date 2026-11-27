@@ -32,6 +32,7 @@ describe('UserCardPage', () => {
     const residencies = screen.getByRole('table', { name: uk.admin.user.residencies })
     expect(within(residencies).getByText('House A')).toBeInTheDocument()
     expect(within(residencies).getByText('12')).toBeInTheDocument()
+    expect(within(residencies).getByRole('columnheader', { name: uk.admin.user.residencyStatus })).toBeInTheDocument()
     expect(screen.getByText(uk.audit.action.user.approved)).toBeInTheDocument()
   })
 
@@ -101,7 +102,7 @@ describe('UserCardPage', () => {
     await user.click(await screen.findByRole('button', { name: uk.admin.user.addResidency }))
     await choose(user, uk.register.house, 'House B')
     await choose(user, uk.register.apartment, '41')
-    await choose(user, uk.register.status, 'Орендар')
+    await choose(user, uk.admin.user.residencyStatus, 'Орендар')
     await user.click(screen.getByRole('button', { name: uk.admin.user.saveResidency }))
     await waitFor(() =>
       expect(callsTo(calls, 'POST /admin/users/5/residencies').map((c) => c.body)).toEqual([{ houseId: 2, apartment: 41, statusId: 2 }]),

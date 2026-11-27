@@ -121,7 +121,8 @@
         "application": "Application",
         "admin": "Added by admin",
         "bootstrap": "First admin"
-      }
+      },
+      "residencyStatus": "Residency status"
     },
     "audit": {
       "empty": "No entries.",

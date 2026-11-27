@@ -214,7 +214,7 @@ function Residencies({ card }: { card: UserCard }) {
             <Table.Tr>
               <Table.Th>{t('register.house')}</Table.Th>
               <Table.Th>{t('register.apartment')}</Table.Th>
-              <Table.Th>{t('register.status')}</Table.Th>
+              <Table.Th>{t('admin.user.residencyStatus')}</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>

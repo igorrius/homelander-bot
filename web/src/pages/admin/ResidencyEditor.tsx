@@ -35,7 +35,7 @@ export function ResidencyEditor({ initial, houses, statuses, busy, error, onSave
         error={fields.houseId} allowDeselect={false} w={180} />
       <Select label={t('register.apartment')} data={apartmentOptions(house)} value={apartment} onChange={setApartment} disabled={!house}
         searchable error={fields.apartment} allowDeselect={false} w={130} />
-      <Select label={t('register.status')} data={statuses.map((s) => ({ value: String(s.id), label: text(s.names) || s.code }))}
+      <Select label={t('admin.user.residencyStatus')} data={statuses.map((s) => ({ value: String(s.id), label: text(s.names) || s.code }))}
         value={statusId} onChange={setStatusId} error={fields.statusId} allowDeselect={false} w={180} />
       <Button loading={busy} disabled={!complete}
         onClick={() => onSave({ houseId: Number(houseId), apartment: Number(apartment), statusId: Number(statusId) })}>
