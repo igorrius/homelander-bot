@@ -129,7 +129,13 @@
         "hint": "Send the person this link: they open the bot and share their phone number."
       },
       "telegramNone": "Telegram not linked",
-      "roles": "Roles"
+      "roles": "Roles",
+      "tabs": {
+        "details": "Details",
+        "apartments": "Apartments",
+        "channels": "Messengers",
+        "history": "History"
+      }
     },
     "audit": {
       "empty": "No entries.",

@@ -1,8 +1,9 @@
-import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Grid, Group, Loader, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Grid, Group, Loader, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
+import { IconHistory, IconHome, IconId, IconMessages, IconPencil, IconTrash } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import {
   useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
   type UserPatch,
@@ -44,7 +45,7 @@ function Details({ user }: { user: AdminUser }) {
     <Card withBorder>
       <form onSubmit={onSubmit}>
         <Stack>
-          <Title order={3}>{t('admin.user.details')}</Title>
+          <Title order={3} size="h4">{t('admin.user.details')}</Title>
           <Group grow align="flex-start">
             <TextInput label={t('register.firstName')} value={firstName} onChange={(e) => setFirstName(e.currentTarget.value)} error={fields.firstName} />
             <TextInput label={t('register.lastName')} value={lastName} onChange={(e) => setLastName(e.currentTarget.value)} error={fields.lastName} />
@@ -74,7 +75,7 @@ function Channels({ card }: { card: UserCard }) {
   return (
     <Card withBorder>
       <Stack>
-        <Title order={3}>{t('admin.user.channels')}</Title>
+        <Title order={3} size="h4">{t('admin.user.channels')}</Title>
         {card.channels.length === 0 ? (
           <Text c="dimmed">{t('admin.user.noChannels')}</Text>
         ) : (
@@ -134,11 +135,11 @@ function Residencies({ card }: { card: UserCard }) {
               update.reset()
               setEditing(r.id)
             }}>
-              ✎
+              <IconPencil size={16} />
             </ActionIcon>
             <ConfirmButton size="xs" variant="subtle" color="red" aria-label={t('admin.user.removeResidency')}
               message={t('admin.user.removeResidencyConfirm', { house: r.houseName, n: r.apartment })} onConfirm={() => remove.mutate(r.id, { onSuccess: saved })}>
-              ✕
+              <IconTrash size={16} />
             </ConfirmButton>
           </Group>
         </Table.Td>
@@ -148,7 +149,7 @@ function Residencies({ card }: { card: UserCard }) {
     <Card withBorder>
       <Stack>
         <Group justify="space-between">
-          <Title order={3}>{t('admin.user.residencies')}</Title>
+          <Title order={3} size="h4">{t('admin.user.residencies')}</Title>
           {editing !== 'new' && (
             <Button size="xs" variant="light" onClick={() => {
               add.reset()
@@ -180,10 +181,33 @@ function Residencies({ card }: { card: UserCard }) {
   )
 }
 
+const tabs = ['details', 'apartments', 'channels', 'history'] as const
+type Tab = (typeof tabs)[number]
+
+function Count({ n }: { n: number }) {
+  return (
+    <Badge size="xs" variant="light" circle>
+      {n}
+    </Badge>
+  )
+}
+
 export function UserCardPage() {
   const { t } = useTranslation()
   const id = Number(useParams().id)
   const card = useUserCard(id)
+  const [params, setParams] = useSearchParams()
+  const raw = params.get('tab')
+  const tab: Tab = (tabs as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'details'
+  const setTab = (v: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('tab', v ?? 'details')
+        return next
+      },
+      { replace: true },
+    )
   if (card.isPending) return <Loader />
   if (card.isError) return <Alert color="red">{errorText(t, card.error)}</Alert>
   const { user } = card.data
@@ -204,22 +228,44 @@ export function UserCardPage() {
           <UserSummary card={card.data} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 8 }}>
-          <Stack>
-      <Details key={detailsKey} user={user} />
-      <Channels card={card.data} />
-      <Residencies card={card.data} />
-      <Card withBorder>
-        <Stack>
-          <Group justify="space-between">
-            <Title order={3}>{t('admin.user.audit')}</Title>
-            <Anchor component={Link} to={`/admin/audit?userId=${user.id}`} size="sm">
-              {t('admin.user.allAudit')}
-            </Anchor>
-          </Group>
-          <AuditTable entries={card.data.audit} />
-        </Stack>
-      </Card>
-          </Stack>
+          <Tabs value={tab} onChange={(v) => setTab(v)} keepMounted={false}>
+            <Tabs.List mb="md" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+              <Tabs.Tab value="details" leftSection={<IconId size={16} />}>
+                {t('admin.user.tabs.details')}
+              </Tabs.Tab>
+              <Tabs.Tab value="apartments" leftSection={<IconHome size={16} />} rightSection={<Count n={card.data.residencies.length} />}>
+                {t('admin.user.tabs.apartments')}
+              </Tabs.Tab>
+              <Tabs.Tab value="channels" leftSection={<IconMessages size={16} />} rightSection={<Count n={card.data.channels.length} />}>
+                {t('admin.user.tabs.channels')}
+              </Tabs.Tab>
+              <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
+                {t('admin.user.tabs.history')}
+              </Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="details">
+              <Details key={detailsKey} user={user} />
+            </Tabs.Panel>
+            <Tabs.Panel value="apartments">
+              <Residencies card={card.data} />
+            </Tabs.Panel>
+            <Tabs.Panel value="channels">
+              <Channels card={card.data} />
+            </Tabs.Panel>
+            <Tabs.Panel value="history">
+              <Card>
+                <Stack>
+                  <Group justify="space-between">
+                    <Title order={3} size="h4">{t('admin.user.audit')}</Title>
+                    <Anchor component={Link} to={`/admin/audit?userId=${user.id}`} size="sm">
+                      {t('admin.user.allAudit')}
+                    </Anchor>
+                  </Group>
+                  <AuditTable entries={card.data.audit} />
+                </Stack>
+              </Card>
+            </Tabs.Panel>
+          </Tabs>
         </Grid.Col>
       </Grid>
     </Stack>

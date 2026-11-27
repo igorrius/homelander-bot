@@ -5,7 +5,7 @@ import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
 import { callsTo, mockApi, type Route } from '../../test/api'
 import { adminRoutes, houses, site, statuses, userCard } from '../../test/fixtures'
-import { renderApp } from '../../test/render'
+import { currentLocation, renderApp } from '../../test/render'
 import { choose } from '../../test/select'
 
 function routes(card: UserCard, extra: Record<string, Route> = {}) {
@@ -25,15 +25,43 @@ describe('UserCardPage', () => {
 
   it('shows the card', async () => {
     mockApi(routes(userCard()))
-    renderApp('/admin/users/5')
+    renderApp('/admin/users/5?tab=apartments')
     expect(await screen.findByRole('heading', { name: 'Olena Test' })).toBeInTheDocument()
     expect(screen.getByText(uk.userStatus.active)).toBeInTheDocument()
-    expect(screen.getAllByText('@olena_test').length).toBeGreaterThan(0)
+    expect(screen.getByText('@olena_test')).toBeInTheDocument()
     const residencies = screen.getByRole('table', { name: uk.admin.user.residencies })
     expect(within(residencies).getByText('House A')).toBeInTheDocument()
     expect(within(residencies).getByText('12')).toBeInTheDocument()
     expect(within(residencies).getByRole('columnheader', { name: uk.admin.user.residencyStatus })).toBeInTheDocument()
-    expect(screen.getByText(uk.audit.action.user.approved)).toBeInTheDocument()
+  })
+
+  it('opens the details tab by default', async () => {
+    mockApi(routes(userCard()))
+    renderApp('/admin/users/5')
+    expect(await screen.findByLabelText(uk.register.firstName)).toHaveValue('Olena')
+    expect(screen.queryByRole('table', { name: uk.admin.user.residencies })).toBeNull()
+  })
+
+  it('falls back to details for an unknown tab', async () => {
+    mockApi(routes(userCard()))
+    renderApp('/admin/users/5?tab=bogus')
+    expect(await screen.findByLabelText(uk.register.firstName)).toBeInTheDocument()
+  })
+
+  it('keeps the open tab in the address', async () => {
+    mockApi(routes(userCard()))
+    const { user } = renderApp('/admin/users/5')
+    await user.click(await screen.findByRole('tab', { name: uk.admin.user.tabs.history }))
+    expect(await screen.findByText(uk.audit.action.user.approved)).toBeInTheDocument()
+    expect(currentLocation()).toBe('/admin/users/5?tab=history')
+  })
+
+  it('counts apartments and messengers in the tab names', async () => {
+    mockApi(routes(userCard()))
+    renderApp('/admin/users/5')
+    await screen.findByRole('heading', { name: 'Olena Test' })
+    expect(screen.getByRole('tab', { name: new RegExp(`^${uk.admin.user.tabs.apartments}\\s*1$`) })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: new RegExp(`^${uk.admin.user.tabs.channels}\\s*1$`) })).toBeInTheDocument()
   })
 
   it('offers the bot link to a person who has not activated yet', async () => {
@@ -98,7 +126,7 @@ describe('UserCardPage', () => {
   it('unlinks Telegram after confirmation', async () => {
     const after = { ...userCard({ status: 'awaiting_activation', hasTelegram: false }), channels: [] }
     const { calls } = mockApi(routes(userCard(), { 'DELETE /admin/users/5/channels/9': { body: after } }))
-    const { user } = renderApp('/admin/users/5')
+    const { user } = renderApp('/admin/users/5?tab=channels')
     await user.click(await screen.findByRole('button', { name: uk.admin.user.unlink }))
     await user.click(await screen.findByRole('button', { name: uk.common.confirm }))
     expect(await screen.findByText(uk.userStatus.awaiting_activation)).toBeInTheDocument()
@@ -134,7 +162,7 @@ describe('UserCardPage', () => {
 
   it('adds a residency', async () => {
     const { calls } = mockApi(routes(userCard(), { 'POST /admin/users/5/residencies': { status: 201, body: userCard() } }))
-    const { user } = renderApp('/admin/users/5')
+    const { user } = renderApp('/admin/users/5?tab=apartments')
     await user.click(await screen.findByRole('button', { name: uk.admin.user.addResidency }))
     await choose(user, uk.register.house, 'House B')
     await choose(user, uk.register.apartment, '41')
@@ -147,7 +175,7 @@ describe('UserCardPage', () => {
 
   it('edits a residency', async () => {
     const { calls } = mockApi(routes(userCard(), { 'PATCH /admin/residencies/11': { body: userCard() } }))
-    const { user } = renderApp('/admin/users/5')
+    const { user } = renderApp('/admin/users/5?tab=apartments')
     await user.click(await screen.findByRole('button', { name: uk.admin.user.editResidency }))
     await choose(user, uk.register.apartment, '13')
     await user.click(screen.getByRole('button', { name: uk.admin.user.saveResidency }))
@@ -158,7 +186,7 @@ describe('UserCardPage', () => {
 
   it('removes a residency after confirmation', async () => {
     const { calls } = mockApi(routes(userCard(), { 'DELETE /admin/residencies/11': { body: { ...userCard(), residencies: [] } } }))
-    const { user } = renderApp('/admin/users/5')
+    const { user } = renderApp('/admin/users/5?tab=apartments')
     await user.click(await screen.findByRole('button', { name: uk.admin.user.removeResidency }))
     await user.click(await screen.findByRole('button', { name: uk.common.confirm }))
     await waitFor(() => expect(callsTo(calls, 'DELETE /admin/residencies/11')).toHaveLength(1))
@@ -193,13 +221,14 @@ describe('UserCardPage', () => {
         'PATCH /admin/users/5': { status: 409, body: { error: { code: 'last_admin' } } },
       }),
     )
-    const { user } = renderApp('/admin/users/1')
+    const { user } = renderApp('/admin/users/1?tab=history')
     expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
     // Card 1 lists an audit entry targeting user:5; open it, fail a change there, then go back.
     await user.click(screen.getByRole('link', { name: 'user:5' }))
     await user.click(await screen.findByRole('switch', { name: uk.admin.user.isAdmin }))
     expect(await screen.findByText(uk.errors.last_admin)).toBeInTheDocument()
-    await user.click(screen.getAllByRole('link', { name: 'user:1' })[0])
+    await user.click(screen.getByRole('tab', { name: uk.admin.user.tabs.history }))
+    await user.click((await screen.findAllByRole('link', { name: 'user:1' }))[0])
     expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
     expect(screen.queryByText(uk.errors.last_admin)).not.toBeInTheDocument()
   })
