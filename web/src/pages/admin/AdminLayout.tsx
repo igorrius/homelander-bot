@@ -1,6 +1,7 @@
 import { AppShell, Avatar, Box, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
+  IconBell,
   IconBuildingCommunity,
   IconChevronDown,
   IconHistory,
@@ -62,6 +63,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
       label: t('admin.navGroup.settings'),
       items: [
         { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site') },
+        { to: '/admin/notifications', icon: IconBell, label: t('admin.nav.notifications') },
         { to: '/admin/statuses', icon: IconTags, label: t('admin.nav.statuses') },
         { to: '/admin/audit', icon: IconHistory, label: t('admin.nav.audit') },
       ],

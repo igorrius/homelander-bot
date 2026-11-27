@@ -33,7 +33,9 @@
     "doneTitle": "Application received",
     "doneText": "After an administrator approves it, open the bot and share your phone number. Then you can log in.",
     "openBot": "Open the bot",
-    "qrHint": "Scan with your phone if you are on a computer"
+    "qrHint": "Scan with your phone if you are on a computer",
+    "phoneConfirmed": "Confirmed in Telegram",
+    "linkExpired": "This link has expired or was already used. Get a new one in the bot, or fill in the form yourself."
   },
   "login": {
     "title": "Log in",
@@ -284,6 +286,15 @@
       "deleteConfirm": "Delete the label “{{name}}”?",
       "deleteLoses": "It will be removed from: {{places}}.",
       "deleteSetting": "These notices will stop: {{settings}}."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "description": "Where the system posts its own notices. Pick a label; every chat carrying it gets the notice.",
+      "applications": "New applications",
+      "applicationsHint": "A short notice about each new application, without the phone number.",
+      "off": "Turn off",
+      "offPlaceholder": "Off",
+      "noChat": "This label is not on any accepted chat yet, so the notices will go nowhere."
     }
   },
   "notFound": {

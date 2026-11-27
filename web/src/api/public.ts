@@ -62,6 +62,19 @@ export interface Application {
   statusId: number
   consent: boolean
   locale: string
+  /** Registration link from the bot; the server uses the phone it proved. */
+  token?: string
+}
+
+/** The phone a registration link from the bot proved; null without a token. */
+export function usePrefill(token: string | null) {
+  return useQuery({
+    queryKey: ['prefill', token],
+    queryFn: () => api<{ phone: string }>('/register/prefill', { method: 'POST', body: JSON.stringify({ token }) }),
+    enabled: token !== null,
+    retry: false,
+    staleTime: Infinity,
+  })
 }
 
 export function useRegister() {

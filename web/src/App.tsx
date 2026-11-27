@@ -12,6 +12,7 @@ import { ChatsPage } from './pages/admin/ChatsPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
 import { LabelsPage } from './pages/admin/LabelsPage'
+import { NotificationsPage } from './pages/admin/NotificationsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SitePage } from './pages/admin/SitePage'
 import { StatusesPage } from './pages/admin/StatusesPage'
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="chats/labels" element={<LabelsPage />} />
           <Route path="statuses" element={<StatusesPage />} />
           <Route path="site" element={<SitePage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
