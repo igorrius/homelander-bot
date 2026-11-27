@@ -222,7 +222,8 @@ func (h handlerCtx) asset(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	h.serveAsset(w, r, id, "public, max-age=3600")
+	// Short: an item set private must stop being served by caches soon.
+	h.serveAsset(w, r, id, "public, max-age=60")
 }
 
 // serveAsset writes a stored file with headers that keep it from running as a page.

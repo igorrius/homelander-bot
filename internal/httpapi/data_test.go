@@ -74,8 +74,8 @@ func TestAssetAccess(t *testing.T) {
 		Value: json.RawMessage(fmt.Sprint(id)), Public: &yes}, domain.Actor{}); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.do("GET", pub, nil, "", ""); r.Code != 200 || r.Body.String() != string(pngBytes) {
-		t.Fatalf("guest public = %d", r.Code)
+	if r := e.do("GET", pub, nil, "", ""); r.Code != 200 || r.Body.String() != string(pngBytes) || r.Header().Get("Cache-Control") != "public, max-age=60" {
+		t.Fatalf("guest public = %d %q", r.Code, r.Header().Get("Cache-Control"))
 	}
 	if _, err := e.api.Data.Patch(ctx, "logo", domain.DataInput{Public: &no}, domain.Actor{}); err != nil {
 		t.Fatal(err)
