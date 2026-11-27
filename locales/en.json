@@ -34,5 +34,8 @@
     "commands": {
       "start": "Connect your account"
     }
+  },
+  "notify": {
+    "test": "✅ Test message. Messages for this place will arrive here."
   }
 }
