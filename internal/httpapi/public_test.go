@@ -209,3 +209,16 @@ func TestUnknownFieldRejected(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestRegisterOptionsFloors(t *testing.T) {
+	e := newAPIEnv(t)
+	nine := 9
+	tall := domain.House{Name: "tall", ApartmentFrom: 100, ApartmentTo: 120, Floors: &nine}
+	if err := e.r.Houses.Create(ctx, &tall); err != nil {
+		t.Fatal(err)
+	}
+	body := e.do("GET", "/api/v1/register/options", nil, "", "").Body.String()
+	if !strings.Contains(body, `"name":"tall","apartmentFrom":100,"apartmentTo":120,"floors":9`) || !strings.Contains(body, `"floors":null`) {
+		t.Fatalf("options = %s", body)
+	}
+}

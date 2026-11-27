@@ -12,14 +12,25 @@ describe('HomePage', () => {
     await i18n.changeLanguage('uk')
   })
 
+  it('draws the quarter from the houses with their floors', async () => {
+    mockApi({ ...publicRoutes, 'GET /register/options': { body: { houses: [
+      { id: 1, name: 'House A', apartmentFrom: 1, apartmentTo: 9, floors: 16 },
+      { id: 2, name: 'House B', apartmentFrom: 10, apartmentTo: 19, floors: null },
+      { id: 3, name: 'House C', apartmentFrom: 20, apartmentTo: 29, floors: 5 },
+    ], statuses: [] } } })
+    renderApp('/')
+    expect(await screen.findAllByTestId('house')).toHaveLength(3)
+    expect(screen.getByRole('img', { name: /House A.*House B.*House C/ })).toBeInTheDocument()
+  })
+
   it('shows community name, welcome text and illustration for a guest', async () => {
     mockApi(publicRoutes)
     renderApp('/')
     expect(await screen.findByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
     expect(screen.getByText('Привіт')).toBeInTheDocument()
     expect(await screen.findAllByTestId('house')).toHaveLength(2)
-    expect(screen.getByText('House A')).toBeInTheDocument()
-    expect(screen.getByText('House B')).toBeInTheDocument()
+    expect(screen.getByText('House A', { selector: 'text' })).toBeInTheDocument()
+    expect(screen.getByText('House B', { selector: 'text' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: uk.home.login })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: uk.home.register })).toHaveAttribute('href', '/register')
     expect(screen.queryByRole('button', { name: uk.home.logout })).not.toBeInTheDocument()

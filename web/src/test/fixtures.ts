@@ -24,7 +24,7 @@ export const houses: House[] = [
 ]
 
 export const registerOptions: RegisterOptions = {
-  houses: houses.map(({ id, name, apartmentFrom, apartmentTo }) => ({ id, name, apartmentFrom, apartmentTo })),
+  houses: houses.map(({ id, name, apartmentFrom, apartmentTo, floors }) => ({ id, name, apartmentFrom, apartmentTo, floors })),
   statuses,
 }
 

@@ -63,6 +63,8 @@ export interface HouseOption {
   name: string
   apartmentFrom: number
   apartmentTo: number
+  /** For the built-in page's quarter; null draws a default height. */
+  floors: number | null
 }
 
 export interface ResidencyStatus {

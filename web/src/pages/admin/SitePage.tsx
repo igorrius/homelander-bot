@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useAdminSite, useDeletePicture, useHouses, useSaveSite, useUploadPicture } from '../../api/admin'
 import type { Locale, Site } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
-import { HousesIllustration } from '../../components/HousesIllustration'
+import { Quarter } from '../../components/Quarter'
 import { LocalizedTextInputs } from '../../components/LocalizedTextInputs'
 import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
@@ -66,7 +66,7 @@ function Picture({ site }: { site: Site }) {
         ) : (
           <>
             <Text size="sm" c="dimmed">{t('admin.site.noPicture')}</Text>
-            <HousesIllustration houses={houses.data ?? []} />
+            <Quarter houses={(houses.data ?? []).filter((h) => !h.archived)} />
           </>
         )}
         <Group align="flex-end">

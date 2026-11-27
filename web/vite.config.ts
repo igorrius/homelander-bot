@@ -19,6 +19,8 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8080',
       '/healthz': 'http://localhost:8080',
+      // Published and preview page files, framed by the app.
+      '/site': 'http://localhost:8080',
     },
   },
   test: {
