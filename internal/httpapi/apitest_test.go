@@ -51,16 +51,16 @@ func (f *fakeMessenger) last() string {
 }
 
 type apiEnv struct {
-	t      *testing.T
-	db     sqlite.DB
-	r      domain.Repos
-	api    httpapi.API
-	h      http.Handler
-	msgr   *fakeMessenger
-	now    time.Time
-	house  domain.House
-	owner  domain.ResidencyStatus
-	ipSeq  int
+	t     *testing.T
+	db    sqlite.DB
+	r     domain.Repos
+	api   httpapi.API
+	h     http.Handler
+	msgr  *fakeMessenger
+	now   time.Time
+	house domain.House
+	owner domain.ResidencyStatus
+	ipSeq int
 }
 
 func newAPIEnv(t *testing.T) *apiEnv {

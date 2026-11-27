@@ -25,8 +25,8 @@ type Deps struct {
 
 // Server routes requests to the API, the health check and the web app.
 type Server struct {
-	cfg  config.Config
-	deps Deps
+	cfg    config.Config
+	deps   Deps
 	api    *http.ServeMux
 	spa    http.Handler
 	mounts map[string]http.Handler

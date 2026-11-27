@@ -219,7 +219,9 @@ func TestSessionsEndedOnSensitiveChanges(t *testing.T) {
 			return err
 		}},
 		{"disable", func(u domain.User, _ domain.Channel) error { return e.users.Disable(ctx, u.ID, actor(adm)) }},
-		{"unlink", func(u domain.User, ch domain.Channel) error { return e.users.UnlinkChannel(ctx, u.ID, ch.ID, actor(adm)) }},
+		{"unlink", func(u domain.User, ch domain.Channel) error {
+			return e.users.UnlinkChannel(ctx, u.ID, ch.ID, actor(adm))
+		}},
 	}
 	for i, s := range steps {
 		u := e.mkUser("+38050000001"+string(rune('0'+i)), admin)

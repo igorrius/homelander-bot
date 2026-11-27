@@ -22,14 +22,14 @@ func (c *clock) Now() time.Time          { return c.t }
 func (c *clock) Advance(d time.Duration) { c.t = c.t.Add(d) }
 
 type env struct {
-	t     *testing.T
-	db    sqlite.DB
-	r     domain.Repos
-	clock *clock
+	t       *testing.T
+	db      sqlite.DB
+	r       domain.Repos
+	clock   *clock
 	users   *domain.UserService
 	catalog *domain.CatalogService
-	owner domain.ResidencyStatus
-	house domain.House
+	owner   domain.ResidencyStatus
+	house   domain.House
 }
 
 func newEnv(t *testing.T) *env {
