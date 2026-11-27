@@ -267,3 +267,18 @@ func TestPreviewToken(t *testing.T) {
 		t.Fatalf("expired token = %v", err)
 	}
 }
+
+func TestPagePutFilesCapsDeletes(t *testing.T) {
+	e := newEnv(t)
+	a := actor(e.mkUser("+380501110009", admin))
+	v, err := e.pages.CreateDraft(ctx, []domain.PageFileInput{index()}, "", a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	del := make([]string, domain.MaxPageFiles+1)
+	for i := range del {
+		del[i] = fmt.Sprintf("f%d.css", i)
+	}
+	_, err = e.pages.PutFiles(ctx, v.ID, nil, del, a)
+	wantPageErr(t, err, "too_many")
+}

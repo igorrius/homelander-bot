@@ -180,7 +180,7 @@ func (s *PageService) CreateDraft(ctx context.Context, in []PageFileInput, note 
 // PutFiles changes a draft: stores put (replacing by path), removes del.
 // Published and archived versions → ErrConflict.
 func (s *PageService) PutFiles(ctx context.Context, id int64, put []PageFileInput, del []string, a Actor) (PageVersion, error) {
-	if len(put) > MaxPageFiles {
+	if len(put) > MaxPageFiles || len(del) > MaxPageFiles {
 		return PageVersion{}, &ValidationError{Fields: map[string]string{"files": "too_many"}}
 	}
 	files, err := toFiles(put)
@@ -224,6 +224,14 @@ func (s *PageService) PutFiles(ctx context.Context, id int64, put []PageFileInpu
 		return PageVersion{}, err
 	}
 	return s.R.Pages.Get(ctx, id)
+}
+
+// Files returns the files of version id with their content.
+func (s *PageService) Files(ctx context.Context, id int64) ([]PageFile, error) {
+	if _, err := s.R.Pages.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.R.Pages.Files(ctx, id)
 }
 
 // CopyToDraft makes a new draft with the files of version id.

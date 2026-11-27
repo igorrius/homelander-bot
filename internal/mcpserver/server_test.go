@@ -332,3 +332,115 @@ func TestMCPRateLimit(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func TestMCPPageToolsList(t *testing.T) {
+	e := newEnv(t)
+	s := e.session(e.access)
+	res, err := s.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, tl := range res.Tools {
+		names = append(names, tl.Name)
+		if strings.Contains(tl.Name, "publish") || strings.Contains(tl.Name, "delete_page") || tl.Name == "page_delete" {
+			t.Errorf("tool %s lets the agent publish or delete pages", tl.Name)
+		}
+	}
+	for _, want := range []string{"page_guide", "page_list_versions", "page_get_version", "page_create_draft", "page_update_draft", "page_copy_to_draft"} {
+		if !slices.Contains(names, want) {
+			t.Errorf("tools/list lacks %s", want)
+		}
+	}
+}
+
+func TestMCPPageGuide(t *testing.T) {
+	e := newEnv(t)
+	s := e.session(e.access)
+	g := text(call(t, s, "page_guide", nil))
+	for _, want := range []string{"/api/v1/public/data", "homelander:height", "homelander:lang", "index.html", `target="_top"`, "connect-src 'self'"} {
+		if !strings.Contains(g, want) {
+			t.Errorf("guide lacks %q", want)
+		}
+	}
+	rs, err := s.ListResources(ctx, nil)
+	if err != nil || len(rs.Resources) != 1 || rs.Resources[0].URI != "homelander://guide/page" || rs.Resources[0].MIMEType != "text/markdown" {
+		t.Fatalf("resources = %+v, %v", rs, err)
+	}
+	rr, err := s.ReadResource(ctx, &mcp.ReadResourceParams{URI: "homelander://guide/page"})
+	if err != nil || len(rr.Contents) != 1 || rr.Contents[0].Text != g {
+		t.Errorf("resource text differs from page_guide: %v", err)
+	}
+}
+
+func TestMCPPageDrafts(t *testing.T) {
+	e := newEnv(t)
+	s := e.session(e.access)
+	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\n"))
+	out := ok(t, s, "page_create_draft", map[string]any{"note": "first try", "files": []map[string]any{
+		{"path": "index.html", "text": "<h1>Hello</h1>"}, {"path": "img/a.png", "base64": png}}})
+	id := int64(out["id"].(float64))
+	url, _ := out["admin_url"].(string)
+	if url != pubURL+"/admin/pages/"+strconv.FormatInt(id, 10) || strings.Contains(url, "/site/preview/") {
+		t.Errorf("admin_url = %q", url)
+	}
+	v, err := e.deps.Pages.Get(ctx, id)
+	if err != nil || v.Status != domain.PageDraft || v.CreatedVia != "Claude" || len(v.Files) != 2 {
+		t.Fatalf("version = %+v, %v", v, err)
+	}
+
+	res := call(t, s, "page_create_draft", map[string]any{"files": []map[string]any{{"path": "a.css", "text": "x"}}})
+	if !res.IsError || !strings.Contains(text(res), "files: index_required") {
+		t.Errorf("missing index = %v %q", res.IsError, text(res))
+	}
+	res = call(t, s, "page_create_draft", map[string]any{"files": []map[string]any{{"path": "index.html", "text": "x", "base64": png}}})
+	if !res.IsError || !strings.Contains(text(res), "exactly one of text or base64") {
+		t.Errorf("both text and base64 = %v %q", res.IsError, text(res))
+	}
+	res = call(t, s, "page_create_draft", map[string]any{"files": []map[string]any{{"path": "index.html", "text": "x"}, {"path": "../x.css", "text": "x"}}})
+	if !res.IsError || !strings.Contains(text(res), "files: invalid") || !strings.Contains(text(res), "path=../x.css") {
+		t.Errorf("bad path = %v %q", res.IsError, text(res))
+	}
+
+	out = ok(t, s, "page_update_draft", map[string]any{"id": id, "put": []map[string]any{{"path": "style.css", "text": "h1{}"}}, "delete": []string{"img/a.png"}})
+	if out["admin_url"] != url {
+		t.Errorf("update = %v", out)
+	}
+	got := ok(t, s, "page_get_version", map[string]any{"id": id})
+	files, _ := got["files"].([]any)
+	byPath := map[string]map[string]any{}
+	for _, f := range files {
+		m := f.(map[string]any)
+		byPath[m["path"].(string)] = m
+	}
+	if len(files) != 2 || byPath["index.html"]["text"] != "<h1>Hello</h1>" || byPath["style.css"]["text"] != "h1{}" || got["created_via"] != "Claude" {
+		t.Errorf("page_get_version = %v", got)
+	}
+
+	list := ok(t, s, "page_list_versions", nil)
+	if vs, _ := list["versions"].([]any); len(vs) != 1 || vs[0].(map[string]any)["status"] != "draft" {
+		t.Errorf("page_list_versions = %v", list)
+	}
+
+	adm := e.admin.ID
+	if err := e.deps.Pages.Publish(ctx, id, domain.Actor{UserID: &adm}); err != nil {
+		t.Fatal(err)
+	}
+	res = call(t, s, "page_update_draft", map[string]any{"id": id, "put": []map[string]any{{"path": "index.html", "text": "x"}}})
+	if !res.IsError || !strings.Contains(text(res), "conflict") {
+		t.Errorf("update published = %v %q", res.IsError, text(res))
+	}
+	cp := ok(t, s, "page_copy_to_draft", map[string]any{"id": id})
+	cid := int64(cp["id"].(float64))
+	if c, _ := e.deps.Pages.Get(ctx, cid); c.Status != domain.PageDraft || cid == id || c.CreatedVia != "Claude" {
+		t.Errorf("copy = %+v", c)
+	}
+	many := make([]string, 201)
+	for i := range many {
+		many[i] = "f" + strconv.Itoa(i) + ".css"
+	}
+	res = call(t, s, "page_update_draft", map[string]any{"id": cid, "delete": many})
+	if !res.IsError || !strings.Contains(text(res), "files: too_many") {
+		t.Errorf("201 deletes = %v %q", res.IsError, text(res))
+	}
+}
