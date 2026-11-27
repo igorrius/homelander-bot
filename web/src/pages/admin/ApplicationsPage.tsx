@@ -1,4 +1,5 @@
-import { Alert, Anchor, Button, Group, Loader, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Button, Group, Loader, Stack, Table, Text } from '@mantine/core'
+import { IconInbox } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useUserAction, useUsers } from '../../api/admin'
@@ -6,6 +7,7 @@ import type { AdminUser } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
 import { errorText } from '../../lib/errors'
 import { formatDateTime, fullName } from '../../lib/format'
+import { PageHeader } from '../../components/PageHeader'
 
 function Row({ u }: { u: AdminUser }) {
   const { t, i18n } = useTranslation()
@@ -46,10 +48,7 @@ export function ApplicationsPage() {
   const users = useUsers({ status: 'pending_approval', pageSize: 100 })
   return (
     <Stack>
-      <Title order={2}>{t('admin.applications.title')}</Title>
-      <Text c="dimmed" size="sm">
-        {t('admin.applications.hint')}
-      </Text>
+      <PageHeader icon={IconInbox} title={t('admin.applications.title')} description={t('admin.applications.hint')} />
       {users.isPending ? (
         <Loader />
       ) : users.isError ? (

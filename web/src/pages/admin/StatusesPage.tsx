@@ -1,11 +1,13 @@
-import { Alert, Badge, Button, Group, Loader, Modal, NumberInput, Stack, Switch, Table, TextInput, Title } from '@mantine/core'
+import { Alert, Badge, Button, Group, Loader, Modal, NumberInput, Stack, Switch, Table, TextInput } from '@mantine/core'
 import { useState, type FormEvent } from 'react'
+import { IconPlus, IconTags } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useCreateStatus, useStatuses, useUpdateStatus, type StatusInput } from '../../api/admin'
 import type { ResidencyStatus } from '../../api/types'
 import { LocalizedTextInputs } from '../../components/LocalizedTextInputs'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { cleanLocalized, useLocalized } from '../../lib/localized'
+import { PageHeader } from '../../components/PageHeader'
 
 function StatusForm({ initial, onDone }: { initial?: ResidencyStatus; onDone(): void }) {
   const { t } = useTranslation()
@@ -48,10 +50,8 @@ export function StatusesPage() {
   const [editing, setEditing] = useState<ResidencyStatus | 'new' | null>(null)
   return (
     <Stack>
-      <Group justify="space-between">
-        <Title order={2}>{t('admin.statuses.title')}</Title>
-        <Button onClick={() => setEditing('new')}>{t('admin.statuses.add')}</Button>
-      </Group>
+      <PageHeader icon={IconTags} title={t('admin.statuses.title')}
+        actions={<Button leftSection={<IconPlus size={16} />} onClick={() => setEditing('new')}>{t('admin.statuses.add')}</Button>} />
       {statuses.isPending ? (
         <Loader />
       ) : statuses.isError ? (

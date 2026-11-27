@@ -186,6 +186,11 @@
       "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration.",
       "registerLink": "Registration link",
       "registerLinkHint": "Pin this link in the community chat. Residents apply with it; you approve each application."
+    },
+    "navGroup": {
+      "people": "People",
+      "community": "Community",
+      "settings": "Settings"
     }
   },
   "notFound": {

@@ -1,6 +1,7 @@
 import { Alert, Button, Card, FileInput, Group, Image, Loader, Select, Stack, Text, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
+import { IconWorld } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useAdminSite, useDeletePicture, useHouses, useSaveSite, useUploadPicture } from '../../api/admin'
 import type { Locale, Site } from '../../api/types'
@@ -11,6 +12,7 @@ import { QrLink } from '../../components/QrLink'
 import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { cleanLocalized } from '../../lib/localized'
+import { PageHeader } from '../../components/PageHeader'
 
 const maxPictureBytes = 5 << 20
 
@@ -104,7 +106,7 @@ export function SitePage() {
   if (site.isError) return <Alert color="red">{errorText(t, site.error)}</Alert>
   return (
     <Stack>
-      <Title order={2}>{t('admin.site.title')}</Title>
+      <PageHeader icon={IconWorld} title={t('admin.site.title')} />
       <Texts site={site.data} />
       <Picture site={site.data} />
       <Card withBorder>
