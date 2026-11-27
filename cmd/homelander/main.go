@@ -21,6 +21,7 @@ import (
 	"github.com/igorrius/homelander-bot/internal/domain"
 	"github.com/igorrius/homelander-bot/internal/httpapi"
 	"github.com/igorrius/homelander-bot/internal/i18n"
+	"github.com/igorrius/homelander-bot/internal/mcpserver"
 	"github.com/igorrius/homelander-bot/internal/messenger/telegram"
 	"github.com/igorrius/homelander-bot/internal/ratelimit"
 	"github.com/igorrius/homelander-bot/internal/storage/sqlite"
@@ -131,6 +132,8 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
 	httpapi.RegisterOAuth(server, api)
+	server.Mount(httpapi.MCPPath, mcpserver.New(mcpserver.Deps{Auth: mcpAuth, Data: data, Pages: pages, Catalog: catalog,
+		Limits: limits, PublicURL: cfg.PublicURL.String(), Now: now, Log: log}))
 	server.MountPrefix("/site/", httpapi.SiteHandler(api))
 	webhookPath := telegram.WebhookPath(cfg.AppSecret)
 	if cfg.TelegramUpdates == config.UpdatesWebhook {
