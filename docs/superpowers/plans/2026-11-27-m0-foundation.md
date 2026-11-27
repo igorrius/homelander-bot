@@ -102,7 +102,13 @@ Rules for `Load` (spec 5.8): required `APP_SECRET` (≥ 32 bytes), `PUBLIC_URL` 
   var Migrations fs.FS // embedded migrations/*.sql
   type DB struct{ *sql.DB }          // implements storage.TxRunner
   func (d DB) InTx(ctx context.Context, fn func(ctx context.Context) error) error
-  func Conn(ctx context.Context, d DB) interface{ ExecContext(...); QueryContext(...); QueryRowContext(...) } // the tx in ctx, else the db
+  type Querier interface {
+      ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+      QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+      QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+  }
+  // Q returns the transaction stored in ctx by InTx, else the database. Repositories (plan 2) always query through Q.
+  func (d DB) Q(ctx context.Context) Querier
   ```
 
 `Open`: creates the parent directory (`0o750`), DSN `file:<path>?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)`, `SetMaxOpenConns(1)` for writes simplicity, pings. `Migrate`: files named `NNNN_name.sql` (4 digits), applied in numeric order, each in its own transaction together with its row in `schema_migrations(version INTEGER PRIMARY KEY, name TEXT, applied_at TEXT)`; a file not matching the pattern fails with its name; forward-only. `0001_settings.sql` creates `settings(key TEXT PRIMARY KEY, value TEXT NOT NULL CHECK (json_valid(value)), updated_at TEXT NOT NULL)`.
@@ -116,7 +122,7 @@ Rules for `Load` (spec 5.8): required `APP_SECRET` (≥ 32 bytes), `PUBLIC_URL` 
   - `TestInTxRollsBackOnError`: insert into `settings` inside `InTx`, return an error → row absent; with nil → row present.
   - `TestEmbeddedMigrationsApply`: `Migrate(ctx, db, Migrations)` on a fresh db → `settings` table exists.
 - [ ] **Step 2: Run** `go test ./internal/storage/...` — Expected: FAIL.
-- [ ] **Step 3: Implement** `Open`, `Migrate`, `DB.InTx` (transaction stored in the context under a private key) and `Conn`.
+- [ ] **Step 3: Implement** `Open`, `Migrate`, `DB.InTx` (transaction stored in the context under a private key; nested `InTx` reuses the outer transaction) and `DB.Q`.
 - [ ] **Step 4: Run** `go test -race ./internal/storage/...` — Expected: PASS.
 - [ ] **Step 5: Wire into `run`:** open `cfg.DatabasePath`, `Migrate(ctx, db, sqlite.Migrations)`, `defer db.Close()`; a migration error ends `run` with that error.
 - [ ] **Step 6: Commit** `feat: SQLite storage with embedded forward-only migrations`
@@ -174,8 +180,9 @@ Locale files use go-i18n's flat JSON form (`"app.name": "Homelander"`, plurals a
 
   package httpapi
   type Deps struct { DB *sql.DB; I18n *i18n.Bundle; Log *slog.Logger; Static fs.FS }
-  func NewHandler(cfg config.Config, d Deps) http.Handler
-  // API mux for later plans: routes are added with Handle on this mux under /api/v1/.
+  func New(cfg config.Config, d Deps) *Server
+  func (s *Server) Handler() http.Handler // middleware + routing below
+  // API mux for later plans: routes are registered on it with full patterns, e.g. "POST /api/v1/register".
   func (s *Server) API() *http.ServeMux
   func WriteJSON(w http.ResponseWriter, status int, v any)
   func WriteError(w http.ResponseWriter, status int, code string) // {"error":{"code":code}}
@@ -193,7 +200,7 @@ Behaviour (spec 5.5): `GET /healthz` → 200 `{"status":"ok"}` after `db.PingCon
   - `TestNoWebBuild`: empty `Static` → `/` 503 with the hint; `/healthz` still 200.
   - `TestPanicRecovered`: a route on `API()` that panics → 500 `{"error":{"code":"internal"}}`.
 - [ ] **Step 2: Run** `go test ./internal/httpapi/` — Expected: FAIL.
-- [ ] **Step 3: Implement** `NewHandler`, middleware and SPA handler.
+- [ ] **Step 3: Implement** `New`, `Handler`, middleware and SPA handler.
 - [ ] **Step 4: Run** `go test -race ./internal/httpapi/` — Expected: PASS.
 - [ ] **Step 5: Wire into `run`:** `http.Server{Addr: cfg.HTTPAddr, Handler: …, ReadHeaderTimeout: 10*time.Second}`; start in a goroutine; on `ctx.Done()` call `Shutdown` with a 15 s timeout; log `"listening"` with the address.
 - [ ] **Step 6: Verify manually:** `cp .env.example .env`, `set -a; . ./.env; set +a; go run ./cmd/homelander` then `curl -i localhost:8080/healthz` → 200 `{"status":"ok"}`; Ctrl-C → process exits 0 with a `"stopped"` log line.
@@ -217,7 +224,7 @@ Behaviour (spec 5.5): `GET /healthz` → 200 `{"status":"ok"}` after `db.PingCon
   ```
   Routes in `App.tsx`: `/` HomePage, `/register` RegisterPage, `/login` LoginPage, `/admin/*` AdminLayout (Mantine `AppShell` with an empty nav), `*` NotFoundPage. Each placeholder page shows a localized title only.
 
-Scripts in `package.json`: `dev` (vite), `build` (`tsc -b && vite build`, outDir `dist`, `emptyOutDir: true` but keep `.gitkeep` by writing it in a `closeBundle` hook or by `git checkout` — implementer's choice), `lint` (`eslint .`), `typecheck` (`tsc -b --noEmit`), `test` (`vitest run`). Vite dev server proxies `/api` and `/healthz` to `http://localhost:8080`.
+Scripts in `package.json`: `dev` (vite), `build` (`tsc -b && vite build`, outDir `dist`, `emptyOutDir: true`; a small plugin in `vite.config.ts` writes an empty `dist/.gitkeep` in `closeBundle`, so the committed placeholder that lets `go:embed all:dist` compile without a web build never shows as deleted), `lint` (`eslint .`), `typecheck` (`tsc -b --noEmit`), `test` (`vitest run`). Vite dev server proxies `/api` and `/healthz` to `http://localhost:8080`.
 
 - [ ] **Step 1: Scaffold** with `npm create vite@latest web -- --template react-ts`, then add `@mantine/core @mantine/hooks react-router react-i18next i18next @tanstack/react-query` and dev deps `vitest @testing-library/react @testing-library/jest-dom jsdom`. Remove template demo files.
 - [ ] **Step 2: Write failing tests:**
