@@ -30,6 +30,9 @@
     "pending": "An administrator is still reviewing your application. Share your number again once it is approved.",
     "notRegistered": "This number is not registered in the system. Please contact an administrator.",
     "rateLimited": "Too many attempts. Please try again later.",
-    "help": "To connect your account, send /start and share your phone number."
+    "help": "To connect your account, send /start and share your phone number.",
+    "commands": {
+      "start": "Connect your account"
+    }
   }
 }

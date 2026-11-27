@@ -26,6 +26,8 @@ type API interface {
 	SendMessage(chatID int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error)
 	SetWebhook(url string, opts *gotgbot.SetWebhookOpts) (bool, error)
 	DeleteWebhook(opts *gotgbot.DeleteWebhookOpts) (bool, error)
+	SetMyCommands(commands []gotgbot.BotCommand, opts *gotgbot.SetMyCommandsOpts) (bool, error)
+	DeleteMyCommands(opts *gotgbot.DeleteMyCommandsOpts) (bool, error)
 }
 
 // Activator links a Telegram account to the user with the verified phone.
@@ -61,6 +63,7 @@ type Bot struct {
 	act       Activator
 	sink      GroupSink
 	tr        *i18n.Bundle
+	locales   []string
 	publicURL string
 	username  string
 	log       *slog.Logger
@@ -70,6 +73,11 @@ var _ domain.Messenger = (*Bot)(nil)
 
 // New asks Telegram for the bot's username and returns the adapter.
 func New(api API, act Activator, sink GroupSink, tr *i18n.Bundle, publicURL string, log *slog.Logger) (*Bot, error) {
+	return NewWithLocales(api, act, sink, tr, []string{"uk", "en"}, publicURL, log)
+}
+
+// NewWithLocales is New with the list of locales the bot's command menu is set for.
+func NewWithLocales(api API, act Activator, sink GroupSink, tr *i18n.Bundle, locales []string, publicURL string, log *slog.Logger) (*Bot, error) {
 	me, err := api.GetMe(nil)
 	if err != nil {
 		return nil, fmt.Errorf("telegram getMe: %w", err)
@@ -77,7 +85,7 @@ func New(api API, act Activator, sink GroupSink, tr *i18n.Bundle, publicURL stri
 	if sink == nil {
 		sink = NopSink{}
 	}
-	return &Bot{api: api, act: act, sink: sink, tr: tr, publicURL: strings.TrimRight(publicURL, "/"), username: me.Username, log: log}, nil
+	return &Bot{api: api, act: act, sink: sink, tr: tr, locales: locales, publicURL: strings.TrimRight(publicURL, "/"), username: me.Username, log: log}, nil
 }
 
 // Type returns "telegram".
@@ -176,4 +184,31 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 		key = "bot.notRegistered"
 	}
 	b.reply(m.Chat.Id, b.tr.T(lang, key, data, nil), remove)
+}
+
+// legacyMenuLocales are languages an earlier program may have set a default
+// menu for; their default-scope menus are removed.
+var legacyMenuLocales = []string{"", "uk", "en", "ru"}
+
+// SetCommands sets the bot's command menu for private chats in every locale and
+// removes menus other software left in the default scope (shown in groups, where
+// the bot does not take commands in M1).
+func (b *Bot) SetCommands(_ context.Context) error {
+	for _, lang := range legacyMenuLocales {
+		if _, err := b.api.DeleteMyCommands(&gotgbot.DeleteMyCommandsOpts{Scope: gotgbot.BotCommandScopeDefault{}, LanguageCode: lang}); err != nil {
+			return fmt.Errorf("telegram deleteMyCommands %q: %w", lang, err)
+		}
+	}
+	menu := func(lang string) []gotgbot.BotCommand {
+		return []gotgbot.BotCommand{{Command: "start", Description: b.tr.T(lang, "bot.commands.start", nil, nil)}}
+	}
+	if _, err := b.api.SetMyCommands(menu(b.tr.Default()), &gotgbot.SetMyCommandsOpts{Scope: gotgbot.BotCommandScopeAllPrivateChats{}}); err != nil {
+		return fmt.Errorf("telegram setMyCommands: %w", err)
+	}
+	for _, lang := range b.locales {
+		if _, err := b.api.SetMyCommands(menu(lang), &gotgbot.SetMyCommandsOpts{Scope: gotgbot.BotCommandScopeAllPrivateChats{}, LanguageCode: lang}); err != nil {
+			return fmt.Errorf("telegram setMyCommands %q: %w", lang, err)
+		}
+	}
+	return nil
 }
