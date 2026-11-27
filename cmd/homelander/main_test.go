@@ -52,6 +52,13 @@ func (f *fakeTelegram) SendMessage(_ int64, text string, _ *gotgbot.SendMessageO
 func (f *fakeTelegram) SetWebhook(string, *gotgbot.SetWebhookOpts) (bool, error) { return true, nil }
 func (f *fakeTelegram) DeleteWebhook(*gotgbot.DeleteWebhookOpts) (bool, error)   { return true, nil }
 
+func (f *fakeTelegram) SetMyCommands([]gotgbot.BotCommand, *gotgbot.SetMyCommandsOpts) (bool, error) {
+	return true, nil
+}
+func (f *fakeTelegram) DeleteMyCommands(*gotgbot.DeleteMyCommandsOpts) (bool, error) {
+	return true, nil
+}
+
 func (f *fakeTelegram) push(m *gotgbot.Message) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

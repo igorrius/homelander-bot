@@ -95,9 +95,12 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	if err != nil {
 		return fmt.Errorf("telegram client: %w", err)
 	}
-	bot, err := telegram.New(tgAPI, auth, telegram.NopSink{}, tr, cfg.PublicURL.String(), log)
+	bot, err := telegram.NewWithLocales(tgAPI, auth, telegram.NopSink{}, tr, config.SupportedLocales, cfg.PublicURL.String(), log)
 	if err != nil {
 		return err
+	}
+	if err := bot.SetCommands(ctx); err != nil {
+		log.Warn("telegram command menu not set", "err", err)
 	}
 	auth.Messenger = bot
 

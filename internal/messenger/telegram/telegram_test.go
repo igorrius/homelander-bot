@@ -34,6 +34,35 @@ type fakeAPI struct {
 	secret   string
 	deleted  int
 	getCalls chan struct{}
+	commands map[string][]gotgbot.BotCommand // "scope/lang" → commands
+	deleted2 []string                        // "scope/lang" of deleted command lists
+}
+
+func scopeName(s gotgbot.BotCommandScope) string {
+	switch s.(type) {
+	case gotgbot.BotCommandScopeAllPrivateChats:
+		return "private"
+	case nil, gotgbot.BotCommandScopeDefault:
+		return "default"
+	}
+	return "other"
+}
+
+func (f *fakeAPI) SetMyCommands(c []gotgbot.BotCommand, o *gotgbot.SetMyCommandsOpts) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.commands == nil {
+		f.commands = map[string][]gotgbot.BotCommand{}
+	}
+	f.commands[scopeName(o.Scope)+"/"+o.LanguageCode] = c
+	return true, nil
+}
+
+func (f *fakeAPI) DeleteMyCommands(o *gotgbot.DeleteMyCommandsOpts) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deleted2 = append(f.deleted2, scopeName(o.Scope)+"/"+o.LanguageCode)
+	return true, nil
 }
 
 func (f *fakeAPI) GetMe(*gotgbot.GetMeOpts) (*gotgbot.User, error) {
@@ -359,5 +388,28 @@ func TestBotURLAndSendText(t *testing.T) {
 	}
 	if err := r.bot.SendText(ctx, "not-a-number", "x"); err == nil {
 		t.Error("bad chat id accepted")
+	}
+}
+
+func TestSetCommands(t *testing.T) {
+	r := newRig(t)
+	if err := r.bot.SetCommands(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for key, lang := range map[string]string{"private/": "uk", "private/uk": "uk", "private/en": "en"} {
+		cmds := r.api.commands[key]
+		if len(cmds) != 1 || cmds[0].Command != "start" || cmds[0].Description != r.tr.T(lang, "bot.commands.start", nil, nil) {
+			t.Errorf("%s = %+v", key, cmds)
+		}
+	}
+	// Menus left by earlier software in the default scope (used in groups) are removed.
+	for _, want := range []string{"default/", "default/uk", "default/en", "default/ru"} {
+		found := false
+		for _, d := range r.api.deleted2 {
+			found = found || d == want
+		}
+		if !found {
+			t.Errorf("%s not deleted (deleted %v)", want, r.api.deleted2)
+		}
 	}
 }
