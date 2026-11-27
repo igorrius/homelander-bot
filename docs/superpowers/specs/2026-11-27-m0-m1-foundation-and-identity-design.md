@@ -1,7 +1,7 @@
 # M0 + M1: Foundation and secure resident identity — design
 
 - **Date:** 2026-11-27
-- **Status:** Draft, awaiting owner approval
+- **Status:** Approved by the owner (2026-11-27)
 - **Owner:** Igor Artasevych
 - **Tracks:** epics #1 (M0 Foundation) and #2 (M1 Secure admin and resident identity)
 
