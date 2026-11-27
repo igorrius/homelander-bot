@@ -3,7 +3,9 @@
     "name": "Homelander"
   },
   "language": {
-    "label": "Language"
+    "label": "Language",
+    "uk": "Українська",
+    "en": "English"
   },
   "home": {
     "title": "Welcome",
@@ -84,7 +86,50 @@
     },
     "user": {
       "isResident": "Resident",
-      "isAdmin": "Admin"
+      "isAdmin": "Admin",
+      "details": "Details",
+      "saveDetails": "Save details",
+      "locale": "Language of bot messages",
+      "phoneLocked": "Unlink Telegram to change the phone of an activated user.",
+      "access": "Access",
+      "approve": "Approve",
+      "reject": "Reject",
+      "disable": "Disable",
+      "enable": "Enable",
+      "disableConfirm": "Disable {{name}}? They will be logged out and cannot log in until enabled.",
+      "channels": "Messengers",
+      "noChannels": "No messenger is linked yet. The person activates the account by sharing their phone in the bot.",
+      "channelType": {
+        "telegram": "Telegram"
+      },
+      "unlink": "Unlink",
+      "unlinkHint": "The user goes back to awaiting activation and must share the phone in the bot again.",
+      "residencies": "Apartments",
+      "noResidencies": "No apartments.",
+      "addResidency": "Add apartment",
+      "saveResidency": "Save apartment",
+      "editResidency": "Change apartment",
+      "removeResidency": "Remove apartment",
+      "removeResidencyConfirm": "Remove {{house}}, apt {{n}} from this user?",
+      "notResidentHint": "The Resident flag is off: these apartments are kept but ignored.",
+      "audit": "Recent actions",
+      "allAudit": "All entries",
+      "created": "Created {{at}}",
+      "approved": "approved {{at}}",
+      "activated": "activated {{at}}",
+      "source": {
+        "application": "Application",
+        "admin": "Added by admin",
+        "bootstrap": "First admin"
+      }
+    },
+    "audit": {
+      "empty": "No entries.",
+      "at": "Time",
+      "action": "Action",
+      "target": "Object",
+      "actor": "By",
+      "ip": "IP"
     }
   },
   "notFound": {
@@ -142,5 +187,48 @@
     "active": "Active",
     "rejected": "Rejected",
     "disabled": "Disabled"
+  },
+  "audit": {
+    "action": {
+      "user": {
+        "applied": "Applied",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "created": "Added by an administrator",
+        "updated": "Details changed",
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "admin_granted": "Admin rights granted",
+        "admin_revoked": "Admin rights revoked",
+        "resident_set": "Marked as resident",
+        "resident_unset": "No longer a resident"
+      },
+      "channel": {
+        "linked": "Messenger linked",
+        "unlinked": "Messenger unlinked"
+      },
+      "auth": {
+        "code_sent": "Login code sent",
+        "login": "Logged in",
+        "login_failed": "Failed login",
+        "logout": "Logged out"
+      },
+      "house": {
+        "created": "House created",
+        "updated": "House changed"
+      },
+      "status": {
+        "created": "Residency status created",
+        "updated": "Residency status changed"
+      },
+      "site": {
+        "updated": "Site settings changed",
+        "picture_set": "Site picture uploaded",
+        "picture_removed": "Site picture removed"
+      },
+      "bootstrap": {
+        "admin_created": "First administrator created"
+      }
+    }
   }
 }

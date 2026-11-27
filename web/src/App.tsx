@@ -7,6 +7,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
+import { UserCardPage } from './pages/admin/UserCardPage'
 import { UsersPage } from './pages/admin/UsersPage'
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route index element={<Navigate to="applications" replace />} />
           <Route path="applications" element={<ApplicationsPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="users/:id" element={<UserCardPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

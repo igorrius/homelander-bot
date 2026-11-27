@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { AdminUser, House, Page, UserCard, UserStatus } from './types'
+import type { AdminUser, House, Me, Page, ResidencyStatus, UserCard, UserStatus } from './types'
 
 /** Query keys of the admin API; all start with 'admin' so logout can drop them together. */
 export const qka = {
@@ -9,6 +9,7 @@ export const qka = {
   users: (q?: UserQuery) => (q ? (['admin', 'users', q] as const) : (['admin', 'users'] as const)),
   user: (id: number) => ['admin', 'user', id] as const,
   houses: (archived = false) => ['admin', 'houses', archived] as const,
+  statuses: ['admin', 'statuses'] as const,
 }
 
 export interface UserQuery {
@@ -83,6 +84,62 @@ export function useHouses(includeArchived = false) {
     queryKey: qka.houses(includeArchived),
     queryFn: () => api<House[]>(`/admin/houses${includeArchived ? '?archived=true' : ''}`),
   })
+}
+
+export function useUserCard(id: number) {
+  return useQuery({ queryKey: qka.user(id), queryFn: () => api<UserCard>(`/admin/users/${id}`) })
+}
+
+export type UserPatch = Partial<Pick<Me, 'firstName' | 'lastName' | 'phone' | 'locale' | 'isResident' | 'isAdmin'>>
+
+export function usePatchUser(id: number) {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, UserPatch>({
+    mutationFn: (body) => api<UserCard>(`/admin/users/${id}`, json('PATCH', body)),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export function useUnlinkChannel(userId: number) {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, number>({
+    mutationFn: (channelId) => api<UserCard>(`/admin/users/${userId}/channels/${channelId}`, json('DELETE')),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export interface ResidencyInput {
+  houseId: number
+  apartment: number
+  statusId: number
+}
+
+export function useAddResidency(userId: number) {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, ResidencyInput>({
+    mutationFn: (body) => api<UserCard>(`/admin/users/${userId}/residencies`, json('POST', body)),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export function useUpdateResidency() {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, ResidencyInput & { id: number }>({
+    mutationFn: ({ id, ...body }) => api<UserCard>(`/admin/residencies/${id}`, json('PATCH', body)),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export function useDeleteResidency() {
+  const qc = useQueryClient()
+  return useMutation<UserCard, ApiError, number>({
+    mutationFn: (id) => api<UserCard>(`/admin/residencies/${id}`, json('DELETE')),
+    onSuccess: (card) => cardChanged(qc, card),
+  })
+}
+
+export function useStatuses() {
+  return useQuery({ queryKey: qka.statuses, queryFn: () => api<ResidencyStatus[]>('/admin/statuses') })
 }
 
 export { json }
