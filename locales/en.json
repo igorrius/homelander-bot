@@ -30,12 +30,30 @@
     "pending": "An administrator is still reviewing your application. Share your number again once it is approved.",
     "notRegistered": "This number is not registered in the system. Please contact an administrator.",
     "rateLimited": "Too many attempts. Please try again later.",
-    "help": "To connect your account, send /start and share your phone number.",
+    "help": "To connect your account or apply for registration, send /start and share your phone number.",
     "commands": {
       "start": "Connect your account"
-    }
+    },
+    "apply": {
+      "offer": "You are not registered yet. Fill in the application — your number is already in it. The link works for 1 hour.",
+      "button": "📝 Fill in the application"
+    },
+    "pendingLinked": "Your application is waiting for an administrator. I will write to you as soon as it is decided."
   },
   "notify": {
-    "test": "✅ Test message. Messages for this place will arrive here."
+    "test": "✅ Test message. Messages for this place will arrive here.",
+    "approved": {
+      "text": "Your application is approved! You can now log in.",
+      "button": "Log in"
+    },
+    "rejected": "Your application was not approved. For questions, contact the administrators.",
+    "application": {
+      "text": "📝 New application\n{{.Name}} — house {{.House}}, apt {{.Apartment}}, {{.Status}}\nVia: {{.Via}} · Waiting: {{.Pending}}",
+      "button": "Open applications"
+    },
+    "via": {
+      "bot": "bot",
+      "site": "site"
+    }
   }
 }

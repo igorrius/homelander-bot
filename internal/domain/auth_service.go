@@ -27,6 +27,8 @@ const (
 	PendingApproval  ActivationResult = "pending_approval"
 	NotRegistered    ActivationResult = "not_registered"
 	BootstrapAdmin   ActivationResult = "bootstrap_admin"
+	ApplyLink        ActivationResult = "apply_link"     // unknown or rejected phone: a registration link was issued
+	PendingLinked    ActivationResult = "pending_linked" // pending application: the account was linked to it
 )
 
 // AuthService activates messenger channels, sends login codes and manages sessions.
@@ -48,6 +50,9 @@ type AuthService struct {
 	// answer to the caller does not depend on whether a code was sent.
 	Deliver func(func())
 	Log     *slog.Logger
+	// PublicURL and TokenTTL shape the registration links the bot hands out.
+	PublicURL string
+	TokenTTL  time.Duration
 }
 
 const (
@@ -83,87 +88,176 @@ func (s *AuthService) audit(ctx context.Context, a Actor, action, target string,
 	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: target, Details: details, IP: a.IP})
 }
 
-// ActivateChannel links a messenger account to the user whose phone the
-// messenger verified. The caller has already checked that the person shared
-// their own contact.
-func (s *AuthService) ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (ActivationResult, User, error) {
+// Activation is the outcome of someone sharing their own phone in the bot.
+type Activation struct {
+	Result          ActivationResult
+	User            User
+	RegistrationURL string // set only for ApplyLink
+}
+
+// ActivateChannel handles a phone the messenger verified as the sender's own:
+// it activates, links a pending application, or hands out a registration
+// link, following the decision order of the M2 design (5.5). The caller has
+// already checked that the person shared their own contact.
+func (s *AuthService) ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (Activation, error) {
 	if !s.Limits.Allow("activate:"+typ+":"+externalID, activateLimit, activateWindow) {
-		return "", User{}, ErrRateLimited
+		return Activation{}, ErrRateLimited
 	}
 	phone, err := NormalizePhone(verifiedPhone, s.Region)
 	if err != nil {
-		return NotRegistered, User{}, nil
+		return Activation{Result: NotRegistered}, nil
 	}
-	var (
-		result ActivationResult
-		user   User
-	)
+	acct := account{typ: typ, externalID: externalID, chatID: chatID, username: username}
+	var out Activation
 	err = s.R.Tx.InTx(ctx, func(ctx context.Context) error {
-		existing, err := s.R.Channels.GetByExternal(ctx, typ, externalID)
-		switch {
-		case err == nil:
-			u, err := s.R.Users.Get(ctx, existing.UserID)
-			if err != nil {
-				return err
-			}
-			result = NotRegistered
-			if u.Phone == phone && u.Status == StatusActive {
-				result, user = AlreadyConnected, u
-			}
-			return nil
-		case !errors.Is(err, ErrNotFound):
-			return err
-		}
+		out, err = s.activate(ctx, acct, phone)
+		return err
+	})
+	if err != nil {
+		return Activation{}, err
+	}
+	return out, nil
+}
 
-		if ok, err := s.bootstrapApplies(ctx, phone); err != nil {
-			return err
-		} else if ok {
-			user, err = s.bootstrap(ctx, phone)
-			if err != nil {
-				return err
-			}
-			result = BootstrapAdmin
-			return s.link(ctx, user, typ, externalID, chatID, username)
-		}
+// account is a messenger account that proved a phone.
+type account struct{ typ, externalID, chatID, username string }
 
-		u, err := s.R.Users.GetByPhone(ctx, phone)
-		if errors.Is(err, ErrNotFound) {
-			result = NotRegistered
-			return nil
-		} else if err != nil {
-			return err
-		}
-		switch u.Status {
-		case StatusPendingApproval:
-			result, user = PendingApproval, u
-			return nil
-		case StatusAwaitingActivation:
-		default:
-			result = NotRegistered
-			return nil
-		}
-		chans, err := s.R.Channels.ListByUser(ctx, u.ID)
+func (s *AuthService) activate(ctx context.Context, acct account, phone string) (Activation, error) {
+	neutral := Activation{Result: NotRegistered}
+	// 1. The account is already linked to someone.
+	held, err := s.R.Channels.GetByExternal(ctx, acct.typ, acct.externalID)
+	switch {
+	case err == nil:
+		u, err := s.R.Users.Get(ctx, held.UserID)
 		if err != nil {
-			return err
+			return Activation{}, err
 		}
-		for _, c := range chans {
-			if c.Type == typ {
-				result = NotRegistered
-				return nil
+		if u.Phone == phone {
+			switch u.Status {
+			case StatusActive:
+				return Activation{Result: AlreadyConnected, User: u}, nil
+			case StatusPendingApproval:
+				return Activation{Result: PendingApproval, User: u}, nil
+			case StatusRejected:
+				return s.issueLink(ctx, acct, phone)
 			}
+			return neutral, nil
+		}
+		if u.Status != StatusRejected {
+			return neutral, nil
+		}
+		// Held by a rejected person with another phone: the account is free.
+	case !errors.Is(err, ErrNotFound):
+		return Activation{}, err
+	}
+	accountFree := err != nil // not linked at all (bootstrap needs a free account)
+
+	if accountFree {
+		if ok, err := s.bootstrapApplies(ctx, phone); err != nil {
+			return Activation{}, err
+		} else if ok {
+			u, err := s.bootstrap(ctx, phone)
+			if err != nil {
+				return Activation{}, err
+			}
+			return Activation{Result: BootstrapAdmin, User: u}, s.link(ctx, u, acct.typ, acct.externalID, acct.chatID, acct.username)
+		}
+	}
+
+	// 2. Look the phone up.
+	u, err := s.R.Users.GetByPhone(ctx, phone)
+	if errors.Is(err, ErrNotFound) {
+		return s.issueLink(ctx, acct, phone)
+	} else if err != nil {
+		return Activation{}, err
+	}
+	linked, err := hasChannel(ctx, s.R, u.ID, acct.typ)
+	if err != nil {
+		return Activation{}, err
+	}
+	switch u.Status {
+	case StatusRejected:
+		if linked {
+			return neutral, nil
+		}
+		return s.issueLink(ctx, acct, phone)
+	case StatusPendingApproval:
+		if linked {
+			return neutral, nil
+		}
+		if err := linkAccount(ctx, s.R, s.Now, u, acct); err != nil {
+			return Activation{}, err
+		}
+		return Activation{Result: PendingLinked, User: u}, nil
+	case StatusAwaitingActivation:
+		if linked {
+			return neutral, nil
 		}
 		now := s.Now()
 		u.Status, u.ActivatedAt = StatusActive, &now
 		if err := s.R.Users.Update(ctx, &u); err != nil {
+			return Activation{}, err
+		}
+		return Activation{Result: Activated, User: u}, linkAccount(ctx, s.R, s.Now, u, acct)
+	}
+	return neutral, nil
+}
+
+// issueLink hands out a one-time registration link for a proven phone; older
+// unused links of the same account stop working.
+func (s *AuthService) issueLink(ctx context.Context, acct account, phone string) (Activation, error) {
+	raw := make([]byte, tokenBytes)
+	if _, err := io.ReadFull(s.rand(), raw); err != nil {
+		return Activation{}, err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	now := s.Now()
+	if err := s.R.RegTokens.InvalidateFor(ctx, acct.typ, acct.externalID, now); err != nil {
+		return Activation{}, err
+	}
+	t := RegistrationToken{TokenHash: HashSecret(s.Secret, token), ChannelType: acct.typ, ExternalID: acct.externalID,
+		ChatID: acct.chatID, Username: acct.username, Phone: phone, ExpiresAt: now.Add(s.TokenTTL), CreatedAt: now}
+	if err := s.R.RegTokens.Create(ctx, &t); err != nil {
+		return Activation{}, err
+	}
+	return Activation{Result: ApplyLink, RegistrationURL: strings.TrimRight(s.PublicURL, "/") + "/register#t=" + token}, nil
+}
+
+func hasChannel(ctx context.Context, r Repos, userID int64, typ string) (bool, error) {
+	chans, err := r.Channels.ListByUser(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, c := range chans {
+		if c.Type == typ {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// linkAccount links acct to u, first taking it away from a rejected person
+// who held it. The caller has checked that this is allowed.
+func linkAccount(ctx context.Context, r Repos, now Clock, u User, acct account) error {
+	held, err := r.Channels.GetByExternal(ctx, acct.typ, acct.externalID)
+	switch {
+	case err == nil:
+		if err := r.Channels.Delete(ctx, held.ID); err != nil {
 			return err
 		}
-		result, user = Activated, u
-		return s.link(ctx, u, typ, externalID, chatID, username)
-	})
-	if err != nil {
-		return "", User{}, err
+		if err := r.Audit.Add(ctx, AuditEntry{At: now(), ActorUserID: &u.ID, Action: ActChannelUnlinked, Target: UserTarget(held.UserID),
+			Details: map[string]any{"type": acct.typ, "reason": "taken_by_applicant"}}); err != nil {
+			return err
+		}
+	case !errors.Is(err, ErrNotFound):
+		return err
 	}
-	return result, user, nil
+	c := Channel{UserID: u.ID, Type: acct.typ, ExternalID: acct.externalID, ChatID: acct.chatID, Username: acct.username, LinkedAt: now()}
+	if err := r.Channels.Create(ctx, &c); err != nil {
+		return err
+	}
+	return r.Audit.Add(ctx, AuditEntry{At: now(), ActorUserID: &u.ID, Action: ActChannelLinked, Target: UserTarget(u.ID),
+		Details: map[string]any{"type": acct.typ}})
 }
 
 func (s *AuthService) link(ctx context.Context, u User, typ, externalID, chatID, username string) error {

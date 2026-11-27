@@ -148,14 +148,15 @@ type fakeActivator struct {
 	calls  []activation
 	result domain.ActivationResult
 	user   domain.User
+	url    string
 	err    error
 }
 
-func (f *fakeActivator) ActivateChannel(_ context.Context, typ, ext, chat, username, phone string) (domain.ActivationResult, domain.User, error) {
+func (f *fakeActivator) ActivateChannel(_ context.Context, typ, ext, chat, username, phone string) (domain.Activation, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, activation{typ, ext, chat, username, phone})
-	return f.result, f.user, f.err
+	return domain.Activation{Result: f.result, User: f.user, RegistrationURL: f.url}, f.err
 }
 
 type fakeSink struct {
@@ -268,6 +269,7 @@ func TestRepliesPerResult(t *testing.T) {
 		{domain.BootstrapAdmin, nil, "bot.bootstrap", map[string]any{"URL": "https://example.com/admin"}},
 		{domain.AlreadyConnected, nil, "bot.alreadyConnected", nil},
 		{domain.PendingApproval, nil, "bot.pending", nil},
+		{domain.PendingLinked, nil, "bot.pendingLinked", nil},
 		{domain.NotRegistered, nil, "bot.notRegistered", nil},
 		{"", domain.ErrRateLimited, "bot.rateLimited", nil},
 		{"", errors.New("db down"), "common.error.internal", nil},
@@ -441,5 +443,42 @@ func TestSetCommands(t *testing.T) {
 		if !found {
 			t.Errorf("%s not deleted (deleted %v)", want, r.api.deleted2)
 		}
+	}
+}
+
+func TestContactUnknownGetsApplyButton(t *testing.T) {
+	r := newRig(t)
+	r.act.result, r.act.url = domain.ApplyLink, "https://example.com/register#t=abc"
+	r.bot.HandleUpdate(ctx, contactUpdate(42, 42, "+380500000001"))
+	msg := r.api.messages()[0]
+	if msg.text != r.tr.T("uk", "bot.apply.offer", nil, nil) {
+		t.Fatalf("reply = %q", msg.text)
+	}
+	kb, ok := msg.opts.ReplyMarkup.(gotgbot.InlineKeyboardMarkup)
+	if !ok || len(kb.InlineKeyboard) != 1 || kb.InlineKeyboard[0][0].Url != "https://example.com/register#t=abc" ||
+		kb.InlineKeyboard[0][0].Text != r.tr.T("uk", "bot.apply.button", nil, nil) {
+		t.Fatalf("markup = %#v", msg.opts.ReplyMarkup)
+	}
+}
+
+func TestApplyLinkAsTextForHTTP(t *testing.T) {
+	r := newRig(t)
+	r.act.result, r.act.url = domain.ApplyLink, "http://localhost:8080/register#t=abc"
+	r.bot.HandleUpdate(ctx, contactUpdate(42, 42, "+380500000001"))
+	msg := r.api.messages()[0]
+	if msg.text != r.tr.T("uk", "bot.apply.offer", nil, nil)+"\nhttp://localhost:8080/register#t=abc" {
+		t.Fatalf("reply = %q", msg.text)
+	}
+	if _, ok := msg.opts.ReplyMarkup.(gotgbot.ReplyKeyboardRemove); !ok {
+		t.Fatalf("markup = %#v", msg.opts.ReplyMarkup)
+	}
+}
+
+func TestContactPendingLinkedReply(t *testing.T) {
+	r := newRig(t)
+	r.act.result, r.act.user = domain.PendingLinked, domain.User{Locale: "en"}
+	r.bot.HandleUpdate(ctx, contactUpdate(42, 42, "+380500000001"))
+	if got := r.api.messages()[0].text; got != r.tr.T("en", "bot.pendingLinked", nil, nil) {
+		t.Fatalf("reply = %q", got)
 	}
 }

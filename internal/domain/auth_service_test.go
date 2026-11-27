@@ -60,7 +60,8 @@ func (a *authEnv) requestCode(phone string) string {
 }
 
 func activate(a *authEnv, external, phone string) (domain.ActivationResult, domain.User, error) {
-	return a.auth.ActivateChannel(ctx, "telegram", external, "chat-"+external, "user"+external, phone)
+	res, err := a.auth.ActivateChannel(ctx, "telegram", external, "chat-"+external, "user"+external, phone)
+	return res.Result, res.User, err
 }
 
 func TestActivateAwaitingUser(t *testing.T) {
@@ -95,10 +96,10 @@ func TestActivateStatuses(t *testing.T) {
 		external, phone string
 		want            domain.ActivationResult
 	}{
-		{"1", "+380500000001", domain.PendingApproval},
-		{"2", "+380500000002", domain.NotRegistered},
+		{"1", "+380500000001", domain.PendingLinked},
+		{"2", "+380500000002", domain.ApplyLink},
 		{"3", "+380500000003", domain.NotRegistered},
-		{"5", "+380500000005", domain.NotRegistered},
+		{"5", "+380500000005", domain.ApplyLink},
 		{"other", "+380500000004", domain.NotRegistered},
 		{"444", "+380500000004", domain.AlreadyConnected},
 	}
@@ -149,7 +150,7 @@ func TestBootstrapOnlyWithoutAdmins(t *testing.T) {
 	}
 	// Once an admin exists the bootstrap phone gets the normal rules.
 	a.auth.BootstrapPhone = "+380500000002"
-	if res, _, _ := activate(a, "222", "+380500000002"); res != domain.NotRegistered {
+	if res, _, _ := activate(a, "222", "+380500000002"); res != domain.ApplyLink {
 		t.Errorf("second bootstrap = %s", res)
 	}
 }

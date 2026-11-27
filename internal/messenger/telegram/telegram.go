@@ -35,7 +35,7 @@ type API interface {
 
 // Activator links a Telegram account to the user with the verified phone.
 type Activator interface {
-	ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.ActivationResult, domain.User, error)
+	ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.Activation, error)
 }
 
 // GroupMessage is a messenger-neutral copy of a message seen in a group.
@@ -171,10 +171,15 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 		b.reply(m.Chat.Id, b.tr.T(lang, "bot.contact.notOwn", nil, nil), remove)
 		return
 	}
-	res, user, err := b.act.ActivateChannel(ctx, Type, strconv.FormatInt(m.From.Id, 10), strconv.FormatInt(m.Chat.Id, 10),
+	act, err := b.act.ActivateChannel(ctx, Type, strconv.FormatInt(m.From.Id, 10), strconv.FormatInt(m.Chat.Id, 10),
 		m.From.Username, m.Contact.PhoneNumber)
+	res, user := act.Result, act.User
 	if err == nil && res != domain.NotRegistered && user.Locale != "" {
 		lang = b.tr.Pick(user.Locale)
+	}
+	if err == nil && res == domain.ApplyLink {
+		b.offerApplication(m.Chat.Id, lang, act.RegistrationURL)
+		return
 	}
 	var key string
 	var data map[string]any
@@ -192,10 +197,26 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 		key = "bot.alreadyConnected"
 	case res == domain.PendingApproval:
 		key = "bot.pending"
+	case res == domain.PendingLinked:
+		key = "bot.pendingLinked"
 	default:
 		key = "bot.notRegistered"
 	}
 	b.reply(m.Chat.Id, b.tr.T(lang, key, data, nil), remove)
+}
+
+// offerApplication sends the registration link as a button, or in the text
+// when it is not https (Telegram refuses such buttons). The contact keyboard
+// was one-time, so it is already hidden.
+func (b *Bot) offerApplication(chatID int64, lang, url string) {
+	text := b.tr.T(lang, "bot.apply.offer", nil, nil)
+	if !strings.HasPrefix(url, "https://") {
+		b.reply(chatID, text+"\n"+url, gotgbot.ReplyKeyboardRemove{RemoveKeyboard: true})
+		return
+	}
+	b.reply(chatID, text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
+		{{Text: b.tr.T(lang, "bot.apply.button", nil, nil), Url: url}},
+	}})
 }
 
 // legacyMenuLocales are languages an earlier program may have set a default
