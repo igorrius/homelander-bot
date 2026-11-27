@@ -243,3 +243,32 @@ func TestOAuthRateLimit(t *testing.T) {
 		t.Errorf("31st token request = %d", last)
 	}
 }
+
+func TestUserCardConnectedAgents(t *testing.T) {
+	e := newAPIEnv(t)
+	adm := e.mkUser("+380500000099", mcpAdmin)
+	tok := e.login(adm)
+	clientID := e.registerClient(claudeCB)
+	if r := e.do("POST", "/api/v1/oauth/authorize", authorizeBody(clientID, true), tok, ""); r.Code != 200 {
+		t.Fatalf("authorize = %d %s", r.Code, r.Body)
+	}
+	id := strconv.FormatInt(adm.ID, 10)
+	r := e.do("GET", "/api/v1/admin/users/"+id, nil, tok, "")
+	grants, _ := r.json()["mcpGrants"].([]any)
+	if len(grants) != 1 {
+		t.Fatalf("mcpGrants = %s", r.Body)
+	}
+	g := grants[0].(map[string]any)
+	if g["clientName"] != "Claude" || g["createdAt"] == nil {
+		t.Errorf("grant = %v", g)
+	}
+	gid := strconv.FormatInt(int64(g["id"].(float64)), 10)
+	other := e.mkUser("+380500000001")
+	if r := e.do("DELETE", "/api/v1/admin/users/"+strconv.FormatInt(other.ID, 10)+"/mcp-grants/"+gid, nil, tok, ""); r.Code != 404 {
+		t.Errorf("revoke through another user = %d", r.Code)
+	}
+	r = e.do("DELETE", "/api/v1/admin/users/"+id+"/mcp-grants/"+gid, nil, tok, "")
+	if gs, _ := r.json()["mcpGrants"].([]any); r.Code != 200 || len(gs) != 0 {
+		t.Errorf("revoke = %d %s", r.Code, r.Body)
+	}
+}

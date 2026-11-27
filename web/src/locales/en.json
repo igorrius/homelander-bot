@@ -146,7 +146,17 @@
         "history": "History"
       },
       "copyPhone": "Copy phone",
-      "copyLink": "Copy link"
+      "copyLink": "Copy link",
+      "isMcp": "MCP (AI agent)",
+      "agents": {
+        "title": "Connected agents",
+        "none": "No AI agents are connected.",
+        "connected": "connected {{at}}",
+        "lastUsed": "last used {{at}}",
+        "neverUsed": "not used yet",
+        "revoke": "Revoke",
+        "revokeConfirm": "Disconnect {{client}}? It loses access at once; connecting again needs a new approval."
+      }
     },
     "audit": {
       "empty": "No entries.",
@@ -503,7 +513,9 @@
         "admin_revoked": "Admin rights revoked",
         "resident_set": "Marked as resident",
         "resident_unset": "No longer a resident",
-        "activated": "Activated on approval"
+        "activated": "Activated on approval",
+        "mcp_granted": "MCP turned on",
+        "mcp_revoked": "MCP turned off"
       },
       "channel": {
         "linked": "Messenger linked",
@@ -565,7 +577,25 @@
         "published": "Page published",
         "unpublished": "Built-in page restored",
         "deleted": "Page version deleted"
+      },
+      "mcp": {
+        "client_authorized": "AI agent connected",
+        "client_revoked": "AI agent disconnected"
       }
+    }
+  },
+  "oauth": {
+    "title": "Connect an AI agent",
+    "question": "Allow {{client}} to act as you in Homelander?",
+    "redirectHost": "The answer goes to {{host}}. Allow only if you started this connection yourself.",
+    "explain": "The agent will be able to read and change site data and write page drafts on your behalf. It cannot publish pages. Every action is recorded in the audit log as yours, via MCP.",
+    "allow": "Allow",
+    "login": "Log in",
+    "loginFirst": "{{client}} asks to act as you in Homelander. Log in first.",
+    "invalid": "This connection request is not valid. Start the connection again from the agent.",
+    "reason": {
+      "not_admin": "Only an admin can connect an AI agent.",
+      "mcp_off": "MCP is off for your account. Another admin (or you) can turn it on on your user card in the admin panel."
     }
   }
 }

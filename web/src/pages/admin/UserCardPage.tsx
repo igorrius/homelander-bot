@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams, useSearchParams } from 'react-router'
 import {
-  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
+  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useRevokeGrant, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
   type UserPatch,
 } from '../../api/admin'
 import type { AdminUser, Residency, UserCard } from '../../api/types'
@@ -98,6 +98,42 @@ function Channels({ card }: { card: UserCard }) {
           ))
         )}
         {unlink.error && <Alert color="red">{errorText(t, unlink.error)}</Alert>}
+      </Stack>
+    </Card>
+  )
+}
+
+/** AI agents the user connected through MCP, each revocable. */
+function Agents({ card }: { card: UserCard }) {
+  const { t, i18n } = useTranslation()
+  const revoke = useRevokeGrant(card.user.id)
+  const saved = useSaved()
+  const grants = card.mcpGrants ?? []
+  return (
+    <Card withBorder>
+      <Stack>
+        <Title order={3} size="h4">{t('admin.user.agents.title')}</Title>
+        {grants.length === 0 ? (
+          <Text c="dimmed">{t('admin.user.agents.none')}</Text>
+        ) : (
+          grants.map((g) => (
+            <Group key={g.id} justify="space-between" wrap="nowrap">
+              <Stack gap={0}>
+                <Text fw={500}>{g.clientName}</Text>
+                <Text size="sm" c="dimmed">
+                  {t('admin.user.agents.connected', { at: formatDateTime(g.createdAt, i18n.language) })}
+                  {' · '}
+                  {g.lastUsedAt ? t('admin.user.agents.lastUsed', { at: formatDateTime(g.lastUsedAt, i18n.language) }) : t('admin.user.agents.neverUsed')}
+                </Text>
+              </Stack>
+              <ConfirmButton size="xs" color="red" variant="light" loading={revoke.isPending}
+                message={t('admin.user.agents.revokeConfirm', { client: g.clientName })} onConfirm={() => revoke.mutate(g.id, { onSuccess: saved })}>
+                {t('admin.user.agents.revoke')}
+              </ConfirmButton>
+            </Group>
+          ))
+        )}
+        {revoke.error && <Alert color="red">{errorText(t, revoke.error)}</Alert>}
       </Stack>
     </Card>
   )
@@ -252,7 +288,10 @@ export function UserCardPage() {
               <Residencies card={card.data} />
             </Tabs.Panel>
             <Tabs.Panel value="channels">
-              <Channels card={card.data} />
+              <Stack>
+                <Channels card={card.data} />
+                {(user.isAdmin || (card.data.mcpGrants ?? []).length > 0) && <Agents card={card.data} />}
+              </Stack>
             </Tabs.Panel>
             <Tabs.Panel value="history">
               <Card>

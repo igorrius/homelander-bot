@@ -125,6 +125,8 @@ export function UserSummary({ card }: { card: UserCard }) {
           </Text>
           <Switch label={t('admin.user.isResident')} checked={user.isResident} disabled={busy} onChange={(e) => setFlag({ isResident: e.currentTarget.checked })} />
           <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy || firstAdmin} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
+          <Switch label={t('admin.user.isMcp')} checked={user.isAdmin && !!user.isMcp}
+            disabled={busy || !user.isAdmin} onChange={(e) => setFlag({ isMcp: e.currentTarget.checked })} />
         </Stack>
 
         <Text size="xs" c="dimmed">

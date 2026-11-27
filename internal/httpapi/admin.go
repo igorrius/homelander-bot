@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ func RegisterAdmin(s *Server, api API) {
 		"POST /api/v1/admin/users/{id}/disable":                h.userAction(api.Users.Disable),
 		"POST /api/v1/admin/users/{id}/enable":                 h.userAction(api.Users.Enable),
 		"DELETE /api/v1/admin/users/{id}/channels/{channelId}": h.unlink,
+		"DELETE /api/v1/admin/users/{id}/mcp-grants/{grantId}": h.revokeGrant,
 		"POST /api/v1/admin/users/{id}/residencies":            h.addResidency,
 		"PATCH /api/v1/admin/residencies/{id}":                 h.patchResidency,
 		"DELETE /api/v1/admin/residencies/{id}":                h.deleteResidency,
@@ -269,12 +271,59 @@ func (h handlerCtx) writeCard(w http.ResponseWriter, r *http.Request, id int64, 
 	for _, c := range card.Channels {
 		chans = append(chans, channelDTO{c.ID, c.Type, c.Username, c.LinkedAt})
 	}
+	grants := []mcpGrantDTO{}
+	if h.api.MCPAuth != nil {
+		gs, err := h.api.MCPAuth.Grants(r.Context(), id)
+		if err != nil {
+			h.fail(w, err)
+			return
+		}
+		for _, g := range gs {
+			grants = append(grants, mcpGrantDTO{g.ID, g.ClientName, g.CreatedAt, g.LastUsedAt})
+		}
+	}
 	WriteJSON(w, status, map[string]any{
 		"user":        n.toAdminUser(card.User, card.Residencies, hasType(card.Channels, h.api.Messenger.Type())),
 		"channels":    chans,
 		"residencies": n.residencies(card.Residencies),
 		"audit":       toAudit(r.Context(), n, card.Audit),
+		"mcpGrants":   grants,
 	})
+}
+
+type mcpGrantDTO struct {
+	ID         int64      `json:"id"`
+	ClientName string     `json:"clientName"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+}
+
+// revokeGrant disconnects one of the user's agents.
+func (h handlerCtx) revokeGrant(w http.ResponseWriter, r *http.Request) {
+	id, err := pathID(r, "id")
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	grantID, err := pathID(r, "grantId")
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	gs, err := h.api.MCPAuth.Grants(r.Context(), id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if !slices.ContainsFunc(gs, func(g domain.MCPGrant) bool { return g.ID == grantID }) {
+		h.fail(w, domain.ErrNotFound)
+		return
+	}
+	if err := h.api.MCPAuth.Revoke(r.Context(), grantID, h.actor(r)); err != nil {
+		h.fail(w, err)
+		return
+	}
+	h.writeCard(w, r, id, http.StatusOK)
 }
 
 func (h handlerCtx) addUser(w http.ResponseWriter, r *http.Request) {

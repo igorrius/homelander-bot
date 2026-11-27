@@ -274,4 +274,32 @@ describe('UserCardPage', () => {
     expect(await screen.findByRole('heading', { name: 'Adam Admin' })).toBeInTheDocument()
     expect(screen.queryByText(uk.errors.last_admin)).not.toBeInTheDocument()
   })
+
+  it('offers the MCP switch only to an admin', async () => {
+    const { calls } = mockApi(routes(userCard({ isAdmin: true, isMcp: false }), { 'PATCH /admin/users/5': { body: userCard({ isAdmin: true, isMcp: true }) } }))
+    const { user } = renderApp('/admin/users/5')
+    const sw = await screen.findByRole('switch', { name: uk.admin.user.isMcp })
+    expect(sw).not.toBeDisabled()
+    await user.click(sw)
+    await waitFor(() => expect(callsTo(calls, 'PATCH /admin/users/5').map((c) => c.body)).toEqual([{ isMcp: true }]))
+  })
+
+  it('shows MCP off and disabled for a non-admin', async () => {
+    mockApi(routes(userCard({ isAdmin: false, isMcp: true })))
+    renderApp('/admin/users/5')
+    const sw = await screen.findByRole('switch', { name: uk.admin.user.isMcp })
+    expect(sw).toBeDisabled()
+    expect(sw).not.toBeChecked()
+  })
+
+  it('revokes a connected agent after confirmation', async () => {
+    const card = { ...userCard({ isAdmin: true, isMcp: true }), mcpGrants: [{ id: 3, clientName: 'Claude', createdAt: '2026-11-25T10:00:00Z', lastUsedAt: null }] }
+    const { calls } = mockApi(routes(card, { 'DELETE /admin/users/5/mcp-grants/3': { body: { ...card, mcpGrants: [] } } }))
+    const { user } = renderApp('/admin/users/5?tab=channels')
+    expect(await screen.findByRole('heading', { name: uk.admin.user.agents.title })).toBeInTheDocument()
+    expect(screen.getByText('Claude')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: uk.admin.user.agents.revoke }))
+    await user.click(await screen.findByRole('button', { name: uk.common.confirm }))
+    await waitFor(() => expect(callsTo(calls, 'DELETE /admin/users/5/mcp-grants/3')).toHaveLength(1))
+  })
 })
