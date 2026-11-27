@@ -335,8 +335,8 @@ export function UserCardPage() {
             <Tabs.Panel value="channels">
               <Stack>
                 <Channels card={card.data} />
-                {user.isAdmin && me.data?.id === user.id && <ConnectAgent user={user} />}
                 {(user.isAdmin || (card.data.mcpGrants ?? []).length > 0) && <Agents card={card.data} />}
+                {user.isAdmin && me.data?.id === user.id && <ConnectAgent user={user} />}
               </Stack>
             </Tabs.Panel>
             <Tabs.Panel value="history">
