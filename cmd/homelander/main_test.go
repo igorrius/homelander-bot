@@ -24,7 +24,14 @@ type fakeTelegram struct {
 	mu     sync.Mutex
 	queue  []gotgbot.Update
 	sent   []string
+	sentTo []sentMsg
 	nextID int64
+}
+
+type sentMsg struct {
+	chat   int64
+	thread int64
+	text   string
 }
 
 func (f *fakeTelegram) GetMe(*gotgbot.GetMeOpts) (*gotgbot.User, error) {
@@ -42,10 +49,15 @@ func (f *fakeTelegram) GetUpdates(*gotgbot.GetUpdatesOpts) ([]gotgbot.Update, er
 	return q, nil
 }
 
-func (f *fakeTelegram) SendMessage(_ int64, text string, _ *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
+func (f *fakeTelegram) SendMessage(chat int64, text string, o *gotgbot.SendMessageOpts) (*gotgbot.Message, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sent = append(f.sent, text)
+	var thread int64
+	if o != nil {
+		thread = o.MessageThreadId
+	}
+	f.sentTo = append(f.sentTo, sentMsg{chat, thread, text})
 	return &gotgbot.Message{}, nil
 }
 
@@ -63,11 +75,33 @@ func (f *fakeTelegram) GetChatMember(int64, int64, *gotgbot.GetChatMemberOpts) (
 	return gotgbot.ChatMemberMember{}, nil
 }
 
-func (f *fakeTelegram) push(m *gotgbot.Message) {
+func (f *fakeTelegram) push(m *gotgbot.Message) { f.pushUpdate(gotgbot.Update{Message: m}) }
+
+func (f *fakeTelegram) pushUpdate(u gotgbot.Update) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.nextID++
-	f.queue = append(f.queue, gotgbot.Update{UpdateId: f.nextID, Message: m})
+	u.UpdateId = f.nextID
+	f.queue = append(f.queue, u)
+}
+
+// waitForChat waits for a message sent to chat whose text matches re.
+func (f *fakeTelegram) waitForChat(t *testing.T, chat int64, re *regexp.Regexp) sentMsg {
+	t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		f.mu.Lock()
+		for _, m := range f.sentTo {
+			if m.chat == chat && re.MatchString(m.text) {
+				f.mu.Unlock()
+				return m
+			}
+		}
+		f.mu.Unlock()
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("no message to %d matching %s; sent %+v", chat, re, f.sentTo)
+	return sentMsg{}
 }
 
 func (f *fakeTelegram) waitFor(t *testing.T, re *regexp.Regexp) string {
