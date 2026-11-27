@@ -1,0 +1,9 @@
+{
+  "app": { "name": "Homelander" },
+  "language": { "label": "Мова" },
+  "home": { "title": "Ласкаво просимо" },
+  "register": { "title": "Заявка на реєстрацію" },
+  "login": { "title": "Вхід" },
+  "admin": { "title": "Панель адміністратора" },
+  "notFound": { "title": "Сторінку не знайдено", "home": "На головну" }
+}

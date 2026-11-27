@@ -1,0 +1,7 @@
+.git
+.superpowers
+.env
+data
+homelander
+web/node_modules
+web/dist
