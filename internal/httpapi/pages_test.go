@@ -1,6 +1,10 @@
 package httpapi_test
 
 import (
+	"archive/zip"
+	"bytes"
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -8,6 +12,7 @@ import (
 	"time"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
+	"github.com/igorrius/homelander-bot/internal/httpapi"
 )
 
 const pageCSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation; " +
@@ -141,5 +146,159 @@ func TestSitePageURL(t *testing.T) {
 	tok := e.login(e.mkUser("+380501110001", admin))
 	if got := e.do("GET", "/api/v1/admin/site", nil, tok, "").json()["pageUrl"]; got != "/site/index.html" {
 		t.Fatalf("admin pageUrl = %v", got)
+	}
+}
+
+func zipOf(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, body := range files {
+		w, _ := zw.Create(name)
+		_, _ = w.Write([]byte(body))
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func (e *apiEnv) uploadPage(tok string, z []byte, note string) resp {
+	e.t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	if note != "" {
+		_ = mw.WriteField("note", note)
+	}
+	fw, _ := mw.CreateFormFile("zip", "page.zip")
+	_, _ = fw.Write(z)
+	_ = mw.Close()
+	req := httptest.NewRequest("POST", "/api/v1/admin/pages", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("X-Requested-With", "homelander")
+	req.AddCookie(&http.Cookie{Name: httpapi.SessionCookie, Value: tok})
+	req.RemoteAddr = "10.8.0.3:1"
+	rec := httptest.NewRecorder()
+	e.h.ServeHTTP(rec, req)
+	return resp{rec, e.t}
+}
+
+func idOf(r resp) string { return fmt.Sprint(int64(r.json()["id"].(float64))) }
+
+func statusOf(t *testing.T, e *apiEnv, tok, id string) string {
+	t.Helper()
+	r := e.do("GET", "/api/v1/admin/pages/"+id, nil, tok, "")
+	if r.Code != 200 {
+		t.Fatalf("get %s = %d", id, r.Code)
+	}
+	return r.json()["status"].(string)
+}
+
+func TestAdminPagesFlow(t *testing.T) {
+	e := newAPIEnv(t)
+	u := e.mkUser("+380501110001", admin)
+	tok := e.login(u)
+	r := e.uploadPage(tok, zipOf(t, map[string]string{"site/index.html": "<p>one</p>", "site/app.js": "1"}), "first")
+	if r.Code != 201 {
+		t.Fatalf("upload = %d %s", r.Code, r.Body)
+	}
+	v := r.json()
+	if v["status"] != "draft" || v["note"] != "first" || v["totalSize"] != float64(11) {
+		t.Fatalf("version = %v", v)
+	}
+	files := v["files"].([]any)
+	if len(files) != 2 || files[0].(map[string]any)["path"] != "app.js" ||
+		files[1].(map[string]any)["contentType"] != "text/html; charset=utf-8" {
+		t.Fatalf("files = %v", files)
+	}
+	if cb := v["createdBy"].(map[string]any); cb["id"] != float64(u.ID) || cb["name"] == "" {
+		t.Fatalf("createdBy = %v", cb)
+	}
+	if v["publishedBy"] != nil || v["publishedAt"] != nil {
+		t.Fatalf("published fields = %v", v)
+	}
+	first := idOf(r)
+	if r := e.uploadPage(tok, zipOf(t, map[string]string{"a.css": "x"}), ""); r.Code != 422 || fieldOf(r, "files") != "index_required" {
+		t.Fatalf("no index = %d %s", r.Code, r.Body)
+	}
+	if r := e.uploadPage(tok, []byte("nope"), ""); r.Code != 422 || fieldOf(r, "zip") != "invalid" {
+		t.Fatalf("not zip = %d %s", r.Code, r.Body)
+	}
+
+	list := e.do("GET", "/api/v1/admin/pages", nil, tok, "")
+	var vs []map[string]any
+	if err := jsonUnmarshal(list.Body.Bytes(), &vs); err != nil || len(vs) != 1 {
+		t.Fatalf("list = %s", list.Body)
+	}
+
+	pr := e.do("POST", "/api/v1/admin/pages/"+first+"/preview", nil, tok, "")
+	url, _ := pr.json()["url"].(string)
+	if pr.Code != 200 || !strings.HasPrefix(url, "/site/preview/") || !strings.HasSuffix(url, "/index.html") {
+		t.Fatalf("preview = %d %s", pr.Code, pr.Body)
+	}
+	if r := e.get(url); r.Code != 200 || r.Body.String() != "<p>one</p>" {
+		t.Fatalf("preview page = %d %q", r.Code, r.Body)
+	}
+	if r := e.do("POST", "/api/v1/admin/pages/999/preview", nil, tok, ""); r.Code != 404 {
+		t.Fatalf("preview missing = %d", r.Code)
+	}
+	if r := e.get("/site/index.html"); r.Code != 404 {
+		t.Fatalf("before publish = %d", r.Code)
+	}
+	if r := e.do("POST", "/api/v1/admin/pages/"+first+"/publish", nil, tok, ""); r.Code != 204 {
+		t.Fatalf("publish = %d %s", r.Code, r.Body)
+	}
+	if r := e.get("/site/index.html"); r.Code != 200 || r.Body.String() != "<p>one</p>" {
+		t.Fatalf("published = %d", r.Code)
+	}
+	second := idOf(e.uploadPage(tok, zipOf(t, map[string]string{"index.html": "two"}), ""))
+	if r := e.do("POST", "/api/v1/admin/pages/"+second+"/publish", nil, tok, ""); r.Code != 204 {
+		t.Fatalf("publish second = %d", r.Code)
+	}
+	if s := statusOf(t, e, tok, first); s != "archived" {
+		t.Fatalf("first = %s", s)
+	}
+	pv := e.do("GET", "/api/v1/admin/pages/"+second, nil, tok, "").json()
+	if pv["publishedBy"].(map[string]any)["id"] != float64(u.ID) || pv["publishedAt"] == nil {
+		t.Fatalf("published by = %v", pv)
+	}
+	cp := e.do("POST", "/api/v1/admin/pages/"+first+"/copy", nil, tok, "")
+	if cp.Code != 201 || cp.json()["status"] != "draft" || len(cp.json()["files"].([]any)) != 2 {
+		t.Fatalf("copy = %d %s", cp.Code, cp.Body)
+	}
+	if r := e.do("POST", "/api/v1/admin/pages/unpublish", nil, tok, ""); r.Code != 204 {
+		t.Fatalf("unpublish = %d", r.Code)
+	}
+	if r := e.get("/site/index.html"); r.Code != 404 {
+		t.Fatalf("after unpublish = %d", r.Code)
+	}
+	if got := e.do("GET", "/api/v1/site", nil, "", "").json()["pageUrl"]; got != nil {
+		t.Fatalf("pageUrl after unpublish = %v", got)
+	}
+	if r := e.do("DELETE", "/api/v1/admin/pages/"+first, nil, tok, ""); r.Code != 204 {
+		t.Fatalf("delete archived = %d", r.Code)
+	}
+	if r := e.do("POST", "/api/v1/admin/pages/"+second+"/publish", nil, tok, ""); r.Code != 204 {
+		t.Fatalf("rollback = %d", r.Code)
+	}
+	if r := e.do("DELETE", "/api/v1/admin/pages/"+second, nil, tok, ""); r.Code != 409 || r.errCode() != "conflict" {
+		t.Fatalf("delete published = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("GET", "/api/v1/admin/pages/x", nil, tok, ""); r.Code != 404 {
+		t.Fatalf("bad id = %d", r.Code)
+	}
+}
+
+func TestAdminPagesRequireAdmin(t *testing.T) {
+	e := newAPIEnv(t)
+	resident := e.login(e.mkUser("+380501110002"))
+	for _, rt := range [][2]string{{"GET", "/api/v1/admin/pages"}, {"POST", "/api/v1/admin/pages/1/publish"},
+		{"POST", "/api/v1/admin/pages/1/preview"}, {"DELETE", "/api/v1/admin/pages/1"}, {"POST", "/api/v1/admin/pages/unpublish"}} {
+		if r := e.do(rt[0], rt[1], nil, resident, ""); r.Code != 403 {
+			t.Fatalf("resident %v = %d", rt, r.Code)
+		}
+		if r := e.do(rt[0], rt[1], nil, "", ""); r.Code != 401 {
+			t.Fatalf("guest %v = %d", rt, r.Code)
+		}
 	}
 }
