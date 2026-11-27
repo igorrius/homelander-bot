@@ -19,7 +19,15 @@
     "title": "Registration application"
   },
   "login": {
-    "title": "Log in"
+    "title": "Log in",
+    "phone": "Phone number",
+    "phonePlaceholder": "+380…",
+    "sendCode": "Send code",
+    "codeSent": "If this number has access, a code was sent to your Telegram. Enter it below.",
+    "code": "Login code",
+    "submit": "Log in",
+    "changePhone": "Change number",
+    "resend": "Send again"
   },
   "admin": {
     "title": "Admin panel"

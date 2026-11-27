@@ -38,3 +38,17 @@ export function useLogout() {
     },
   })
 }
+
+export function useRequestCode() {
+  return useMutation<void, ApiError, { phone: string }>({
+    mutationFn: (body) => api<void>('/auth/code', { method: 'POST', body: JSON.stringify(body) }),
+  })
+}
+
+export function useVerifyCode() {
+  const qc = useQueryClient()
+  return useMutation<{ user: Me }, ApiError, { phone: string; code: string }>({
+    mutationFn: (body) => api<{ user: Me }>('/auth/verify', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: ({ user }) => qc.setQueryData(qk.me, user),
+  })
+}
