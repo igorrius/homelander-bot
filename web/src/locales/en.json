@@ -70,7 +70,7 @@
       "approve": "Approve",
       "reject": "Reject",
       "rejectConfirm": "Reject the application of {{name}}?",
-      "appliedAt": "Applied"
+      "emptyHint": "New applications appear here. Share the registration link in the community chat."
     },
     "users": {
       "name": "Name",
@@ -87,7 +87,10 @@
       "flags": "Roles",
       "telegram": "Telegram",
       "linked": "Telegram linked",
-      "empty": "No users found."
+      "empty": "No users found.",
+      "tabs": {
+        "all": "All"
+      }
     },
     "user": {
       "isResident": "Resident",
@@ -96,7 +99,6 @@
       "saveDetails": "Save details",
       "locale": "Language of bot messages",
       "phoneLocked": "Unlink Telegram to change the phone of an activated user.",
-      "access": "Access",
       "approve": "Approve",
       "reject": "Reject",
       "disable": "Disable",
@@ -139,7 +141,9 @@
         "apartments": "Apartments",
         "channels": "Messengers",
         "history": "History"
-      }
+      },
+      "copyPhone": "Copy phone",
+      "copyLink": "Copy link"
     },
     "audit": {
       "empty": "No entries.",
@@ -157,7 +161,8 @@
       "showArchived": "Show archived",
       "archived": "Archived",
       "apartments": "Apartments",
-      "empty": "No houses yet. Add the houses of your community to open registration."
+      "empty": "No houses yet.",
+      "emptyHint": "Add the community houses: registration does not open without them."
     },
     "house": {
       "name": "Name",
@@ -211,7 +216,8 @@
       "title": "Invite residents",
       "hint": "Pin this link in the community chat or print the QR code. Residents apply with it; you approve each application.",
       "download": "Download QR",
-      "open": "Registration link"
+      "open": "Registration link",
+      "downloadFailed": "Could not save the QR code. Try another browser or take a screenshot."
     },
     "overview": {
       "title": "Overview",
@@ -231,6 +237,12 @@
         "status": "Add a residency status",
         "community": "Fill in the community name"
       }
+    },
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "System"
     },
     "chats": {
       "title": "Chats",

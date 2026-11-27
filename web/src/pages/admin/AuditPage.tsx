@@ -1,4 +1,4 @@
-import { Alert, Button, Loader, Pagination, Stack } from '@mantine/core'
+import { Alert, Button, Card, Loader, Pagination, Stack } from '@mantine/core'
 import { IconHistory } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
@@ -30,7 +30,7 @@ export function AuditPage() {
             {t('admin.audit.clearFilter')}
           </Button>
         )} />
-      {audit.isPending ? <Loader /> : audit.isError ? <Alert color="red">{errorText(t, audit.error)}</Alert> : <AuditTable entries={audit.data.items} />}
+      {audit.isPending ? <Loader /> : audit.isError ? <Alert color="red">{errorText(t, audit.error)}</Alert> : <Card p={0}><AuditTable entries={audit.data.items} /></Card>}
       {total > pageSize && <Pagination total={Math.ceil(total / pageSize)} value={page} onChange={setPage} />}
     </Stack>
   )

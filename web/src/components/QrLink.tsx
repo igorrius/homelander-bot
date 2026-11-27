@@ -1,4 +1,5 @@
 import { ActionIcon, Anchor, CopyButton, Group, Stack, Tooltip } from '@mantine/core'
+import { IconCheck, IconCopy } from '@tabler/icons-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useTranslation } from 'react-i18next'
 
@@ -17,7 +18,7 @@ export function QrLink({ url, copy = false }: { url: string; copy?: boolean }) {
             {({ copied, copy: doCopy }) => (
               <Tooltip label={copied ? t('common.copied') : t('common.copy')} withArrow>
                 <ActionIcon variant="light" onClick={doCopy} aria-label={t('common.copy')}>
-                  {copied ? '✓' : '⧉'}
+                  {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                 </ActionIcon>
               </Tooltip>
             )}

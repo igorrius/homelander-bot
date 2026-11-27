@@ -1,4 +1,4 @@
-import { Alert, Anchor, Button, Card, Drawer, List, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
+import { Alert, Anchor, Breadcrumbs, Button, Card, Drawer, List, Loader, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState } from 'react'
 import { IconBuilding } from '@tabler/icons-react'
@@ -108,9 +108,14 @@ export function HousePage() {
   const { house, stats } = detail.data
   return (
     <Stack>
-      <Anchor component={Link} to="/admin/houses" size="sm">
-        ← {t('admin.nav.houses')}
-      </Anchor>
+      <Breadcrumbs>
+        <Anchor component={Link} to="/admin/houses" size="sm">
+          {t('admin.nav.houses')}
+        </Anchor>
+        <Text size="sm" c="dimmed">
+          {house.name}
+        </Text>
+      </Breadcrumbs>
       <PageHeader icon={IconBuilding} title={house.name} description={house.address || undefined} />
       <Stats stats={stats} />
       <Card withBorder>

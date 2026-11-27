@@ -16,7 +16,7 @@ function Item({ u }: { u: AdminUser }) {
     <Paper withBorder p="sm">
       <Group justify="space-between" align="center" gap="sm" wrap="wrap">
         <Stack gap={2} style={{ minWidth: 0 }}>
-          <Anchor component={Link} to={`/admin/users/${u.id}`} fw={600}>
+          <Anchor component={Link} to={`/admin/users/${u.id}`} fw={600} style={{ overflowWrap: 'anywhere' }}>
             {fullName(u)}
           </Anchor>
           <Group gap="xs" c="dimmed" fz="sm" wrap="wrap">

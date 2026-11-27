@@ -11,13 +11,13 @@ import { errorText } from '../../lib/errors'
 import { formatDateTime, fullName } from '../../lib/format'
 import { StatusBadge } from './StatusBadge'
 
-function Copy({ value }: { value: string }) {
+function Copy({ value, label }: { value: string; label: string }) {
   const { t } = useTranslation()
   return (
     <CopyButton value={value}>
       {({ copied, copy }) => (
-        <Tooltip label={copied ? t('common.copied') : t('common.copy')} withArrow>
-          <ActionIcon variant="subtle" size="sm" onClick={copy} aria-label={t('common.copy')} color={copied ? 'green' : 'gray'}>
+        <Tooltip label={copied ? t('common.copied') : label} withArrow>
+          <ActionIcon variant="subtle" size="sm" onClick={copy} aria-label={label} color={copied ? 'green' : 'gray'}>
             {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
           </ActionIcon>
         </Tooltip>
@@ -49,7 +49,7 @@ function BotLink() {
           <Anchor href={url} target="_blank" rel="noopener noreferrer" size="sm" style={{ wordBreak: 'break-all' }}>
             {url}
           </Anchor>
-          <Copy value={url} />
+          <Copy value={url} label={t('admin.user.copyLink')} />
         </Group>
         <Paper p={4} bg="white" w="fit-content" style={{ lineHeight: 0 }}>
           <QRCodeSVG value={url} size={140} title={t('qr.title')} marginSize={1} />
@@ -101,7 +101,7 @@ export function UserSummary({ card }: { card: UserCard }) {
           <Group gap="xs" wrap="nowrap">
             <IconPhone size={16} aria-hidden />
             <Text size="sm">{user.phone}</Text>
-            <Copy value={user.phone} />
+            <Copy value={user.phone} label={t('admin.user.copyPhone')} />
           </Group>
           <Group gap="xs" wrap="nowrap">
             <IconBrandTelegram size={16} aria-hidden />

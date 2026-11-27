@@ -41,6 +41,14 @@ describe('HousesPage', () => {
     expect(callsTo(calls, 'GET /admin/houses').some((c) => c.query.get('archived') === 'true')).toBe(true)
   })
 
+  it('offers to add the first house when there are none', async () => {
+    mockApi({ ...routes, 'GET /admin/houses': { body: [] } })
+    renderApp('/admin/houses')
+    expect(await screen.findByText(uk.admin.houses.empty)).toBeInTheDocument()
+    expect(screen.getByText(uk.admin.houses.emptyHint)).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: uk.admin.houses.add })).toHaveLength(2)
+  })
+
   it('creates a house', async () => {
     const { calls } = mockApi({ ...routes, 'POST /admin/houses': { status: 201, body: houseC } })
     const { user } = renderApp('/admin/houses')

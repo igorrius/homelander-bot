@@ -25,6 +25,8 @@ describe('UsersPage', () => {
     const row = (await screen.findByRole('link', { name: 'Olena Test' })).closest('tr')!
     expect(within(row).getByText(uk.userStatus.active)).toBeInTheDocument()
     expect(within(row).getByText(/House A/)).toBeInTheDocument()
+    expect(within(row).getByLabelText(uk.admin.users.linked)).toBeInTheDocument()
+    expect(row.textContent).not.toContain('✓')
   })
 
   it('searches by text', async () => {
@@ -40,12 +42,42 @@ describe('UsersPage', () => {
     const { calls } = mockApi(routes)
     const { user } = renderApp('/admin/users')
     await choose(user, uk.admin.users.house, 'House A')
-    await choose(user, uk.admin.users.status, uk.userStatus.active)
+    await user.click(screen.getByRole('tab', { name: new RegExp(uk.userStatus.active) }))
     await choose(user, uk.admin.users.isAdmin, uk.common.yes)
     await waitFor(() => expect(lastQuery(calls).get('isAdmin')).toBe('true'))
     expect(lastQuery(calls).get('houseId')).toBe('1')
     expect(lastQuery(calls).get('status')).toBe('active')
     expect(currentLocation()).toContain('status=active')
+  })
+
+  it('selects the status tab from the address', async () => {
+    const { calls } = mockApi(routes)
+    renderApp('/admin/users?status=awaiting_activation')
+    expect(await screen.findByRole('tab', { name: new RegExp(uk.userStatus.awaiting_activation) })).toHaveAttribute('aria-selected', 'true')
+    expect(lastQuery(calls).get('status')).toBe('awaiting_activation')
+  })
+
+  it('filters by a status tab and back to all', async () => {
+    const { calls } = mockApi(routes)
+    const { user } = renderApp('/admin/users')
+    await user.click(await screen.findByRole('tab', { name: new RegExp(uk.userStatus.disabled) }))
+    await waitFor(() => expect(lastQuery(calls).get('status')).toBe('disabled'))
+    await user.click(screen.getByRole('tab', { name: new RegExp(uk.admin.users.tabs.all) }))
+    await waitFor(() => expect(lastQuery(calls).get('status')).toBeNull())
+  })
+
+  it('shows status counts in the tabs', async () => {
+    mockApi({ ...routes, 'GET /admin/summary': { body: { pendingApplications: 4, awaitingActivation: 3, activeUsers: 7, disabledUsers: 2, rejectedUsers: 1 } } })
+    renderApp('/admin/users')
+    expect(await screen.findByRole('tab', { name: new RegExp(`${uk.userStatus.active}\\s*7`) })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: new RegExp(`${uk.userStatus.disabled}\\s*2`) })).toBeInTheDocument()
+  })
+
+  it('keeps the tabs when the counts fail', async () => {
+    mockApi({ ...routes, 'GET /admin/summary': { status: 500, body: { error: { code: 'internal' } } } })
+    renderApp('/admin/users')
+    expect(await screen.findByRole('tab', { name: new RegExp(uk.userStatus.active) })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: uk.admin.users.status })).toBeNull()
   })
 
   it('pages through results', async () => {

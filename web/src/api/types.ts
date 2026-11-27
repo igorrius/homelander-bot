@@ -94,7 +94,12 @@ export interface AuditEntry {
   at: string
   action: string
   target: string
+  /** A user's or house's name when the target is one, else "". */
+  targetName: string
+  /** A residency status's names when the target is one. */
+  targetNames: LocalizedText | null
   actorUserId: number | null
+  actorName: string
   details: Record<string, unknown> | null
   ip: string
 }
@@ -116,6 +121,8 @@ export interface Summary {
   pendingApplications: number
   awaitingActivation: number
   activeUsers: number
+  disabledUsers: number
+  rejectedUsers: number
   /** Chats the bot is in that no admin has accepted yet. */
   newChats?: number
 }

@@ -47,7 +47,7 @@ export function userCard(over: Partial<AdminUser> = {}): UserCard {
     user: adminUser(over),
     channels: [{ id: 9, type: 'telegram', username: 'olena_test', linkedAt: '2026-11-21T10:00:00Z' }],
     residencies: resident.residencies,
-    audit: [{ id: 1, at: '2026-11-21T09:00:00Z', action: 'user.approved', target: 'user:5', actorUserId: 1, details: null, ip: '127.0.0.1' }],
+    audit: [{ id: 1, at: '2026-11-21T09:00:00Z', action: 'user.approved', target: 'user:5', targetName: 'Olena Test', targetNames: null, actorUserId: 1, actorName: 'Adam Admin', details: null, ip: '127.0.0.1' }],
   }
 }
 
@@ -62,7 +62,7 @@ export const publicRoutes = {
 export const adminRoutes = {
   ...publicRoutes,
   'GET /me': { body: admin },
-  'GET /admin/summary': { body: { pendingApplications: 0, awaitingActivation: 0, activeUsers: 1 } },
+  'GET /admin/summary': { body: { pendingApplications: 0, awaitingActivation: 0, activeUsers: 1, disabledUsers: 0, rejectedUsers: 0 } },
   'GET /admin/users': { body: { items: [], total: 0 } },
   'GET /admin/houses': { body: houses },
   'GET /admin/statuses': { body: statuses },
