@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -26,6 +27,9 @@ const (
 var SupportedLocales = []string{"uk", "en"}
 
 const minSecretLen = 32
+
+// webhookSecret is the character set Telegram accepts for secret_token.
+var webhookSecret = regexp.MustCompile(`^[A-Za-z0-9_-]{1,256}$`)
 
 // Config is the validated process configuration.
 type Config struct {
@@ -111,6 +115,9 @@ func Load(getenv func(string) string) (Config, error) {
 	case UpdatesWebhook:
 		cfg.TelegramUpdates = mode
 		cfg.TelegramWebhookSecret = need("TELEGRAM_WEBHOOK_SECRET")
+		if cfg.TelegramWebhookSecret != "" && !webhookSecret.MatchString(cfg.TelegramWebhookSecret) {
+			errs = append(errs, errors.New("TELEGRAM_WEBHOOK_SECRET must be 1–256 characters of A-Z, a-z, 0-9, _ and - (Telegram's rule); e.g. `openssl rand -hex 32`"))
+		}
 	default:
 		errs = append(errs, fmt.Errorf("TELEGRAM_UPDATES must be %q or %q", UpdatesPolling, UpdatesWebhook))
 	}

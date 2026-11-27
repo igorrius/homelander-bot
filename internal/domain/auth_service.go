@@ -56,9 +56,13 @@ const (
 	codePhoneLimit = 3
 	codeIPLimit    = 10
 	verifyIPLimit  = 20
-	codeWindow     = 15 * time.Minute
-	tokenBytes     = 32
-	touchEvery     = time.Minute
+	// verifyPhoneLimit caps guesses at one phone's codes from any number of
+	// IPs: 30 a day keeps a year of guessing near 1% against one account.
+	verifyPhoneLimit  = 30
+	verifyPhoneWindow = 24 * time.Hour
+	codeWindow        = 15 * time.Minute
+	tokenBytes        = 32
+	touchEvery        = time.Minute
 )
 
 // HashSecret returns HMAC-SHA256(secret, value).
@@ -280,6 +284,9 @@ func (s *AuthService) VerifyCode(ctx context.Context, rawPhone, code, userAgent 
 	phone, err := NormalizePhone(rawPhone, s.Region)
 	if err != nil {
 		return User{}, "", ErrInvalidCode
+	}
+	if !s.Limits.Allow("verifyphone:"+phone, verifyPhoneLimit, verifyPhoneWindow) {
+		return User{}, "", ErrRateLimited
 	}
 	u, err := s.R.Users.GetByPhone(ctx, phone)
 	if errors.Is(err, ErrNotFound) || (err == nil && u.Status != StatusActive) {

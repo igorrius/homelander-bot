@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -397,5 +398,27 @@ func TestRequestCodeDoesNotWaitForDelivery(t *testing.T) {
 	}
 	if len(m.messages()) != 1 {
 		t.Error("code was never delivered")
+	}
+}
+
+func TestVerifyCapPerPhone(t *testing.T) {
+	a := newAuthEnv(t)
+	activeWithChannel(a, "+380500000001", "111")
+	// Many IPs and many fresh codes: the per-phone daily cap still stops guessing.
+	for i := range 30 {
+		_, _, _ = a.auth.VerifyCode(ctx, "+380500000001", "000000", "", domain.Actor{IP: "ip" + strconv.Itoa(i)})
+		if i%5 == 4 {
+			a.clock.Advance(16 * time.Minute)
+			a.requestCode("+380500000001")
+		}
+	}
+	code := a.requestCode("+380500000001")
+	if _, _, err := a.auth.VerifyCode(ctx, "+380500000001", code, "", domain.Actor{IP: "fresh"}); !errors.Is(err, domain.ErrRateLimited) {
+		t.Errorf("31st verify for one phone in a day = %v, want ErrRateLimited", err)
+	}
+	a.clock.Advance(24 * time.Hour)
+	code = a.requestCode("+380500000001")
+	if _, _, err := a.auth.VerifyCode(ctx, "+380500000001", code, "", domain.Actor{IP: "fresh2"}); err != nil {
+		t.Errorf("next day = %v", err)
 	}
 }
