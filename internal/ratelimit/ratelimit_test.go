@@ -68,3 +68,15 @@ func TestAllowForgetsOldKeys(t *testing.T) {
 		t.Fatalf("size = %d, want 1", n)
 	}
 }
+
+func TestShortWindowCallDoesNotResetLongWindowKeys(t *testing.T) {
+	l, c := newTest()
+	for range 5 {
+		l.Allow("apply:ip", 5, time.Hour)
+	}
+	c.t = c.t.Add(16 * time.Minute)
+	l.Allow("code:other", 3, 15*time.Minute) // triggers a sweep with a short window
+	if l.Allow("apply:ip", 5, time.Hour) {
+		t.Fatal("6th hit within the hour allowed after a short-window sweep")
+	}
+}
