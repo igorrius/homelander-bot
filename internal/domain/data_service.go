@@ -57,7 +57,7 @@ var (
 	dataKeyRe  = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`)
 	dataColRe  = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	dataPhone  = regexp.MustCompile(`^[0-9+() -]{3,30}$`)
-	valueTypes = []DataType{DataText, DataLocalizedText, DataNumber, DataBool, DataImage, DataJSON}
+	valueTypes = []DataType{DataText, DataLocalizedText, DataNumber, DataBool, DataImage, DataURL, DataPhone, DataJSON}
 	colTypes   = []DataType{DataText, DataLocalizedText, DataNumber, DataBool, DataImage, DataURL, DataPhone}
 )
 

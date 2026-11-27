@@ -3,6 +3,9 @@ package domain_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
@@ -158,5 +161,39 @@ func TestCatalogAudit(t *testing.T) {
 		if e.auditCount(a) != 1 {
 			t.Errorf("audit %s missing", a)
 		}
+	}
+}
+
+func TestSiteHomeItems(t *testing.T) {
+	e := newEnv(t)
+	adm := e.mkUser("+380500000099", admin)
+	items := []domain.HomeItem{
+		{Key: "contacts", Title: domain.LocalizedText{"uk": " Контакти ", "en": "Contacts"}},
+		{Key: "house.address", Title: domain.LocalizedText{}},
+		{Key: "contacts", Title: domain.LocalizedText{"uk": "Друге"}},
+	}
+	got, err := e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: items}, actor(adm))
+	want := []domain.HomeItem{{Key: "contacts", Title: domain.LocalizedText{"uk": "Контакти", "en": "Contacts"}}, {Key: "house.address", Title: domain.LocalizedText{}}}
+	if err != nil || !reflect.DeepEqual(got.HomeItems, want) {
+		t.Fatalf("SaveSite = %+v, %v", got.HomeItems, err)
+	}
+	stored, _ := e.catalog.Site(ctx)
+	if !reflect.DeepEqual(stored.HomeItems, want) {
+		t.Fatalf("stored = %+v", stored.HomeItems)
+	}
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: []domain.HomeItem{{Key: "Bad Key"}}}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "invalid"})
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: []domain.HomeItem{{Key: "a", Title: domain.LocalizedText{"uk": strings.Repeat("я", 101)}}}}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "too_long"})
+	many := make([]domain.HomeItem, 21)
+	for i := range many {
+		many[i] = domain.HomeItem{Key: fmt.Sprintf("k%d", i)}
+	}
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: many}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "too_many"})
+	// Saving without items clears them; an empty site has none.
+	got, _ = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk"}, actor(adm))
+	if got.HomeItems == nil || len(got.HomeItems) != 0 {
+		t.Fatalf("cleared = %#v", got.HomeItems)
 	}
 }

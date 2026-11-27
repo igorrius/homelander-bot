@@ -48,6 +48,14 @@ export interface Site {
   pageUrl: string | null
   /** Site paths of the published pages ("/", "/contacts"); [] when nothing is published. */
   pages: string[]
+  /** Public data items shown as cards on the built-in page, in order. */
+  homeItems: HomeItem[]
+}
+
+export interface HomeItem {
+  key: string
+  /** Card title; empty falls back to the prettified key. */
+  title: LocalizedText
 }
 
 export interface HouseOption {
@@ -196,7 +204,7 @@ export interface OutboxStatus {
 
 export type DataKind = 'value' | 'table'
 export type DataType = 'text' | 'localized_text' | 'number' | 'bool' | 'image' | 'json' | 'url' | 'phone'
-export const valueTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'json']
+export const valueTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'url', 'phone', 'json']
 export const columnTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'url', 'phone']
 
 export interface DataColumn {

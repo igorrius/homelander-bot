@@ -92,7 +92,7 @@ type (
 	}
 	setValueIn struct {
 		Key         string  `json:"key" jsonschema:"lower-case path such as house.address: segments of a-z, 0-9 and _, joined by dots"`
-		ValueType   *string `json:"value_type,omitempty" jsonschema:"text, localized_text, number, bool, image or json; required when the value is new"`
+		ValueType   *string `json:"value_type,omitempty" jsonschema:"text, localized_text, number, bool, image, url, phone or json; required when the value is new"`
 		Value       any     `json:"value" jsonschema:"the value: a string for text, {\"uk\":...,\"en\":...} for localized_text, a number, a bool, an asset id for image, any JSON for json"`
 		Description *string `json:"description,omitempty"`
 		Public      *bool   `json:"public,omitempty"`

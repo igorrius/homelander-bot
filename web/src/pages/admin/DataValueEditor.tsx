@@ -1,4 +1,4 @@
-import { Alert, Button, FileInput, Group, Image, NumberInput, Stack, Switch, Text, Textarea } from '@mantine/core'
+import { Alert, Button, FileInput, Group, Image, NumberInput, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { adminAssetUrl, usePatchDataItem, useUploadDataImage } from '../../api/data'
@@ -10,6 +10,8 @@ function initialDraft(item: DataItem): unknown {
   const v = item.value ?? null
   switch (item.valueType) {
     case 'text':
+    case 'url':
+    case 'phone':
       return typeof v === 'string' ? v : ''
     case 'json':
       return v === null ? '' : JSON.stringify(v, null, 2)
@@ -49,6 +51,7 @@ export function DataValueEditor({ item }: { item: DataItem }) {
         }
       }
     } else if (vt === 'text') value = draft === '' ? null : draft
+    else if (vt === 'url' || vt === 'phone') value = String(draft).trim() === '' ? null : String(draft).trim()
     else if (vt === 'number') value = draft === '' ? null : Number(draft)
     setJsonError(false)
     patch.mutate({ valueType: vt, value })
@@ -76,6 +79,10 @@ export function DataValueEditor({ item }: { item: DataItem }) {
   return (
     <Stack>
       {vt === 'text' && <Textarea label={label} value={String(draft)} onChange={(e) => setDraft(e.currentTarget.value)} autosize minRows={2} error={fields.value} />}
+      {(vt === 'url' || vt === 'phone') && (
+        <TextInput label={label} type={vt === 'url' ? 'url' : 'tel'} value={String(draft)} onChange={(e) => setDraft(e.currentTarget.value)}
+          placeholder={vt === 'url' ? 'https://' : '+380 …'} error={fields.value} />
+      )}
       {vt === 'json' && (
         <Textarea label={label} value={String(draft)} onChange={(e) => setDraft(e.currentTarget.value)} autosize minRows={4} ff="monospace"
           error={jsonError ? t('admin.data.invalidJson') : fields.value} />

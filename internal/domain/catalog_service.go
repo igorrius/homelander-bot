@@ -26,6 +26,8 @@ const (
 	maxHouseText    = 200
 	maxSiteName     = 200
 	maxWelcome      = 2000
+	maxHomeItems    = 20
+	maxHomeTitle    = 100
 	maxPictureBytes = 5 << 20
 )
 
@@ -168,6 +170,31 @@ func (s *CatalogService) checkTexts(v validation, field string, t LocalizedText,
 	return out
 }
 
+// checkHomeItems validates the built-in page cards: at most maxHomeItems,
+// valid data keys (not necessarily existing), short titles; a repeated key
+// keeps its first entry.
+func (s *CatalogService) checkHomeItems(v validation, in []HomeItem) []HomeItem {
+	out := []HomeItem{}
+	if len(in) > maxHomeItems {
+		v.add("homeItems", "too_many")
+		return out
+	}
+	seen := map[string]bool{}
+	for _, it := range in {
+		if len(it.Key) > maxDataKey || !dataKeyRe.MatchString(it.Key) {
+			v.add("homeItems", "invalid")
+			continue
+		}
+		title := s.checkTexts(v, "homeItems", it.Title, maxHomeTitle)
+		if seen[it.Key] {
+			continue
+		}
+		seen[it.Key] = true
+		out = append(out, HomeItem{Key: it.Key, Title: title})
+	}
+	return out
+}
+
 func (s *CatalogService) checkStatus(st *ResidencyStatus) error {
 	v := validation{}
 	if !statusCode.MatchString(st.Code) {
@@ -240,6 +267,7 @@ func (s *CatalogService) SaveSite(ctx context.Context, in SiteSettings, actor Ac
 		}
 		name := s.checkTexts(v, "communityName", in.CommunityName, maxSiteName)
 		welcome := s.checkTexts(v, "welcomeText", in.WelcomeText, maxWelcome)
+		items := s.checkHomeItems(v, in.HomeItems)
 		if err := v.err(); err != nil {
 			return err
 		}
@@ -247,7 +275,7 @@ func (s *CatalogService) SaveSite(ctx context.Context, in SiteSettings, actor Ac
 		if err != nil {
 			return err
 		}
-		out = SiteSettings{CommunityName: name, WelcomeText: welcome, DefaultLocale: in.DefaultLocale, PictureAssetID: cur.PictureAssetID}
+		out = SiteSettings{CommunityName: name, WelcomeText: welcome, DefaultLocale: in.DefaultLocale, PictureAssetID: cur.PictureAssetID, HomeItems: items}
 		if err := s.R.Site.Save(ctx, out); err != nil {
 			return err
 		}

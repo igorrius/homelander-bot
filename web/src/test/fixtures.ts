@@ -10,6 +10,7 @@ export const site: Site = {
   registerUrl: 'http://localhost/register',
   pageUrl: null,
   pages: [],
+  homeItems: [],
 }
 
 export const statuses: ResidencyStatus[] = [

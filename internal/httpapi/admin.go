@@ -643,7 +643,25 @@ func (h handlerCtx) writeSite(w http.ResponseWriter, r *http.Request, st domain.
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"communityName": st.CommunityName, "welcomeText": st.WelcomeText,
 		"defaultLocale": st.DefaultLocale, "pictureUrl": assetURL(st.PictureAssetID),
-		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL, "pages": pages})
+		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL, "pages": pages,
+		"homeItems": toHomeItems(st.HomeItems)})
+}
+
+type homeItemDTO struct {
+	Key   string               `json:"key"`
+	Title domain.LocalizedText `json:"title"`
+}
+
+func toHomeItems(in []domain.HomeItem) []homeItemDTO {
+	out := make([]homeItemDTO, 0, len(in))
+	for _, it := range in {
+		title := it.Title
+		if title == nil {
+			title = domain.LocalizedText{}
+		}
+		out = append(out, homeItemDTO{it.Key, title})
+	}
+	return out
 }
 
 func (h handlerCtx) adminSite(w http.ResponseWriter, r *http.Request) {
@@ -660,12 +678,18 @@ func (h handlerCtx) saveSite(w http.ResponseWriter, r *http.Request) {
 		CommunityName domain.LocalizedText `json:"communityName"`
 		WelcomeText   domain.LocalizedText `json:"welcomeText"`
 		DefaultLocale string               `json:"defaultLocale"`
+		HomeItems     []homeItemDTO        `json:"homeItems"`
 	}
 	if err := decode(r, &in); err != nil {
 		h.fail(w, err)
 		return
 	}
-	st, err := h.api.Catalog.SaveSite(r.Context(), domain.SiteSettings{CommunityName: in.CommunityName, WelcomeText: in.WelcomeText, DefaultLocale: in.DefaultLocale}, h.actor(r))
+	items := make([]domain.HomeItem, 0, len(in.HomeItems))
+	for _, it := range in.HomeItems {
+		items = append(items, domain.HomeItem(it))
+	}
+	st, err := h.api.Catalog.SaveSite(r.Context(), domain.SiteSettings{CommunityName: in.CommunityName, WelcomeText: in.WelcomeText,
+		DefaultLocale: in.DefaultLocale, HomeItems: items}, h.actor(r))
 	if err != nil {
 		h.fail(w, err)
 		return

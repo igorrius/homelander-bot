@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
@@ -397,5 +398,27 @@ func TestAdminPatchMCP(t *testing.T) {
 	r = e.do("PATCH", "/api/v1/admin/users/"+strconv.FormatInt(other.ID, 10), map[string]any{"isMcp": true}, tok, "")
 	if r.Code != 422 {
 		t.Errorf("isMcp on a resident = %d %s", r.Code, r.Body)
+	}
+}
+
+func TestSiteHomeItemsAPI(t *testing.T) {
+	e, tok := adminEnv(t)
+	r := e.do("PUT", "/api/v1/admin/site", map[string]any{"defaultLocale": "uk", "homeItems": []map[string]any{
+		{"key": "contacts", "title": map[string]string{"uk": "Контакти"}}, {"key": "house.address"}}}, tok, "")
+	if r.Code != 200 {
+		t.Fatalf("save = %d %s", r.Code, r.Body)
+	}
+	want := `"homeItems":[{"key":"contacts","title":{"uk":"Контакти"}},{"key":"house.address","title":{}}]`
+	for _, got := range []resp{r, e.do("GET", "/api/v1/site", nil, "", "")} {
+		if !strings.Contains(got.Body.String(), want) {
+			t.Fatalf("body = %s", got.Body)
+		}
+	}
+	r = e.do("PUT", "/api/v1/admin/site", map[string]any{"defaultLocale": "uk", "homeItems": []map[string]any{{"key": "Bad Key"}}}, tok, "")
+	if r.Code != 422 || r.json()["error"].(map[string]any)["fields"].(map[string]any)["homeItems"] != "invalid" {
+		t.Fatalf("bad key = %d %s", r.Code, r.Body)
+	}
+	if !strings.Contains(e.do("GET", "/api/v1/site", nil, "", "").Body.String(), `"homeItems":[{"key":"contacts"`) {
+		t.Fatal("refused save changed the items")
 	}
 }

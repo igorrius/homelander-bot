@@ -25,6 +25,7 @@ func TestSiteRoundTrip(t *testing.T) {
 		CommunityName: domain.LocalizedText{"uk": "Наш дім", "en": "Our home"},
 		WelcomeText:   domain.LocalizedText{"uk": "Вітаємо", "en": "Welcome"},
 		DefaultLocale: "uk", PictureAssetID: &id,
+		HomeItems: []domain.HomeItem{{Key: "contacts", Title: domain.LocalizedText{"uk": "Контакти"}}, {Key: "house.address", Title: domain.LocalizedText{}}},
 	}
 	if err := site.Save(ctx, want); err != nil {
 		t.Fatal(err)

@@ -18,7 +18,7 @@ const (
 // DataType is the type of a value item or of a table column.
 type DataType string
 
-// Data types; url and phone are for columns only.
+// Data types of values and table columns (json: values only).
 const (
 	DataText          DataType = "text"
 	DataLocalizedText DataType = "localized_text"
@@ -26,8 +26,8 @@ const (
 	DataBool          DataType = "bool"
 	DataImage         DataType = "image"
 	DataJSON          DataType = "json"
-	DataURL           DataType = "url"   // columns only
-	DataPhone         DataType = "phone" // columns only
+	DataURL           DataType = "url"
+	DataPhone         DataType = "phone"
 )
 
 // DataColumn is one column of a table item.

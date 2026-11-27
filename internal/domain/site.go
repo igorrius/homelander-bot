@@ -11,6 +11,16 @@ type SiteSettings struct {
 	WelcomeText    LocalizedText
 	DefaultLocale  string
 	PictureAssetID *int64
+	// HomeItems are the public data items shown as cards on the built-in
+	// page, in order. A key that is not (or no longer) public is skipped there.
+	HomeItems []HomeItem
+}
+
+// HomeItem is one card of the built-in page: a data key and its card title
+// (empty: the page derives one from the key).
+type HomeItem struct {
+	Key   string
+	Title LocalizedText
 }
 
 // Asset is an uploaded file kept in the database.

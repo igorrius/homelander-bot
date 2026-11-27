@@ -59,7 +59,7 @@ func TestDataKeyValidation(t *testing.T) {
 	fieldErr(t, err, "key", "taken")
 	_, err = e.data.Create(ctx, domain.DataInput{Key: "k", Kind: "list"}, a)
 	fieldErr(t, err, "kind", "invalid")
-	_, err = e.data.Create(ctx, domain.DataInput{Key: "k", Kind: domain.DataValue, ValueType: ptr(domain.DataPhone)}, a)
+	_, err = e.data.Create(ctx, domain.DataInput{Key: "k", Kind: domain.DataValue, ValueType: ptr(domain.DataType("money"))}, a)
 	fieldErr(t, err, "valueType", "invalid")
 	long := strings.Repeat("я", 1001)
 	in := textValue("k")
@@ -294,5 +294,24 @@ func TestDataPatchRows(t *testing.T) {
 	var ve *domain.ValidationError
 	if _, err := e.data.PatchRows(ctx, "contacts", []domain.RowPatch{{ID: &missing}}, a); !errors.As(err, &ve) || ve.Fields["rows"] != "unknown_id" {
 		t.Errorf("unknown id = %v", err)
+	}
+}
+
+func TestDataValueURLPhone(t *testing.T) {
+	e := newEnv(t)
+	a := e.dataAdmin()
+	for _, c := range []struct {
+		typ     domain.DataType
+		ok, bad string
+	}{
+		{domain.DataURL, `"https://x.test"`, `"ftp://x"`},
+		{domain.DataPhone, `"+380 44 000 00 00"`, `"call me"`},
+	} {
+		key := "v_" + string(c.typ)
+		if _, err := e.data.Create(ctx, domain.DataInput{Key: key, Kind: domain.DataValue, ValueType: ptr(c.typ), Value: raw(c.ok)}, a); err != nil {
+			t.Fatalf("%s %s: %v", c.typ, c.ok, err)
+		}
+		_, err := e.data.Patch(ctx, key, domain.DataInput{Value: raw(c.bad)}, a)
+		fieldErr(t, err, "value", "invalid")
 	}
 }
