@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Group, Loader, Select, Stack, Text } from '@mantine/core'
 import { IconBell } from '@tabler/icons-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChats, useLabels, useNotifications, useSaveNotifications } from '../../api/chats'
 import type { Chat, Label } from '../../api/types'
@@ -21,11 +21,11 @@ export function NotificationsPage() {
   const labels = useLabels()
   const chats = useChats()
   const save = useSaveNotifications()
-  const [labelId, setLabelId] = useState<string | null>(null)
+  // The admin's unsaved choice; undefined shows the saved one.
+  const [draft, setLabelId] = useState<string | null | undefined>(undefined)
+  const saved = settings.data?.applicationsLabelId
+  const labelId = draft !== undefined ? draft : saved === undefined || saved === null ? null : String(saved)
   const { message, fields } = useApiErrors(save.error)
-  useEffect(() => {
-    if (settings.data) setLabelId(settings.data.applicationsLabelId === null ? null : String(settings.data.applicationsLabelId))
-  }, [settings.data])
   const chosen = labels.data?.find((l) => String(l.id) === labelId)
   return (
     <Stack>

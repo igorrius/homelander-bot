@@ -60,10 +60,12 @@ export function RegisterPage() {
   const text = useLocalized()
   // The token is read once and taken out of the address bar, so it is not
   // kept in history or shared by copying the URL.
-  const [token, setToken] = useState(() => tokenFromHash(location.hash))
-  const [expired, setExpired] = useState(false)
+  const [token] = useState(() => tokenFromHash(location.hash))
   const prefill = usePrefill(token)
-  const [phone, setPhone] = useState('')
+  // Set when the server refused the token on submit (it expired meanwhile).
+  const [dropped, setDropped] = useState(false)
+  // What the person typed; null while they have not touched the field.
+  const [ownPhone, setOwnPhone] = useState<string | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [houseId, setHouseId] = useState<string | null>(null)
@@ -75,16 +77,10 @@ export function RegisterPage() {
   useEffect(() => {
     if (location.hash) void navigate({ pathname: location.pathname, search: location.search }, { replace: true })
   }, [location.hash, location.pathname, location.search, navigate])
-  useEffect(() => {
-    if (prefill.data) setPhone(prefill.data.phone)
-  }, [prefill.data])
-  useEffect(() => {
-    if (prefill.isError || isTokenInvalid(register.error)) {
-      setToken(null)
-      setExpired(true)
-    }
-  }, [prefill.isError, register.error])
-  const locked = token !== null && prefill.isSuccess
+  const expired = prefill.isError || dropped
+  const locked = token !== null && prefill.isSuccess && !dropped
+  const phone = locked ? prefill.data.phone : (ownPhone ?? prefill.data?.phone ?? '')
+  const setPhone = setOwnPhone
 
   const submit = useOnce(() =>
     register.mutateAsync({
@@ -96,7 +92,10 @@ export function RegisterPage() {
       statusId: Number(statusId),
       consent,
       locale: i18n.language,
-      ...(locked ? { token: token ?? undefined } : {}),
+      ...(locked && token !== null ? { token } : {}),
+    }).catch((err: unknown) => {
+      if (isTokenInvalid(err)) setDropped(true)
+      throw err
     }),
   )
 
