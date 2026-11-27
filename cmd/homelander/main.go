@@ -33,6 +33,7 @@ const (
 	maxCodeAttempts = 5
 	shutdownTimeout = 15 * time.Second
 	cleanupEvery    = time.Hour
+	leaveGrace      = 2 * time.Minute
 )
 
 func main() {
@@ -91,10 +92,13 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	if err != nil {
 		return fmt.Errorf("telegram client: %w", err)
 	}
-	bot, err := telegram.NewWithLocales(tgAPI, auth, telegram.NopSink{}, tr, config.SupportedLocales, cfg.PublicURL.String(), log)
+	messengers := domain.Messengers{}
+	chats := &domain.ChatService{R: repos, Now: now, Messengers: messengers, Log: log, LeaveGrace: leaveGrace}
+	bot, err := telegram.NewWithLocales(tgAPI, auth, chats, telegram.NopSink{}, tr, config.SupportedLocales, cfg.PublicURL.String(), log)
 	if err != nil {
 		return err
 	}
+	messengers[telegram.Type] = bot
 	if err := bot.SetCommands(ctx); err != nil {
 		log.Warn("telegram command menu not set", "err", err)
 	}

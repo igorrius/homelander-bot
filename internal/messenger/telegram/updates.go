@@ -12,7 +12,7 @@ const (
 	maxBackoff  = 30 * time.Second
 )
 
-var allowedUpdates = []string{"message"}
+var allowedUpdates = []string{"message", "my_chat_member"}
 
 // RunPolling receives updates by long polling until ctx is done. It removes a
 // webhook first, because Telegram allows only one way at a time.

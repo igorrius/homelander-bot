@@ -26,21 +26,23 @@ type sent struct {
 }
 
 type fakeAPI struct {
-	mu       sync.Mutex
-	sent     []sent
-	updates  [][]gotgbot.Update
-	offsets  []int64
-	webhook  string
-	secret   string
-	deleted  int
-	getCalls chan struct{}
-	commands map[string][]gotgbot.BotCommand // "scope/lang" → commands
-	deleted2 []string                        // "scope/lang" of deleted command lists
-	sendErr  error
-	left     []int64
-	leaveErr error
-	members  map[int64]gotgbot.ChatMember // bot's membership per chat for GetChatMember
-	memberN  int
+	mu             sync.Mutex
+	sent           []sent
+	updates        [][]gotgbot.Update
+	offsets        []int64
+	webhook        string
+	secret         string
+	deleted        int
+	getCalls       chan struct{}
+	commands       map[string][]gotgbot.BotCommand // "scope/lang" → commands
+	deleted2       []string                        // "scope/lang" of deleted command lists
+	sendErr        error
+	left           []int64
+	leaveErr       error
+	members        map[int64]gotgbot.ChatMember // bot's membership per chat for GetChatMember
+	memberN        int
+	allowed        []string // AllowedUpdates of the last GetUpdates
+	webhookAllowed []string
 }
 
 func (f *fakeAPI) LeaveChat(chatID int64, _ *gotgbot.LeaveChatOpts) (bool, error) {
@@ -94,6 +96,7 @@ func (f *fakeAPI) GetMe(*gotgbot.GetMeOpts) (*gotgbot.User, error) {
 func (f *fakeAPI) GetUpdates(o *gotgbot.GetUpdatesOpts) ([]gotgbot.Update, error) {
 	f.mu.Lock()
 	f.offsets = append(f.offsets, o.Offset)
+	f.allowed = o.AllowedUpdates
 	var batch []gotgbot.Update
 	if len(f.updates) > 0 {
 		batch, f.updates = f.updates[0], f.updates[1:]
@@ -121,7 +124,7 @@ func (f *fakeAPI) SendMessage(chatID int64, text string, o *gotgbot.SendMessageO
 func (f *fakeAPI) SetWebhook(url string, o *gotgbot.SetWebhookOpts) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.webhook, f.secret = url, o.SecretToken
+	f.webhook, f.secret, f.webhookAllowed = url, o.SecretToken, o.AllowedUpdates
 	return true, nil
 }
 
@@ -169,11 +172,12 @@ func (f *fakeSink) OnGroupMessage(_ context.Context, m GroupMessage) {
 var ctx = context.Background()
 
 type rig struct {
-	api  *fakeAPI
-	act  *fakeActivator
-	sink *fakeSink
-	bot  *Bot
-	tr   *i18n.Bundle
+	api   *fakeAPI
+	act   *fakeActivator
+	chats *fakeChats
+	sink  *fakeSink
+	bot   *Bot
+	tr    *i18n.Bundle
 }
 
 func newRig(t *testing.T) *rig {
@@ -182,8 +186,8 @@ func newRig(t *testing.T) *rig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := &rig{api: &fakeAPI{}, act: &fakeActivator{}, sink: &fakeSink{}, tr: tr}
-	r.bot, err = New(r.api, r.act, r.sink, tr, "https://example.com", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	r := &rig{api: &fakeAPI{}, act: &fakeActivator{}, chats: &fakeChats{}, sink: &fakeSink{}, tr: tr}
+	r.bot, err = New(r.api, r.act, r.chats, r.sink, tr, "https://example.com", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,6 +289,7 @@ func TestRepliesPerResult(t *testing.T) {
 
 func TestGroupMessageGoesToSinkWithoutReply(t *testing.T) {
 	r := newRig(t)
+	r.chats.accepted = map[string]bool{"-100123": true, "-5": true}
 	u := gotgbot.Update{UpdateId: 5, Message: &gotgbot.Message{
 		MessageId: 77, MessageThreadId: 12, IsTopicMessage: true, Date: 1764244800, Text: "Світла немає?",
 		Chat: gotgbot.Chat{Id: -100123, Type: "supergroup", Title: "Будинок", IsForum: true},
