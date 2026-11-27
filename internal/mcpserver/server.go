@@ -72,9 +72,9 @@ func New(d Deps) http.Handler {
 			Extra: map[string]any{"principal": p}}, nil
 	}
 	base := strings.TrimRight(d.PublicURL, "/")
-	return auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{
+	return LiftWriteDeadline(auth.RequireBearerToken(verify, &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL: base + "/.well-known/oauth-protected-resource/mcp",
-	})(limit(d, h))
+	})(limit(d, h)))
 }
 
 // limit allows rateLimit requests per minute per grant.
