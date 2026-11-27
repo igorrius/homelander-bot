@@ -1,13 +1,17 @@
-import { AppShell, Avatar, Box, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
+import { AppShell, Avatar, Box, type MantineColorScheme, useMantineColorScheme, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
   IconBuildingCommunity,
+  IconCheck,
+  IconDeviceDesktop,
   IconChevronDown,
   IconHistory,
   IconHome,
   IconInbox,
   IconLayoutDashboard,
   IconLogout,
+  IconMoon,
+  IconSun,
   IconTags,
   IconUsers,
   IconWorld,
@@ -92,9 +96,16 @@ function initials(me: Me): string {
   return s || '·'
 }
 
+const themes: { value: MantineColorScheme; icon: Icon }[] = [
+  { value: 'light', icon: IconSun },
+  { value: 'dark', icon: IconMoon },
+  { value: 'auto', icon: IconDeviceDesktop },
+]
+
 function UserMenu({ me }: { me: Me }) {
   const { t } = useTranslation()
   const logout = useLogout()
+  const { colorScheme, setColorScheme } = useMantineColorScheme()
   return (
     <Menu position="bottom-end" width={220}>
       <Menu.Target>
@@ -116,6 +127,14 @@ function UserMenu({ me }: { me: Me }) {
         <Menu.Item component={Link} to="/" leftSection={<IconHome size={16} />}>
           {t('admin.residentPage')}
         </Menu.Item>
+        <Menu.Divider />
+        <Menu.Label>{t('admin.theme.title')}</Menu.Label>
+        {themes.map(({ value, icon: IconC }) => (
+          <Menu.Item key={value} leftSection={<IconC size={16} />} rightSection={colorScheme === value ? <IconCheck size={14} /> : undefined}
+            onClick={() => setColorScheme(value)}>
+            {t(`admin.theme.${value}`)}
+          </Menu.Item>
+        ))}
         <Menu.Divider />
         <Menu.Item color="red" leftSection={<IconLogout size={16} />} disabled={logout.isPending} onClick={() => logout.mutate()}>
           {t('home.logout')}

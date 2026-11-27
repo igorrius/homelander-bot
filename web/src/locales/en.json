@@ -227,6 +227,12 @@
         "status": "Add a residency status",
         "community": "Fill in the community name"
       }
+    },
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "System"
     }
   },
   "notFound": {

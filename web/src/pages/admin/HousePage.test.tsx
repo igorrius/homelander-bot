@@ -27,6 +27,15 @@ describe('HousePage', () => {
     await i18n.changeLanguage('uk')
   })
 
+  it('has breadcrumbs and no text arrows', async () => {
+    mockApi(routes)
+    renderApp('/admin/houses/1')
+    await screen.findByRole('heading', { name: 'House A' })
+    const main = within(screen.getByRole('main'))
+    expect(main.getByRole('link', { name: uk.admin.nav.houses })).toHaveAttribute('href', '/admin/houses')
+    expect(document.body.textContent).not.toContain('←')
+  })
+
   it('shows statistics', async () => {
     mockApi(routes)
     renderApp('/admin/houses/1')

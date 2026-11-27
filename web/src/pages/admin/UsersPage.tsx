@@ -1,7 +1,7 @@
-import { Alert, Anchor, Badge, Button, Group, Loader, Pagination, Select, Stack, Table, Text, TextInput } from '@mantine/core'
+import { Alert, Anchor, Badge, Button, Group, Loader, Pagination, Select, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core'
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks'
 import { useState } from 'react'
-import { IconUserPlus, IconUsers } from '@tabler/icons-react'
+import { IconBrandTelegram, IconUserPlus, IconUsers } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { useHouses, useUsers, type UserQuery } from '../../api/admin'
@@ -112,7 +112,13 @@ export function UsersPage() {
                       {u.isAdmin && <Badge variant="light" color="grape">{t('admin.user.isAdmin')}</Badge>}
                     </Group>
                   </Table.Td>
-                  <Table.Td>{u.hasTelegram ? <span aria-label={t('admin.users.linked')}>✓</span> : null}</Table.Td>
+                  <Table.Td>
+                    {u.hasTelegram && (
+                      <Tooltip label={t('admin.users.linked')} withArrow>
+                        <IconBrandTelegram size={18} stroke={1.6} role="img" aria-label={t('admin.users.linked')} color="var(--mantine-color-blue-6)" />
+                      </Tooltip>
+                    )}
+                  </Table.Td>
                   <Table.Td>{u.residencies.map((r) => t('home.apartment', { house: r.houseName, n: r.apartment })).join('; ')}</Table.Td>
                 </Table.Tr>
               ))}

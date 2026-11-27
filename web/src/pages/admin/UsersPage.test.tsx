@@ -25,6 +25,8 @@ describe('UsersPage', () => {
     const row = (await screen.findByRole('link', { name: 'Olena Test' })).closest('tr')!
     expect(within(row).getByText(uk.userStatus.active)).toBeInTheDocument()
     expect(within(row).getByText(/House A/)).toBeInTheDocument()
+    expect(within(row).getByLabelText(uk.admin.users.linked)).toBeInTheDocument()
+    expect(row.textContent).not.toContain('✓')
   })
 
   it('searches by text', async () => {

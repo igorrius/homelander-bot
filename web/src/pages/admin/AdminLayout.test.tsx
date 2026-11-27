@@ -53,6 +53,17 @@ describe('AdminLayout', () => {
     await waitFor(() => expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1))
   })
 
+  it('switches the colour theme from the user menu', async () => {
+    mockApi(adminRoutes)
+    const { user } = renderApp('/admin/users')
+    await user.click(await screen.findByRole('button', { name: /Adam Admin/ }))
+    await user.click(await screen.findByRole('menuitem', { name: uk.admin.theme.dark }))
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-mantine-color-scheme', 'dark'))
+    await user.click(await screen.findByRole('button', { name: /Adam Admin/ }))
+    await user.click(await screen.findByRole('menuitem', { name: uk.admin.theme.light }))
+    await waitFor(() => expect(document.documentElement).toHaveAttribute('data-mantine-color-scheme', 'light'))
+  })
+
   it('redirects to login when a request answers 401', async () => {
     mockApi({ ...adminRoutes, 'GET /admin/users': { status: 401, body: { error: { code: 'unauthorized' } } } })
     renderApp('/admin/applications')
