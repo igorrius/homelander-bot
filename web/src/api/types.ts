@@ -42,6 +42,8 @@ export interface Site {
   pictureUrl: string | null
   botUrl: string
   registerUrl: string
+  /** The published home page, framed under our header; null shows the built-in page. */
+  pageUrl: string | null
 }
 
 export interface HouseOption {
@@ -208,4 +210,26 @@ export interface DataRow {
   id?: number
   position: number
   cells: Record<string, unknown>
+}
+
+/** Where a home page version is: drafts are editable, published and archived ones are not. */
+export type PageStatus = 'draft' | 'published' | 'archived'
+
+export interface PageFileInfo {
+  path: string
+  contentType: string
+  size: number
+}
+
+/** One uploaded set of home page files. */
+export interface PageVersion {
+  id: number
+  status: PageStatus
+  note: string
+  files: PageFileInfo[]
+  totalSize: number
+  createdAt: string
+  createdBy: { id: number; name: string } | null
+  publishedAt: string | null
+  publishedBy: { id: number; name: string } | null
 }

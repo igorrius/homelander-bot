@@ -96,3 +96,15 @@ const (
 
 // DataTarget is the audit target of a data item.
 func DataTarget(key string) string { return "data:" + key }
+
+// Page audit actions.
+const (
+	ActPageDraftCreated = "page.draft_created"
+	ActPageDraftUpdated = "page.draft_updated"
+	ActPagePublished    = "page.published"
+	ActPageUnpublished  = "page.unpublished"
+	ActPageDeleted      = "page.deleted"
+)
+
+// PageTarget is the audit target of a page version.
+func PageTarget(id int64) string { return "page:" + strconv.FormatInt(id, 10) }

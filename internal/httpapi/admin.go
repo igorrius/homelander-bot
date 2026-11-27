@@ -51,6 +51,7 @@ func RegisterAdmin(s *Server, api API) {
 	}
 	registerChats(h, routes)
 	registerData(h, routes)
+	registerPages(h, routes)
 	for pattern, fn := range routes {
 		s.API().Handle(pattern, RequireAdmin(fn))
 	}
@@ -584,10 +585,15 @@ func (h handlerCtx) patchStatus(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, toStatus(got))
 }
 
-func (h handlerCtx) writeSite(w http.ResponseWriter, st domain.SiteSettings) {
+func (h handlerCtx) writeSite(w http.ResponseWriter, r *http.Request, st domain.SiteSettings) {
+	pageURL, err := h.pageURL(r.Context())
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
 	WriteJSON(w, http.StatusOK, map[string]any{"communityName": st.CommunityName, "welcomeText": st.WelcomeText,
 		"defaultLocale": st.DefaultLocale, "pictureUrl": assetURL(st.PictureAssetID),
-		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL()})
+		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL})
 }
 
 func (h handlerCtx) adminSite(w http.ResponseWriter, r *http.Request) {
@@ -596,7 +602,7 @@ func (h handlerCtx) adminSite(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	h.writeSite(w, st)
+	h.writeSite(w, r, st)
 }
 
 func (h handlerCtx) saveSite(w http.ResponseWriter, r *http.Request) {
@@ -614,7 +620,7 @@ func (h handlerCtx) saveSite(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	h.writeSite(w, st)
+	h.writeSite(w, r, st)
 }
 
 // readUpload reads the multipart file field, capped at maxUpload; problems are

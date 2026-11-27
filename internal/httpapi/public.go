@@ -13,6 +13,7 @@ type API struct {
 	Users     *domain.UserService
 	Catalog   *domain.CatalogService
 	Data      *domain.DataService
+	Pages     *domain.PageService
 	Auth      *domain.AuthService
 	Chats     *domain.ChatService
 	Labels    *domain.LabelService
@@ -59,11 +60,7 @@ func (h handlerCtx) site(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	pub := h.api.Cfg.PublicURL.String()
-	WriteJSON(w, http.StatusOK, map[string]any{
-		"communityName": st.CommunityName, "welcomeText": st.WelcomeText, "defaultLocale": st.DefaultLocale,
-		"pictureUrl": assetURL(st.PictureAssetID), "botUrl": h.api.Messenger.BotURL(), "registerUrl": pub + "/register",
-	})
+	h.writeSite(w, r, st)
 }
 
 func (h handlerCtx) registerOptions(w http.ResponseWriter, r *http.Request) {

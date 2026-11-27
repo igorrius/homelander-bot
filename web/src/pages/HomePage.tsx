@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { useLogout, useMe, useRegisterOptions, useSite } from '../api/public'
 import type { Me } from '../api/types'
 import { HousesIllustration } from '../components/HousesIllustration'
+import { PageFrame } from '../components/PageFrame'
 import { PageShell } from '../components/PageShell'
 import { useLocalized } from '../lib/localized'
 
@@ -48,7 +49,7 @@ function Account({ me }: { me: Me | null | undefined }) {
 }
 
 export function HomePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const site = useSite()
   const me = useMe()
   const options = useRegisterOptions()
@@ -56,8 +57,19 @@ export function HomePage() {
   const name = text(site.data?.communityName) || t('home.title')
   const welcome = text(site.data?.welcomeText) || t('home.welcomeDefault')
   const pictureUrl = site.data?.pictureUrl
+  const pageUrl = site.data?.pageUrl
+  const account = <Account me={me.isPending ? undefined : (me.data ?? null)} />
+  if (pageUrl) {
+    return (
+      <>
+        <PageShell title={name} actions={account} />
+        {/* Full width below our header: the page owns its own layout. */}
+        <PageFrame src={pageUrl} lang={i18n.language} title={name} />
+      </>
+    )
+  }
   return (
-    <PageShell title={name} actions={<Account me={me.isPending ? undefined : (me.data ?? null)} />}>
+    <PageShell title={name} actions={account}>
       <Stack gap="lg">
         {site.isPending ? (
           <Loader />

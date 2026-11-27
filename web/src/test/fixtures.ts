@@ -8,6 +8,7 @@ export const site: Site = {
   pictureUrl: null,
   botUrl: 'https://t.me/test_bot',
   registerUrl: 'http://localhost/register',
+  pageUrl: null,
 }
 
 export const statuses: ResidencyStatus[] = [

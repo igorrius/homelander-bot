@@ -62,7 +62,8 @@
       "overview": "Overview",
       "chats": "Chats",
       "notifications": "Notifications",
-      "data": "Data"
+      "data": "Data",
+      "pages": "Site page"
     },
     "applications": {
       "title": "Applications",
@@ -383,6 +384,46 @@
       "noColumns": "Add and save columns first.",
       "deleteItem": "Delete data",
       "deleteItemConfirm": "Delete “{{key}}” with all its rows? The site and modules that read it will no longer see it."
+    },
+    "pages": {
+      "title": "Site page",
+      "description": "Your own home page: upload a version, preview it and publish it. With nothing published, the built-in page is shown.",
+      "note": "Note",
+      "upload": "Upload ZIP",
+      "uploadHint": "index.html and the page files (CSS, JS, images), up to 20 MB",
+      "tooManyFiles": "Too many files: 200 at most",
+      "empty": "No versions yet.",
+      "version": "Version",
+      "statusLabel": "Status",
+      "files": "Files",
+      "fileCount": "Files: {{count}}",
+      "created": "Created",
+      "published": "Published",
+      "status": {
+        "draft": "Draft",
+        "published": "Published",
+        "archived": "Archived"
+      },
+      "unpublish": "Back to the built-in page",
+      "unpublishConfirm": "The home page will show the built-in page again. The published version goes to the archive.",
+      "publish": "Publish",
+      "publishConfirm": "Publish version #{{id}}? All visitors will see it right away.",
+      "copy": "Copy to draft",
+      "delete": "Delete",
+      "deleteConfirm": "Delete version #{{id}}? This cannot be undone.",
+      "back": "← All versions",
+      "versionTitle": "Version #{{id}}",
+      "createdBy": "Created {{at}} by {{name}}",
+      "path": "File",
+      "type": "Type",
+      "size": "Size",
+      "previewTitle": "Page preview",
+      "previewHint": "This is how visitors will see the page",
+      "fileError": {
+        "type": "{{path}}: this file type is not supported. Allowed: HTML, CSS, JS, JSON, SVG, PNG, JPEG, WebP, GIF, WOFF2 (lower-case extensions).",
+        "invalid": "{{path}}: file name not allowed (Latin letters, digits, . _ - only; no preview/ folder).",
+        "too_large": "{{path}}: file is larger than 5 MB."
+      }
     }
   },
   "notFound": {
@@ -434,7 +475,9 @@
     "type": "Only PNG, JPEG or WebP images",
     "size": "The file is larger than 5 MB",
     "too_many": "Too many rows: 1000 at most",
-    "type_change_not_empty": "A column type can be changed only in an empty table"
+    "type_change_not_empty": "A column type can be changed only in an empty table",
+    "index_required": "index.html is required",
+    "too_large": "Too large"
   },
   "qr": {
     "title": "QR code"
@@ -515,6 +558,13 @@
         "deleted": "Data deleted",
         "public_set": "Data access changed",
         "rows_changed": "Table rows changed"
+      },
+      "page": {
+        "draft_created": "Page draft created",
+        "draft_updated": "Page draft changed",
+        "published": "Page published",
+        "unpublished": "Built-in page restored",
+        "deleted": "Page version deleted"
       }
     }
   }

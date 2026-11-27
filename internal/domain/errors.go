@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -23,7 +24,12 @@ var (
 
 // ValidationError maps field names to reason codes such as "required",
 // "invalid", "out_of_range" or "taken".
-type ValidationError struct{ Fields map[string]string }
+// Details, when set, says more for one problem, e.g. {"path": "x.ico"} for
+// the page file that was refused.
+type ValidationError struct {
+	Fields  map[string]string
+	Details map[string]string
+}
 
 func (e *ValidationError) Error() string {
 	parts := make([]string, 0, len(e.Fields))
@@ -31,7 +37,11 @@ func (e *ValidationError) Error() string {
 		parts = append(parts, f+": "+r)
 	}
 	sort.Strings(parts)
-	return "validation: " + strings.Join(parts, ", ")
+	msg := "validation: " + strings.Join(parts, ", ")
+	if p := e.Details["path"]; p != "" {
+		msg += " (path " + strconv.Quote(p) + ")"
+	}
+	return msg
 }
 
 // validation collects field problems; err returns nil when there are none.
