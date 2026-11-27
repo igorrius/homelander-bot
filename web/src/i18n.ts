@@ -40,4 +40,11 @@ export async function setLocale(locale: Locale) {
   await i18n.changeLanguage(locale)
 }
 
+/** Uses the site's default language unless this browser already chose one. */
+export function applyDefaultLocale(locale: string) {
+  if (localStorage.getItem(storageKey)) return
+  if (!(supportedLocales as readonly string[]).includes(locale)) return
+  if (i18n.language !== locale) void i18n.changeLanguage(locale)
+}
+
 initI18n()

@@ -1,9 +1,66 @@
 {
-  "app": { "name": "Homelander" },
-  "language": { "label": "Language" },
-  "home": { "title": "Welcome" },
-  "register": { "title": "Registration application" },
-  "login": { "title": "Log in" },
-  "admin": { "title": "Admin panel" },
-  "notFound": { "title": "Page not found", "home": "Go to the home page" }
+  "app": {
+    "name": "Homelander"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "home": {
+    "title": "Welcome"
+  },
+  "register": {
+    "title": "Registration application"
+  },
+  "login": {
+    "title": "Log in"
+  },
+  "admin": {
+    "title": "Admin panel"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "home": "Go to the home page"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "yes": "Yes",
+    "no": "No",
+    "any": "Any",
+    "saved": "Saved",
+    "back": "Back",
+    "copy": "Copy",
+    "copied": "Copied",
+    "close": "Close"
+  },
+  "errors": {
+    "validation": "Please check the highlighted fields.",
+    "bad_request": "The request could not be understood. Reload the page and try again.",
+    "not_found": "Not found.",
+    "conflict": "This action is not possible in the current state.",
+    "forbidden": "You do not have access to this.",
+    "last_admin": "This is the last active administrator: they cannot lose admin rights or be disabled.",
+    "rate_limited": "Too many attempts. Please wait a few minutes and try again.",
+    "try_later": "Too many applications are waiting right now. Please try again later.",
+    "invalid_code": "The code is wrong or has expired.",
+    "unauthorized": "Please log in.",
+    "internal": "Something went wrong on the server. Please try again.",
+    "unknown": "Something went wrong. Please try again."
+  },
+  "validation": {
+    "required": "Required",
+    "invalid": "Invalid value",
+    "too_long": "Too long",
+    "out_of_range": "Out of the allowed range",
+    "taken": "Already in use",
+    "linked": "Unlink the messenger first to change the phone",
+    "has_residents": "Residents are registered in apartments outside this range",
+    "type": "Only PNG, JPEG or WebP images",
+    "size": "The file is larger than 5 MB"
+  }
 }

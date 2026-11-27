@@ -2,11 +2,14 @@
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
+  /** Field name → reason code; only for code "validation". */
+  readonly fields: Record<string, string>
 
-  constructor(status: number, code: string) {
+  constructor(status: number, code: string, fields: Record<string, string> = {}) {
     super(`API error ${status}: ${code}`)
     this.status = status
     this.code = code
+    this.fields = fields
   }
 }
 
@@ -24,8 +27,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/v1${path}`, { ...init, headers, credentials: 'same-origin' })
   const body: unknown = res.status === 204 ? null : await res.json().catch(() => null)
   if (!res.ok) {
-    const code = (body as { error?: { code?: string } } | null)?.error?.code ?? 'unknown'
-    throw new ApiError(res.status, code)
+    const error = (body as { error?: { code?: string; fields?: Record<string, string> } } | null)?.error
+    throw new ApiError(res.status, error?.code ?? 'unknown', error?.fields ?? {})
   }
   return body as T
 }
