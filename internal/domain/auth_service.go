@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"strings"
 	"time"
@@ -43,6 +44,10 @@ type AuthService struct {
 	IdleTTL        time.Duration
 	MaxTTL         time.Duration
 	Rand           io.Reader // nil means crypto/rand.Reader
+	// Deliver runs code delivery; nil runs it in a new goroutine so the
+	// answer to the caller does not depend on whether a code was sent.
+	Deliver func(func())
+	Log     *slog.Logger
 }
 
 const (
@@ -235,6 +240,22 @@ func (s *AuthService) RequestCode(ctx context.Context, rawPhone string, actor Ac
 	if ch == nil {
 		return nil
 	}
+	chatID, user := ch.ChatID, u
+	deliver := s.Deliver
+	if deliver == nil {
+		deliver = func(f func()) { go f() }
+	}
+	// The code is created and sent apart from the answer: a registered phone
+	// must not answer slower, or fail when the messenger does.
+	deliver(func() {
+		if err := s.sendCode(context.WithoutCancel(ctx), user, chatID, actor); err != nil && s.Log != nil {
+			s.Log.Warn("login code not delivered", "user", user.ID, "err", err)
+		}
+	})
+	return nil
+}
+
+func (s *AuthService) sendCode(ctx context.Context, u User, chatID string, actor Actor) error {
 	code, err := s.newCode()
 	if err != nil {
 		return err
@@ -245,7 +266,7 @@ func (s *AuthService) RequestCode(ctx context.Context, rawPhone string, actor Ac
 		return err
 	}
 	text := s.I18n.T(s.I18n.Pick(u.Locale), "bot.login.code", map[string]any{"Code": code, "Time": now.UTC().Format("15:04") + " UTC"}, nil)
-	if err := s.Messenger.SendText(ctx, ch.ChatID, text); err != nil {
+	if err := s.Messenger.SendText(ctx, chatID, text); err != nil {
 		return fmt.Errorf("send login code: %w", err)
 	}
 	return s.audit(ctx, actor, ActAuthCodeSent, UserTarget(u.ID), nil)

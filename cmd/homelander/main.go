@@ -89,7 +89,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	catalog := &domain.CatalogService{R: repos, Now: now, Locales: config.SupportedLocales, DefaultLocale: cfg.DefaultLocale}
 	auth := &domain.AuthService{R: repos, Now: now, Limits: limits, Secret: cfg.AppSecret, Region: cfg.DefaultPhoneRegion,
 		I18n: tr, BootstrapPhone: cfg.BootstrapAdminPhone, CodeTTL: codeTTL, MaxAttempts: maxCodeAttempts,
-		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL}
+		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL, Log: log}
 
 	tgAPI, err := newAPI(cfg.TelegramBotToken)
 	if err != nil {

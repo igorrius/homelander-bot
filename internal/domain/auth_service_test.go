@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"regexp"
 	"strings"
@@ -32,6 +33,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 		R: e.r, Now: e.clock.Now, Limits: ratelimit.New(e.clock.Now), Secret: []byte("0123456789abcdef0123456789abcdef"),
 		Region: "UA", Messenger: m, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
 		IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour,
+		Deliver: func(f func()) { f() }, // synchronous, so tests see the message at once
 	}
 	return &authEnv{env: e, auth: a, msgr: m}
 }
@@ -344,5 +346,56 @@ func TestRequestCodeRateLimited(t *testing.T) {
 	}
 	if err := a.auth.RequestCode(ctx, "+380500000001", domain.Actor{IP: "z"}); !errors.Is(err, domain.ErrRateLimited) {
 		t.Errorf("4th code for one phone err = %v", err)
+	}
+}
+
+type failingMessenger struct{ fakeMessenger }
+
+func (f *failingMessenger) SendText(context.Context, string, string) error {
+	return errors.New("telegram: Forbidden: bot was blocked by the user")
+}
+
+type blockingMessenger struct {
+	fakeMessenger
+	release chan struct{}
+}
+
+func (b *blockingMessenger) SendText(ctx context.Context, chatID, text string) error {
+	<-b.release
+	return b.fakeMessenger.SendText(ctx, chatID, text)
+}
+
+func TestRequestCodeHidesDeliveryFailure(t *testing.T) {
+	a := newAuthEnv(t)
+	activeWithChannel(a, "+380500000001", "111")
+	a.auth.Messenger = &failingMessenger{}
+	if err := a.auth.RequestCode(ctx, "+380500000001", public); err != nil {
+		t.Errorf("RequestCode with a failing messenger = %v, want nil like for an unknown phone", err)
+	}
+}
+
+func TestRequestCodeDoesNotWaitForDelivery(t *testing.T) {
+	a := newAuthEnv(t)
+	activeWithChannel(a, "+380500000001", "111")
+	m := &blockingMessenger{release: make(chan struct{})}
+	a.auth.Messenger = m
+	a.auth.Deliver = nil // the real, asynchronous delivery
+	done := make(chan error, 1)
+	go func() { done <- a.auth.RequestCode(ctx, "+380500000001", public) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("RequestCode waited for the messenger")
+	}
+	close(m.release)
+	deadline := time.Now().Add(2 * time.Second)
+	for len(m.messages()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if len(m.messages()) != 1 {
+		t.Error("code was never delivered")
 	}
 }

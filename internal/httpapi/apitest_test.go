@@ -86,7 +86,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 		Catalog: &domain.CatalogService{R: r, Now: clock, Locales: locs},
 		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: []byte("0123456789abcdef0123456789abcdef"),
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
-			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour},
+			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() }},
 		Messenger: e.msgr,
 		Cfg:       cfg,
 	}
