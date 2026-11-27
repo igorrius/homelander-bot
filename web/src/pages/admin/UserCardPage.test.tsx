@@ -319,6 +319,15 @@ describe('UserCardPage', () => {
     expect(screen.getByText(uk.admin.user.connect.chatgpt3)).toBeInTheDocument()
   })
 
+  it('lists connected agents above the connection instructions', async () => {
+    const own = { ...userCard({ id: 1, firstName: 'Adam', lastName: 'Admin', isAdmin: true, isMcp: true }), mcpGrants: [] }
+    mockApi({ ...routes(own), 'GET /admin/users/1': { body: own } })
+    renderApp('/admin/users/1?tab=channels')
+    const connect = await screen.findByRole('heading', { name: uk.admin.user.connect.title })
+    const agents = screen.getByRole('heading', { name: uk.admin.user.agents.title })
+    expect(agents.compareDocumentPosition(connect) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('asks the admin to turn MCP on first', async () => {
     const own = { ...userCard({ id: 1, firstName: 'Adam', lastName: 'Admin', isAdmin: true, isMcp: false }), mcpGrants: [] }
     mockApi({ ...routes(own), 'GET /admin/users/1': { body: own } })
