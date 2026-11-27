@@ -36,6 +36,10 @@ go.work.sum
 # Homelander
 /data/
 /homelander
+/node_modules/
 /web/node_modules/
 /web/dist/*
 !/web/dist/.gitkeep
+
+# Railway deployment description: local only (see docs/railway.example.ts)
+/.railway/

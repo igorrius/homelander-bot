@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Tooling only: the Railway SDK used by `railway config plan/apply` for .railway/railway.ts. The web app has its own package.json in web/.",
+  "devDependencies": {
+    "railway": "^3.19.1"
+  }
+}
