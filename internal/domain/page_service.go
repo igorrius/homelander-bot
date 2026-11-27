@@ -92,6 +92,8 @@ func toFiles(in []PageFileInput) ([]PageFile, error) {
 			reason = "invalid"
 		case len(f.Data) > MaxPageFile:
 			reason = "too_large"
+		default:
+			reason = checkPageName(f.Path)
 		}
 		if reason != "" {
 			// The first refused file is named, so the admin or agent knows what to fix.
