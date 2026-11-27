@@ -39,6 +39,7 @@ func newEnv(t *testing.T) *env {
 		Tx: db, Users: sqlite.Users{DB: db}, Channels: sqlite.Channels{DB: db}, Houses: sqlite.Houses{DB: db},
 		Statuses: sqlite.Statuses{DB: db}, Residencies: sqlite.Residencies{DB: db}, Codes: sqlite.Codes{DB: db},
 		Sessions: sqlite.Sessions{DB: db}, Site: sqlite.Site{DB: db}, Audit: sqlite.Audit{DB: db},
+		Chats: sqlite.Chats{DB: db}, Topics: sqlite.Topics{DB: db}, Labels: sqlite.Labels{DB: db},
 	}
 	c := &clock{t: time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)}
 	e := &env{t: t, db: db, r: r, clock: c}

@@ -24,6 +24,9 @@ type Repos struct {
 	Sessions    SessionRepo
 	Site        SiteRepo
 	Audit       AuditRepo
+	Chats       ChatRepo
+	Topics      TopicRepo
+	Labels      LabelRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).

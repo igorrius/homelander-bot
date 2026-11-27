@@ -81,6 +81,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 		Tx: db, Users: sqlite.Users{DB: db}, Channels: sqlite.Channels{DB: db}, Houses: sqlite.Houses{DB: db},
 		Statuses: sqlite.Statuses{DB: db}, Residencies: sqlite.Residencies{DB: db}, Codes: sqlite.Codes{DB: db},
 		Sessions: sqlite.Sessions{DB: db}, Site: sqlite.Site{DB: db}, Audit: sqlite.Audit{DB: db},
+		Chats: sqlite.Chats{DB: db}, Topics: sqlite.Topics{DB: db}, Labels: sqlite.Labels{DB: db},
 	}
 	now := domain.SystemClock
 	limits := ratelimit.New(now)
