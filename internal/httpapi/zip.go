@@ -38,7 +38,10 @@ func readZip(r io.ReaderAt, size int64) ([]domain.PageFileInput, error) {
 		if len(entries) > domain.MaxPageFiles {
 			return nil, zipErr("files", "too_many")
 		}
-		if f.UncompressedSize64 > domain.MaxPageFile || total > domain.MaxPageVersion {
+		if f.UncompressedSize64 > domain.MaxPageFile {
+			return nil, &domain.ValidationError{Fields: map[string]string{"files": "too_large"}, Details: map[string]string{"path": f.Name}}
+		}
+		if total > domain.MaxPageVersion {
 			return nil, zipErr("files", "too_large")
 		}
 	}

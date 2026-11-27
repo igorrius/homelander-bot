@@ -84,6 +84,17 @@ func TestReadZip(t *testing.T) {
 	_, err := readZip(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 	wantZipErr(t, err, "files", "too_large")
 
+	// Five entries under the per-file cap that together pass 20 MiB.
+	buf.Reset()
+	zw = zip.NewWriter(&buf)
+	for i := range 5 {
+		w, _ := zw.Create(fmt.Sprintf("p%d.png", i))
+		_, _ = w.Write(make([]byte, 4<<20+512<<10))
+	}
+	_ = zw.Close()
+	_, err = readZip(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	wantZipErr(t, err, "files", "too_large")
+
 	var many [][2]string
 	for i := range 201 {
 		many = append(many, [2]string{fmt.Sprintf("f%d.css", i), "x"})

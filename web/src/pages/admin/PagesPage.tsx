@@ -20,8 +20,12 @@ function Upload() {
   const [note, setNote] = useState('')
   const [tooBig, setTooBig] = useState(false)
   const { message, fields } = useApiErrors(upload.error)
-  // "too_many" is shared with table rows; files get their own wording.
-  const fileError = upload.error?.fields.files === 'too_many' ? t('admin.pages.tooManyFiles') : (fields.files ?? fields.zip)
+  // Page files get their own wording ("too_many" is shared with table rows), naming the refused file.
+  const reason = upload.error?.fields.files
+  const path = upload.error?.details.path
+  const fileError = reason === 'too_many' ? t('admin.pages.tooManyFiles')
+    : path && reason && ['type', 'invalid', 'too_large'].includes(reason) ? t(`admin.pages.fileError.${reason}`, { path })
+      : (fields.files ?? fields.zip)
   return (
     <Stack gap="xs">
       <Group align="flex-start">

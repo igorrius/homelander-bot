@@ -82,24 +82,26 @@ func (s *PageService) audit(ctx context.Context, a Actor, action string, id int6
 
 // toFiles validates inputs and turns them into files.
 func toFiles(in []PageFileInput) ([]PageFile, error) {
-	v := validation{}
 	seen := map[string]bool{}
 	out := make([]PageFile, 0, len(in))
 	for _, f := range in {
 		ct, reason := PageContentType(f.Path)
 		switch {
 		case reason != "":
-			v.add("files", reason)
 		case seen[f.Path]:
-			v.add("files", "invalid")
+			reason = "invalid"
 		case len(f.Data) > MaxPageFile:
-			v.add("files", "too_large")
+			reason = "too_large"
+		}
+		if reason != "" {
+			// The first refused file is named, so the admin or agent knows what to fix.
+			return nil, &ValidationError{Fields: map[string]string{"files": reason}, Details: map[string]string{"path": f.Path}}
 		}
 		seen[f.Path] = true
 		sum := sha256.Sum256(f.Data)
 		out = append(out, PageFile{Path: f.Path, ContentType: ct, Data: f.Data, SHA256: hex.EncodeToString(sum[:]), Size: len(f.Data)})
 	}
-	return out, v.err()
+	return out, nil
 }
 
 // checkTotals checks the whole version: files by path after the change.

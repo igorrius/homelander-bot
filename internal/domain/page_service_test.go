@@ -65,6 +65,21 @@ func TestPagePaths(t *testing.T) {
 	}
 }
 
+func TestPageErrorNamesTheFile(t *testing.T) {
+	e := newEnv(t)
+	a := actor(e.mkUser("+380501110001", admin))
+	_, err := e.pages.CreateDraft(ctx, []domain.PageFileInput{index(), pin("favicon.ico", "x")}, "", a)
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) || ve.Fields["files"] != "type" || ve.Details["path"] != "favicon.ico" ||
+		!strings.Contains(err.Error(), "favicon.ico") {
+		t.Fatalf("err = %#v", err)
+	}
+	_, err = e.pages.CreateDraft(ctx, []domain.PageFileInput{index(), {Path: "big.png", Data: make([]byte, 5<<20+1)}}, "", a)
+	if !errors.As(err, &ve) || ve.Fields["files"] != "too_large" || ve.Details["path"] != "big.png" {
+		t.Fatalf("too large err = %#v", err)
+	}
+}
+
 func TestPageLimits(t *testing.T) {
 	e := newEnv(t)
 	a := actor(e.mkUser("+380501110001", admin))

@@ -221,6 +221,11 @@ func TestAdminPagesFlow(t *testing.T) {
 	if r := e.uploadPage(tok, zipOf(t, map[string]string{"a.css": "x"}), ""); r.Code != 422 || fieldOf(r, "files") != "index_required" {
 		t.Fatalf("no index = %d %s", r.Code, r.Body)
 	}
+	bad := e.uploadPage(tok, zipOf(t, map[string]string{"index.html": "x", "favicon.ico": "x"}), "")
+	if details, _ := bad.json()["error"].(map[string]any)["details"].(map[string]any); bad.Code != 422 ||
+		fieldOf(bad, "files") != "type" || details["path"] != "favicon.ico" {
+		t.Fatalf("bad type = %d %s", bad.Code, bad.Body)
+	}
 	if r := e.uploadPage(tok, []byte("nope"), ""); r.Code != 422 || fieldOf(r, "zip") != "invalid" {
 		t.Fatalf("not zip = %d %s", r.Code, r.Body)
 	}

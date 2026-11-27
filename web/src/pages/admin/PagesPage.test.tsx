@@ -67,6 +67,14 @@ describe('PagesPage', () => {
     expect(await screen.findByText(uk.validation.index_required)).toBeInTheDocument()
   })
 
+  it('names the refused file and the allowed types', async () => {
+    mockApi({ ...routes, 'POST /admin/pages': { status: 422, body: { error: { code: 'validation', fields: { files: 'type' }, details: { path: 'favicon.ico' } } } } })
+    const { user, container } = renderApp('/admin/pages')
+    await screen.findByText('New look')
+    await user.upload(fileInput(container), zip())
+    expect(await screen.findByText(uk.admin.pages.fileError.type.replace('{{path}}', 'favicon.ico'))).toBeInTheDocument()
+  })
+
   it('goes back to the built-in page', async () => {
     const { calls } = mockApi({ ...routes, 'POST /admin/pages/unpublish': { status: 204 } })
     const { user } = renderApp('/admin/pages')

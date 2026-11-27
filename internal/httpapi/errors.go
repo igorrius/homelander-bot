@@ -33,7 +33,11 @@ func writeDomainError(w http.ResponseWriter, log *slog.Logger, err error) {
 	var ve *domain.ValidationError
 	switch {
 	case errors.As(err, &ve):
-		WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "validation", "fields": ve.Fields}})
+		body := map[string]any{"code": "validation", "fields": ve.Fields}
+		if len(ve.Details) > 0 {
+			body["details"] = ve.Details
+		}
+		WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": body})
 	case errors.Is(err, errBadRequest):
 		WriteError(w, http.StatusBadRequest, "bad_request")
 	case errors.Is(err, domain.ErrNotFound):
