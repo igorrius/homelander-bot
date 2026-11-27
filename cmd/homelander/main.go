@@ -96,6 +96,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 		Secret: cfg.AppSecret, Notifier: notifier, I18n: tr, PublicURL: cfg.PublicURL.String(), DefaultLocale: siteLocale}
 	labels := &domain.LabelService{R: repos, Now: now}
 	catalog := &domain.CatalogService{R: repos, Now: now, Locales: config.SupportedLocales, DefaultLocale: cfg.DefaultLocale}
+	data := &domain.DataService{R: repos, Now: now, Limits: limits, Locales: config.SupportedLocales}
 	auth := &domain.AuthService{R: repos, Now: now, Limits: limits, Secret: cfg.AppSecret, Region: cfg.DefaultPhoneRegion,
 		I18n: tr, BootstrapPhone: cfg.BootstrapAdminPhone, CodeTTL: codeTTL, MaxAttempts: maxCodeAttempts,
 		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL, Log: log,
@@ -121,7 +122,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 
 	server := httpapi.New(cfg, httpapi.Deps{DB: rawDB, I18n: tr, Log: log, Static: web.Dist()})
 	server.WithSession(auth)
-	api := httpapi.API{Users: users, Catalog: catalog, Auth: auth, Chats: chats, Labels: labels, Notifier: notifier, Messenger: bot, Cfg: cfg}
+	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Auth: auth, Chats: chats, Labels: labels, Notifier: notifier, Messenger: bot, Cfg: cfg}
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
 	webhookPath := telegram.WebhookPath(cfg.AppSecret)

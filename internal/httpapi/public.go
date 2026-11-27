@@ -12,6 +12,7 @@ import (
 type API struct {
 	Users     *domain.UserService
 	Catalog   *domain.CatalogService
+	Data      *domain.DataService
 	Auth      *domain.AuthService
 	Chats     *domain.ChatService
 	Labels    *domain.LabelService
@@ -210,13 +211,27 @@ func (h handlerCtx) asset(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusNotFound, "not_found")
 		return
 	}
+	ok, err := h.api.Data.AssetIsPublic(r.Context(), id)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if !ok {
+		WriteError(w, http.StatusNotFound, "not_found")
+		return
+	}
+	h.serveAsset(w, r, id, "public, max-age=3600")
+}
+
+// serveAsset writes a stored file with headers that keep it from running as a page.
+func (h handlerCtx) serveAsset(w http.ResponseWriter, r *http.Request, id int64, cache string) {
 	a, err := h.api.Catalog.Asset(r.Context(), id)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", a.ContentType)
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Cache-Control", cache)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	_, _ = w.Write(a.Data)
