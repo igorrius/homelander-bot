@@ -123,7 +123,19 @@
         "admin": "Added by admin",
         "bootstrap": "First admin"
       },
-      "residencyStatus": "Residency status"
+      "residencyStatus": "Residency status",
+      "botLink": {
+        "title": "Waiting for activation in the bot",
+        "hint": "Send the person this link: they open the bot and share their phone number."
+      },
+      "telegramNone": "Telegram not linked",
+      "roles": "Roles",
+      "tabs": {
+        "details": "Details",
+        "apartments": "Apartments",
+        "channels": "Messengers",
+        "history": "History"
+      }
     },
     "audit": {
       "empty": "No entries.",

@@ -1,11 +1,12 @@
-import { ActionIcon, Alert, Anchor, Badge, Button, Card, Group, Loader, Select, Stack, Switch, Table, Text, TextInput, Title } from '@mantine/core'
+import { ActionIcon, Alert, Anchor, Badge, Breadcrumbs, Button, Card, Grid, Group, Loader, Select, Stack, Table, Tabs, Text, TextInput, Title } from '@mantine/core'
+import { IconHistory, IconHome, IconId, IconMessages, IconPencil, IconTrash } from '@tabler/icons-react'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import {
-  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserAction, useUserCard,
-  type UserAction, type UserPatch,
+  useAddResidency, useDeleteResidency, useHouses, usePatchUser, useStatuses, useUnlinkChannel, useUpdateResidency, useUserCard,
+  type UserPatch,
 } from '../../api/admin'
 import type { AdminUser, Residency, UserCard } from '../../api/types'
 import { ConfirmButton } from '../../components/ConfirmButton'
@@ -15,7 +16,7 @@ import { formatDateTime, fullName } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
 import { AuditTable } from './AuditTable'
 import { ResidencyEditor } from './ResidencyEditor'
-import { StatusBadge } from './StatusBadge'
+import { UserSummary } from './UserSummary'
 
 function useSaved() {
   const { t } = useTranslation()
@@ -44,7 +45,7 @@ function Details({ user }: { user: AdminUser }) {
     <Card withBorder>
       <form onSubmit={onSubmit}>
         <Stack>
-          <Title order={3}>{t('admin.user.details')}</Title>
+          <Title order={3} size="h4">{t('admin.user.details')}</Title>
           <Group grow align="flex-start">
             <TextInput label={t('register.firstName')} value={firstName} onChange={(e) => setFirstName(e.currentTarget.value)} error={fields.firstName} />
             <TextInput label={t('register.lastName')} value={lastName} onChange={(e) => setLastName(e.currentTarget.value)} error={fields.lastName} />
@@ -67,59 +68,6 @@ function Details({ user }: { user: AdminUser }) {
   )
 }
 
-/** Flags and status actions; their errors share one alert. */
-function Access({ card }: { card: UserCard }) {
-  const { t } = useTranslation()
-  const { user } = card
-  const patch = usePatchUser(user.id)
-  const action = useUserAction()
-  const saved = useSaved()
-  const busy = patch.isPending || action.isPending
-  const run = (a: UserAction) => {
-    patch.reset()
-    action.mutate({ id: user.id, action: a }, { onSuccess: saved })
-  }
-  const setFlag = (body: UserPatch) => {
-    action.reset()
-    patch.mutate(body, { onSuccess: saved })
-  }
-  const err = patch.error ?? action.error
-  return (
-    <Card withBorder>
-      <Stack>
-        <Title order={3}>{t('admin.user.access')}</Title>
-        <Group>
-          <Switch label={t('admin.user.isResident')} checked={user.isResident} disabled={busy} onChange={(e) => setFlag({ isResident: e.currentTarget.checked })} />
-          <Switch label={t('admin.user.isAdmin')} checked={user.isAdmin} disabled={busy} onChange={(e) => setFlag({ isAdmin: e.currentTarget.checked })} />
-        </Group>
-        <Group>
-          {user.status === 'pending_approval' && (
-            <>
-              <Button color="green" loading={busy} onClick={() => run('approve')}>
-                {t('admin.user.approve')}
-              </Button>
-              <ConfirmButton color="red" variant="light" disabled={busy} message={t('admin.applications.rejectConfirm', { name: fullName(user) })} onConfirm={() => run('reject')}>
-                {t('admin.user.reject')}
-              </ConfirmButton>
-            </>
-          )}
-          {(user.status === 'active' || user.status === 'awaiting_activation') && (
-            <ConfirmButton color="red" variant="light" disabled={busy} message={t('admin.user.disableConfirm', { name: fullName(user) })} onConfirm={() => run('disable')}>
-              {t('admin.user.disable')}
-            </ConfirmButton>
-          )}
-          {user.status === 'disabled' && (
-            <Button loading={busy} onClick={() => run('enable')}>
-              {t('admin.user.enable')}
-            </Button>
-          )}
-        </Group>
-        {err && <Alert color="red">{errorText(t, err)}</Alert>}
-      </Stack>
-    </Card>
-  )
-}
-
 function Channels({ card }: { card: UserCard }) {
   const { t, i18n } = useTranslation()
   const unlink = useUnlinkChannel(card.user.id)
@@ -127,7 +75,7 @@ function Channels({ card }: { card: UserCard }) {
   return (
     <Card withBorder>
       <Stack>
-        <Title order={3}>{t('admin.user.channels')}</Title>
+        <Title order={3} size="h4">{t('admin.user.channels')}</Title>
         {card.channels.length === 0 ? (
           <Text c="dimmed">{t('admin.user.noChannels')}</Text>
         ) : (
@@ -187,11 +135,11 @@ function Residencies({ card }: { card: UserCard }) {
               update.reset()
               setEditing(r.id)
             }}>
-              ✎
+              <IconPencil size={16} />
             </ActionIcon>
-            <ConfirmButton size="xs" variant="subtle" color="red" aria-label={t('admin.user.removeResidency')}
+            <ConfirmButton size="xs" variant="subtle" color="red" aria-label={t('admin.user.removeResidency')} title={t('admin.user.removeResidency')}
               message={t('admin.user.removeResidencyConfirm', { house: r.houseName, n: r.apartment })} onConfirm={() => remove.mutate(r.id, { onSuccess: saved })}>
-              ✕
+              <IconTrash size={16} />
             </ConfirmButton>
           </Group>
         </Table.Td>
@@ -201,7 +149,7 @@ function Residencies({ card }: { card: UserCard }) {
     <Card withBorder>
       <Stack>
         <Group justify="space-between">
-          <Title order={3}>{t('admin.user.residencies')}</Title>
+          <Title order={3} size="h4">{t('admin.user.residencies')}</Title>
           {editing !== 'new' && (
             <Button size="xs" variant="light" onClick={() => {
               add.reset()
@@ -233,10 +181,33 @@ function Residencies({ card }: { card: UserCard }) {
   )
 }
 
+const tabs = ['details', 'apartments', 'channels', 'history'] as const
+type Tab = (typeof tabs)[number]
+
+function Count({ n }: { n: number }) {
+  return (
+    <Badge size="xs" variant="light" circle>
+      {n}
+    </Badge>
+  )
+}
+
 export function UserCardPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const id = Number(useParams().id)
   const card = useUserCard(id)
+  const [params, setParams] = useSearchParams()
+  const raw = params.get('tab')
+  const tab: Tab = (tabs as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'details'
+  const setTab = (v: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('tab', v ?? 'details')
+        return next
+      },
+      { replace: true },
+    )
   if (card.isPending) return <Loader />
   if (card.isError) return <Alert color="red">{errorText(t, card.error)}</Alert>
   const { user } = card.data
@@ -244,36 +215,59 @@ export function UserCardPage() {
   // key: sections keep form and error state; never show them on another user's card.
   return (
     <Stack key={id}>
-      <Anchor component={Link} to="/admin/users" size="sm">
-        ← {t('admin.nav.users')}
-      </Anchor>
-      <Group gap="sm">
-        <Title order={2}>{fullName(user)}</Title>
-        <StatusBadge status={user.status} />
-        <Badge variant="outline" color="gray">
-          {t(`admin.user.source.${user.source}`)}
-        </Badge>
-      </Group>
-      <Text size="sm" c="dimmed">
-        {t('admin.user.created', { at: formatDateTime(user.createdAt, i18n.language) })}
-        {user.approvedAt && ` · ${t('admin.user.approved', { at: formatDateTime(user.approvedAt, i18n.language) })}`}
-        {user.activatedAt && ` · ${t('admin.user.activated', { at: formatDateTime(user.activatedAt, i18n.language) })}`}
-      </Text>
-      <Details key={detailsKey} user={user} />
-      <Access card={card.data} />
-      <Channels card={card.data} />
-      <Residencies card={card.data} />
-      <Card withBorder>
-        <Stack>
-          <Group justify="space-between">
-            <Title order={3}>{t('admin.user.audit')}</Title>
-            <Anchor component={Link} to={`/admin/audit?userId=${user.id}`} size="sm">
-              {t('admin.user.allAudit')}
-            </Anchor>
-          </Group>
-          <AuditTable entries={card.data.audit} />
-        </Stack>
-      </Card>
+      <Breadcrumbs>
+        <Anchor component={Link} to="/admin/users" size="sm">
+          {t('admin.nav.users')}
+        </Anchor>
+        <Text size="sm" c="dimmed">
+          {fullName(user)}
+        </Text>
+      </Breadcrumbs>
+      <Grid gap="md" align="flex-start">
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <UserSummary card={card.data} />
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Tabs value={tab} onChange={(v) => setTab(v)}>
+            <Tabs.List mb="md" style={{ flexWrap: 'nowrap', overflowX: 'auto' }}>
+              <Tabs.Tab value="details" leftSection={<IconId size={16} />}>
+                {t('admin.user.tabs.details')}
+              </Tabs.Tab>
+              <Tabs.Tab value="apartments" leftSection={<IconHome size={16} />} rightSection={<Count n={card.data.residencies.length} />}>
+                {t('admin.user.tabs.apartments')}
+              </Tabs.Tab>
+              <Tabs.Tab value="channels" leftSection={<IconMessages size={16} />} rightSection={<Count n={card.data.channels.length} />}>
+                {t('admin.user.tabs.channels')}
+              </Tabs.Tab>
+              <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
+                {t('admin.user.tabs.history')}
+              </Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="details">
+              <Details key={detailsKey} user={user} />
+            </Tabs.Panel>
+            <Tabs.Panel value="apartments">
+              <Residencies card={card.data} />
+            </Tabs.Panel>
+            <Tabs.Panel value="channels">
+              <Channels card={card.data} />
+            </Tabs.Panel>
+            <Tabs.Panel value="history">
+              <Card>
+                <Stack>
+                  <Group justify="space-between">
+                    <Title order={3} size="h4">{t('admin.user.audit')}</Title>
+                    <Anchor component={Link} to={`/admin/audit?userId=${user.id}`} size="sm">
+                      {t('admin.user.allAudit')}
+                    </Anchor>
+                  </Group>
+                  <AuditTable entries={card.data.audit} />
+                </Stack>
+              </Card>
+            </Tabs.Panel>
+          </Tabs>
+        </Grid.Col>
+      </Grid>
     </Stack>
   )
 }
