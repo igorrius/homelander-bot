@@ -42,16 +42,8 @@ The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`.
 
 ## Deploying on Railway
 
-- One service built from the `Dockerfile`, one replica.
-- A volume mounted at `/data` (the database lives at `/data/homelander.db`).
-- Railway mounts volumes owned by root, while the image runs as the unprivileged `nonroot`
-  user. Set `RAILWAY_RUN_UID=0` on the service so the process can write to the volume
-  (Railway's documented setting for non-root images).
-- Variables: `APP_SECRET`, `PUBLIC_URL=https://<service domain>`, `TELEGRAM_BOT_TOKEN`,
-  `TELEGRAM_UPDATES=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `TRUST_PROXY=true` (rate limits per
-  client need the real IP), optionally `BOOTSTRAP_ADMIN_PHONE`.
-  Do not set `HTTP_ADDR`: the server listens on Railway's `$PORT`.
-- Health check path: `/healthz`.
+See [deploy-railway.md](deploy-railway.md): the infrastructure is a local, git-ignored
+`.railway/railway.ts` made from `docs/railway.example.ts`; secrets are set in the Railway UI.
 
 ## Conventions
 
