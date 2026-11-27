@@ -29,7 +29,8 @@ func mapErr(err error) error {
 	return err
 }
 
-const timeFormat = time.RFC3339Nano
+// timeFormat has a fixed width so stored times compare correctly as text.
+const timeFormat = "2006-01-02T15:04:05.000000000Z"
 
 func fmtTime(t time.Time) string { return t.UTC().Format(timeFormat) }
 
