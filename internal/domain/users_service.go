@@ -29,6 +29,7 @@ type Repos struct {
 	Topics        TopicRepo
 	Labels        LabelRepo
 	Outbox        OutboxRepo
+	Data          DataRepo
 	RegTokens     RegTokenRepo
 	Notifications NotificationRepo
 }

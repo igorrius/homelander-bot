@@ -10,5 +10,6 @@ func NewRepos(db DB) domain.Repos {
 		Sessions: Sessions{DB: db}, Site: Site{DB: db}, Audit: Audit{DB: db},
 		Chats: Chats{DB: db}, Topics: Topics{DB: db}, Labels: Labels{DB: db},
 		Outbox: Outbox{DB: db}, RegTokens: RegTokens{DB: db}, Notifications: Notifications{DB: db},
+		Data: Data{DB: db},
 	}
 }
