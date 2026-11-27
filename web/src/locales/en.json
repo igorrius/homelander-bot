@@ -1,0 +1,9 @@
+{
+  "app": { "name": "Homelander" },
+  "language": { "label": "Language" },
+  "home": { "title": "Welcome" },
+  "register": { "title": "Registration application" },
+  "login": { "title": "Log in" },
+  "admin": { "title": "Admin panel" },
+  "notFound": { "title": "Page not found", "home": "Go to the home page" }
+}
