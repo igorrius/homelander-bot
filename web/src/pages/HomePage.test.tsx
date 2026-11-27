@@ -23,6 +23,24 @@ describe('HomePage', () => {
     expect(screen.getByRole('img', { name: /House A.*House B.*House C/ })).toBeInTheDocument()
   })
 
+  it('shows the chosen public data under the quarter', async () => {
+    mockApi({
+      ...publicRoutes,
+      'GET /site': { body: { ...site, homeItems: [{ key: 'office.phone', title: { uk: 'Телефон офісу' } }, { key: 'secret', title: {} }] } },
+      'GET /public/data': { body: { 'office.phone': { kind: 'value', type: 'phone', value: '+380 44 000 00 00' } } },
+    })
+    renderApp('/')
+    expect(await screen.findByText('Телефон офісу')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /\+380 44 000 00 00/ })).toHaveAttribute('href', 'tel:+380440000000')
+  })
+
+  it('does not load public data when no cards are chosen', async () => {
+    const { calls } = mockApi(publicRoutes)
+    renderApp('/')
+    await screen.findAllByTestId('house')
+    expect(calls.some((c) => c.path === '/public/data')).toBe(false)
+  })
+
   it('shows community name, welcome text and illustration for a guest', async () => {
     mockApi(publicRoutes)
     renderApp('/')

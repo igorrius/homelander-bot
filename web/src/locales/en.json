@@ -10,6 +10,7 @@
   "home": {
     "title": "Welcome",
     "welcomeDefault": "Welcome to the residents' page of our community.",
+    "cards": "Good to know",
     "illustration": "Houses of the community",
     "login": "Log in",
     "register": "Register",

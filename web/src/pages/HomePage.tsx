@@ -1,6 +1,8 @@
 import { Box, Center, Container, Image, Loader, Stack, Text, Title, useComputedColorScheme } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useRegisterOptions, useSite } from '../api/public'
+import { usePublicData } from '../api/publicData'
+import { HomeCards } from '../components/HomeCards'
 import { Quarter } from '../components/Quarter'
 import { PageFrame } from '../components/PageFrame'
 import { SiteHeader } from '../components/SiteHeader'
@@ -19,6 +21,8 @@ export function HomePage() {
   const pictureUrl = site.data?.pictureUrl
   const pageUrl = site.data?.pageUrl
   const dark = useComputedColorScheme('light') === 'dark'
+  const homeItems = site.data?.homeItems ?? []
+  const publicData = usePublicData(!pageUrl && homeItems.length > 0)
   if (pageUrl) {
     return (
       <>
@@ -58,6 +62,11 @@ export function HomePage() {
           </Box>
         </Container>
       </Box>
+      {publicData.data && (
+        <Container size="lg" pb={64} pt="md">
+          <HomeCards items={homeItems} data={publicData.data} />
+        </Container>
+      )}
     </>
   )
 }

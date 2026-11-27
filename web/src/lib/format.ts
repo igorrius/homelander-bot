@@ -16,3 +16,9 @@ export function formatSize(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
+
+/** A data key as a title: "house.address" → "House address". */
+export function prettyKey(key: string): string {
+  const s = key.replace(/[._]+/g, ' ').trim()
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
