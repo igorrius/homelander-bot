@@ -34,6 +34,29 @@ describe('DataItemPage', () => {
     await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/house.address')[1]?.body).toEqual({ public: true }))
   })
 
+  it('edits a phone value in a text input', async () => {
+    const phone = valueItem({ key: 'office.phone', valueType: 'phone', value: '+380 44 000 00 00' })
+    const { calls } = mockApi({ ...itemRoutes(phone), 'PATCH /admin/data/office.phone': { body: phone } })
+    const { user } = renderApp('/admin/data/office.phone')
+    const field = await screen.findByLabelText(uk.admin.data.value)
+    expect(field.tagName).toBe('INPUT')
+    expect(field).toHaveValue('+380 44 000 00 00')
+    await user.clear(field)
+    await user.type(field, '+380 44 000 00 01')
+    await user.click(screen.getByRole('button', { name: uk.admin.data.saveValue }))
+    await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/office.phone')[0]?.body).toEqual({ valueType: 'phone', value: '+380 44 000 00 01' }))
+  })
+
+  it('saves an empty url value as null', async () => {
+    const link = valueItem({ key: 'site.link', valueType: 'url', value: 'https://x.test' })
+    const { calls } = mockApi({ ...itemRoutes(link), 'PATCH /admin/data/site.link': { body: link } })
+    const { user } = renderApp('/admin/data/site.link')
+    const field = await screen.findByLabelText(uk.admin.data.value)
+    await user.clear(field)
+    await user.click(screen.getByRole('button', { name: uk.admin.data.saveValue }))
+    await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/site.link')[0]?.body).toEqual({ valueType: 'url', value: null }))
+  })
+
   it('refuses invalid JSON without a request', async () => {
     const item = valueItem({ key: 'conf', valueType: 'json', value: { a: 1 } })
     const { calls } = mockApi(itemRoutes(item))

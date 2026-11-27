@@ -1,13 +1,15 @@
-# How to build the Homelander home page
+# How to build the Homelander site
 
-Homelander shows its home page (`/`) as **our header + your page in a sandboxed frame**. You write
-the page as a set of files (a *version*); an admin previews the draft and publishes it in the admin
-panel. You cannot publish: after `page_create_draft` or `page_update_draft`, give the admin the
+Homelander shows every page of the site as **our header + your page in a sandboxed frame**: the
+home page at `/`, other pages at their own addresses (`/contacts`, `/rules`, …). You write the site
+as a set of files (a *version*); an admin previews the draft and publishes the whole site at once in
+the admin panel. You cannot publish: after `page_create_draft` or `page_update_draft`, give the admin the
 `admin_url` you got back and ask them to look.
 
 ## 1. Files
 
-- `index.html` is required; it is what the frame loads.
+- `index.html` is required; it is the home page `/`. Every other `*.html` in the root is a page too
+  (see "Several pages").
 - Paths are relative, like `index.html`, `style.css`, `js/app.js`, `img/logo.png`: letters, digits,
   `.`, `_` and `-`, folders separated by `/`; extensions in lower case. The top folder `preview/`
   is reserved.
@@ -65,8 +67,9 @@ it without a new version. Use `data_catalog` to see which keys exist and which a
 
 - `GET /api/v1/public/data/<key>` — one item in the same shape; `404` when it is missing or private.
 - Value types: `text`, `localized_text` (`{ "uk": ..., "en": ... }`, either may be missing),
-  `number`, `bool`, `image` (a URL like `/api/v1/assets/<id>`), `json`. Table column types: `text`,
-  `localized_text`, `number`, `bool`, `image` (URL), `url`, `phone`. An empty cell is missing or `null`.
+  `number`, `bool`, `image` (a URL like `/api/v1/assets/<id>`), `url` (an `http(s)` link), `phone`
+  (digits, spaces, `+ ( ) -`; link it as `tel:` with the spaces removed), `json`. Table column types:
+  `text`, `localized_text`, `number`, `bool`, `image` (URL), `url`, `phone`. An empty cell is missing or `null`.
 - Responses are cached for 30 seconds and rate-limited per visitor (about 120 requests a minute):
   load data once when the page opens, not in a loop.
 - The keys above are examples. Never put real addresses or phone numbers into page files: keep them
@@ -122,12 +125,36 @@ header, the page receives a `homelander:lang` message instead of a reload:
 
 Ukrainian is the default; write both languages for your own texts.
 
-## 6. Working with drafts
+## 6. Several pages
+
+- Every `*.html` file in the root of a version is a page: `index.html` → `/`, `contacts.html` →
+  `/contacts`, `rules.html` → `/rules`. The whole site is published together, so a link between
+  pages never points to a page that is not live.
+- Page names: lower-case Latin letters, digits and `-` (`^[a-z0-9][a-z0-9-]{0,62}$`). These names are
+  **reserved** (they are app addresses) and are refused with `files: reserved_page_name`: `admin`,
+  `login`, `register`, `oauth`, `site`, `api`, `mcp`, `healthz`, `assets`, `telegram`, `favicon`,
+  `robots`, `sitemap`. Any other bad name is refused with `files: invalid_page_name`. An `.html` file
+  in a folder (`parts/menu.html`) is an ordinary file, not a page.
+- Link pages by their address and **always with `target="_top"`**, so the browser address and the
+  Back button follow: `<a href="/contacts" target="_top">Contacts</a>`, `<a href="/" target="_top">Home</a>`.
+  Write links the same way for drafts: in the admin's preview they switch the previewed page
+  (Homelander injects a small `homelander:navigate` script into previews only — you do not send or
+  handle that message yourself).
+- Share CSS and JS between pages as files (`style.css`, `js/app.js`) and include them in every page
+  with relative URLs. Each page sends its own height (section 4) and handles `homelander:lang`
+  (section 5); the language the visitor chose carries over between pages.
+- Every tool result lists the version's `pages` with their addresses: check it after each change.
+
+## 7. Working with drafts
 
 - `page_list_versions` lists versions (draft, published, archived); `page_get_version` returns a
   version's files with the content of text files.
 - `page_create_draft` makes a new draft; `page_update_draft` puts or deletes files of a draft;
   published and archived versions cannot change — use `page_copy_to_draft` to start from one.
-- Validation errors name the field and the file, e.g. `validation failed: files: type (path=x.ico)`.
+- Validation errors name the field and the file, e.g. `validation failed: files: type (path=x.ico)`
+  or `files: reserved_page_name (path=admin.html)`.
+- To change a live site: `page_list_versions` → `page_get_version` of the published one →
+  `page_copy_to_draft` → `page_update_draft` with only the files you change → give the admin the
+  `admin_url`.
 - The admin opens `admin_url`, previews the draft in the real header and frame, and publishes it.
   Tell them what you changed and what to check.

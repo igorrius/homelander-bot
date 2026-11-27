@@ -2,8 +2,9 @@
 
 Homelander has an [MCP](https://modelcontextprotocol.io) server at `<PUBLIC_URL>/mcp`. An admin can
 connect an AI agent such as Claude or ChatGPT to it; the agent then reads and changes the **data space** and
-writes **drafts of the home page**. It never publishes: an admin previews a draft and publishes it in
-the panel (**Admin → Pages**).
+writes **drafts of the site**: the home page `index.html` at `/` and more pages such as
+`contacts.html` at `/contacts`. It never publishes: an admin previews a draft (switching between its
+pages) and publishes the whole site in the panel (**Admin → Site → Pages**).
 
 Everything the agent does is done as the admin who connected it, and the audit log shows it as
 "*admin* · via MCP (*agent*)".
@@ -84,10 +85,12 @@ MCP_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api
 | `data_set_public`, `data_delete` | make an item public or private, delete it |
 | `asset_upload` | upload an image for image values and cells |
 | `page_guide` | how a page is built here (also the resource `homelander://guide/page`) |
-| `page_list_versions`, `page_get_version` | read page versions and their files |
+| `page_list_versions`, `page_get_version` | read site versions, their pages (with addresses) and files |
 | `page_create_draft`, `page_update_draft`, `page_copy_to_draft` | write drafts |
 
-There is no tool to publish, unpublish or delete a page version.
+There is no tool to publish, unpublish or delete a page version. Page names `admin`, `login`,
+`register`, `oauth`, `site`, `api`, `mcp`, `healthz`, `assets`, `telegram`, `favicon`, `robots` and
+`sitemap` are reserved; `data_set_value` takes `url` and `phone` values as well.
 
 ## Technical notes
 

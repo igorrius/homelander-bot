@@ -2,13 +2,13 @@ package domain_test
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
 )
-
-var pngHeader = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
 
 func TestHouseValidation(t *testing.T) {
 	e := newEnv(t)
@@ -97,57 +97,6 @@ func TestSiteValidation(t *testing.T) {
 	}
 }
 
-func TestSaveSiteKeepsPicture(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	a, err := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, _ := e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk"}, actor(adm))
-	if got.PictureAssetID == nil || *got.PictureAssetID != a.ID {
-		t.Errorf("SaveSite dropped the picture: %+v", got)
-	}
-}
-
-func TestPictureTypes(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	a, err := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if err != nil || a.ContentType != "image/png" || a.SHA256 == "" {
-		t.Fatalf("PNG = %+v, %v", a, err)
-	}
-	_, err = e.catalog.SetPicture(ctx, []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`), actor(adm))
-	wantFields(t, err, map[string]string{"picture": "type"})
-	big := append(append([]byte{}, pngHeader...), make([]byte, 5<<20)...)
-	_, err = e.catalog.SetPicture(ctx, big, actor(adm))
-	wantFields(t, err, map[string]string{"picture": "size"})
-}
-
-func TestPictureReplaceDeletesOld(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	first, _ := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	second, _ := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if _, err := e.r.Site.GetAsset(ctx, first.ID); !errors.Is(err, domain.ErrNotFound) {
-		t.Errorf("old asset err = %v", err)
-	}
-	site, _ := e.catalog.Site(ctx)
-	if site.PictureAssetID == nil || *site.PictureAssetID != second.ID {
-		t.Errorf("site picture = %v", site.PictureAssetID)
-	}
-	if err := e.catalog.RemovePicture(ctx, actor(adm)); err != nil {
-		t.Fatal(err)
-	}
-	site, _ = e.catalog.Site(ctx)
-	if site.PictureAssetID != nil {
-		t.Error("picture not removed")
-	}
-	if _, err := e.r.Site.GetAsset(ctx, second.ID); !errors.Is(err, domain.ErrNotFound) {
-		t.Errorf("removed asset err = %v", err)
-	}
-}
-
 func TestCatalogAudit(t *testing.T) {
 	e := newEnv(t)
 	adm := e.mkUser("+380500000099", admin)
@@ -158,5 +107,39 @@ func TestCatalogAudit(t *testing.T) {
 		if e.auditCount(a) != 1 {
 			t.Errorf("audit %s missing", a)
 		}
+	}
+}
+
+func TestSiteHomeItems(t *testing.T) {
+	e := newEnv(t)
+	adm := e.mkUser("+380500000099", admin)
+	items := []domain.HomeItem{
+		{Key: "contacts", Title: domain.LocalizedText{"uk": " Контакти ", "en": "Contacts"}},
+		{Key: "house.address", Title: domain.LocalizedText{}},
+		{Key: "contacts", Title: domain.LocalizedText{"uk": "Друге"}},
+	}
+	got, err := e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: items}, actor(adm))
+	want := []domain.HomeItem{{Key: "contacts", Title: domain.LocalizedText{"uk": "Контакти", "en": "Contacts"}}, {Key: "house.address", Title: domain.LocalizedText{}}}
+	if err != nil || !reflect.DeepEqual(got.HomeItems, want) {
+		t.Fatalf("SaveSite = %+v, %v", got.HomeItems, err)
+	}
+	stored, _ := e.catalog.Site(ctx)
+	if !reflect.DeepEqual(stored.HomeItems, want) {
+		t.Fatalf("stored = %+v", stored.HomeItems)
+	}
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: []domain.HomeItem{{Key: "Bad Key"}}}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "invalid"})
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: []domain.HomeItem{{Key: "a", Title: domain.LocalizedText{"uk": strings.Repeat("я", 101)}}}}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "too_long"})
+	many := make([]domain.HomeItem, 21)
+	for i := range many {
+		many[i] = domain.HomeItem{Key: fmt.Sprintf("k%d", i)}
+	}
+	_, err = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk", HomeItems: many}, actor(adm))
+	wantFields(t, err, map[string]string{"homeItems": "too_many"})
+	// Saving without items clears them; an empty site has none.
+	got, _ = e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk"}, actor(adm))
+	if got.HomeItems == nil || len(got.HomeItems) != 0 {
+		t.Fatalf("cleared = %#v", got.HomeItems)
 	}
 }

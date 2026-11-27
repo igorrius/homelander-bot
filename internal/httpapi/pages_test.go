@@ -113,11 +113,11 @@ func TestSitePreview(t *testing.T) {
 	b := e.draft(map[string]string{"index.html": "B"})
 	tok := e.api.Pages.PreviewToken(a.ID)
 	r := e.get("/site/preview/" + tok + "/index.html")
-	if r.Code != 200 || r.Body.String() != "A" || r.Header().Get("Cache-Control") != "private, no-store" ||
+	if r.Code != 200 || !strings.HasPrefix(r.Body.String(), "A") || r.Header().Get("Cache-Control") != "private, no-store" ||
 		r.Header().Get("Content-Security-Policy") != pageCSP || r.Header().Get("ETag") != "" {
 		t.Fatalf("preview = %d %q %v", r.Code, r.Body, r.Header())
 	}
-	if r := e.get("/site/preview/" + tok + "/"); r.Code != 200 || r.Body.String() != "A" {
+	if r := e.get("/site/preview/" + tok + "/"); r.Code != 200 || !strings.HasPrefix(r.Body.String(), "A") {
 		t.Fatalf("preview root = %d", r.Code)
 	}
 	parts := strings.SplitN(tok, ".", 2)
@@ -241,7 +241,7 @@ func TestAdminPagesFlow(t *testing.T) {
 	if pr.Code != 200 || !strings.HasPrefix(url, "/site/preview/") || !strings.HasSuffix(url, "/index.html") {
 		t.Fatalf("preview = %d %s", pr.Code, pr.Body)
 	}
-	if r := e.get(url); r.Code != 200 || r.Body.String() != "<p>one</p>" {
+	if r := e.get(url); r.Code != 200 || !strings.HasPrefix(r.Body.String(), "<p>one</p><script>") {
 		t.Fatalf("preview page = %d %q", r.Code, r.Body)
 	}
 	if r := e.do("POST", "/api/v1/admin/pages/999/preview", nil, tok, ""); r.Code != 404 {
@@ -305,5 +305,95 @@ func TestAdminPagesRequireAdmin(t *testing.T) {
 		if r := e.do(rt[0], rt[1], nil, "", ""); r.Code != 401 {
 			t.Fatalf("guest %v = %d", rt, r.Code)
 		}
+	}
+}
+
+func TestSitePagesList(t *testing.T) {
+	e := newAPIEnv(t)
+	if got := e.do("GET", "/api/v1/site", nil, "", "").json()["pages"]; fmt.Sprint(got) != "[]" {
+		t.Fatalf("pages before publish = %#v", got)
+	}
+	v := e.draft(map[string]string{"index.html": "x", "contacts.html": "c", "css/a.html": "n", "app.css": "p{}"})
+	if err := e.api.Pages.Publish(ctx, v.ID, domain.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.do("GET", "/api/v1/site", nil, "", "").json()["pages"]; fmt.Sprint(got) != "[/ /contacts]" {
+		t.Fatalf("pages = %#v", got)
+	}
+	tok := e.login(e.mkUser("+380501110001", admin))
+	if got := e.do("GET", "/api/v1/admin/site", nil, tok, "").json()["pages"]; fmt.Sprint(got) != "[/ /contacts]" {
+		t.Fatalf("admin pages = %#v", got)
+	}
+}
+
+func TestVersionDTOPages(t *testing.T) {
+	e := newAPIEnv(t)
+	tok := e.login(e.mkUser("+380501110001", admin))
+	v := e.draft(map[string]string{"index.html": "x", "contacts.html": "c"})
+	r := e.do("GET", "/api/v1/admin/pages/"+itoa(v.ID), nil, tok, "")
+	want := "[map[name:index path:/] map[name:contacts path:/contacts]]"
+	if got := fmt.Sprint(r.json()["pages"]); got != want {
+		t.Fatalf("pages = %s", got)
+	}
+	list := e.do("GET", "/api/v1/admin/pages", nil, tok, "")
+	if !strings.Contains(list.Body.String(), `"pages":[{"name":"index","path":"/"},{"name":"contacts","path":"/contacts"}]`) {
+		t.Fatalf("list = %s", list.Body)
+	}
+}
+
+func TestPreviewInjectsNav(t *testing.T) {
+	e := newAPIEnv(t)
+	v := e.draft(map[string]string{"index.html": "<html><body><p>hi</p></body></html>", "contacts.html": "<p>c</p>", "app.css": "p{}"})
+	tok := e.api.Pages.PreviewToken(v.ID)
+	r := e.get("/site/preview/" + tok + "/index.html")
+	body := r.Body.String()
+	if !strings.Contains(body, "homelander:navigate") || !strings.Contains(body, `["/","/contacts"]`) ||
+		!strings.HasSuffix(body, "</script></body></html>") || !strings.HasPrefix(body, "<html><body><p>hi</p><script>") {
+		t.Fatalf("preview index = %q", body)
+	}
+	if r.Header().Get("Content-Length") != fmt.Sprint(len(body)) {
+		t.Fatalf("content-length %q for %d bytes", r.Header().Get("Content-Length"), len(body))
+	}
+	// No </body>: the script goes at the end.
+	if c := e.get("/site/preview/" + tok + "/contacts.html").Body.String(); !strings.HasPrefix(c, "<p>c</p><script>") || !strings.HasSuffix(c, "</script>") {
+		t.Fatalf("preview contacts = %q", c)
+	}
+	if c := e.get("/site/preview/" + tok + "/app.css").Body.String(); c != "p{}" {
+		t.Fatalf("preview css = %q", c)
+	}
+	stored := "<html><body><p>hi</p></body></html>"
+	if err := e.api.Pages.Publish(ctx, v.ID, domain.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	p := e.get("/site/index.html")
+	if p.Body.String() != stored || strings.Contains(p.Body.String(), "homelander:navigate") {
+		t.Fatalf("published = %q", p.Body)
+	}
+	var sum string
+	for _, f := range v.Files {
+		if f.Path == "index.html" {
+			sum = f.SHA256
+		}
+	}
+	if tag := p.Header().Get("ETag"); sum == "" || tag != `"`+sum+`"` {
+		t.Fatalf("ETag = %q", tag)
+	}
+}
+
+func TestPreviewInjectsIntoLegacyEncoding(t *testing.T) {
+	e := newAPIEnv(t)
+	// windows-1251 bytes (invalid UTF-8) and a Kelvin sign, which lowercases to a shorter rune.
+	cp1251 := "<html><BODY><p>\xcf\xf0\xe8\xe2\xb3\xf2 \xf1\xe2\xb3\xf2\xe5</p></BODY></html>"
+	kelvin := "<p>KKK</p></body>"
+	v := e.draft(map[string]string{"index.html": cp1251, "k.html": kelvin})
+	tok := e.api.Pages.PreviewToken(v.ID)
+	r := e.get("/site/preview/" + tok + "/index.html")
+	body := r.Body.String()
+	if r.Code != 200 || !strings.HasPrefix(body, "<html><BODY><p>\xcf\xf0\xe8\xe2\xb3\xf2 \xf1\xe2\xb3\xf2\xe5</p><script>") || !strings.HasSuffix(body, "</script></BODY></html>") {
+		t.Fatalf("legacy encoding = %d %q", r.Code, body)
+	}
+	k := e.get("/site/preview/" + tok + "/k.html").Body.String()
+	if !strings.HasPrefix(k, "<p>KKK</p><script>") || !strings.HasSuffix(k, "</script></body>") {
+		t.Fatalf("kelvin = %q", k)
 	}
 }

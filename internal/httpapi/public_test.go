@@ -18,7 +18,7 @@ func TestSiteDefaults(t *testing.T) {
 	e := newAPIEnv(t)
 	r := e.do("GET", "/api/v1/site", nil, "", "")
 	v := r.json()
-	if r.Code != 200 || v["defaultLocale"] != "uk" || v["pictureUrl"] != nil || v["botUrl"] != "https://t.me/test_bot" ||
+	if r.Code != 200 || v["defaultLocale"] != "uk" || v["botUrl"] != "https://t.me/test_bot" ||
 		v["registerUrl"] != "https://example.com/register" {
 		t.Errorf("site = %d %v", r.Code, v)
 	}
@@ -176,16 +176,22 @@ func TestAssetServed(t *testing.T) {
 	e := newAPIEnv(t)
 	adm := e.mkUser("+380500000099", admin)
 	png := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
-	a, err := e.api.Catalog.SetPicture(ctx, png, domain.Actor{UserID: &adm.ID})
+	a, err := e.api.Catalog.UploadImage(ctx, png, domain.Actor{UserID: &adm.ID})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if r := e.do("GET", "/api/v1/assets/"+itoa(a.ID), nil, "", ""); r.Code != http.StatusNotFound {
+		t.Errorf("unreferenced asset = %d", r.Code)
+	}
+	logo := domain.DataImage
+	public := true
+	if _, err := e.api.Data.Create(ctx, domain.DataInput{Key: "logo", Kind: domain.DataValue, ValueType: &logo,
+		Value: []byte(itoa(a.ID)), Public: &public}, domain.Actor{UserID: &adm.ID}); err != nil {
 		t.Fatal(err)
 	}
 	r := e.do("GET", "/api/v1/assets/"+itoa(a.ID), nil, "", "")
 	if r.Code != 200 || r.Header().Get("Content-Type") != "image/png" || r.Header().Get("X-Content-Type-Options") != "nosniff" || r.Body.String() != string(png) {
 		t.Errorf("asset = %d %v", r.Code, r.Header())
-	}
-	if v := e.do("GET", "/api/v1/site", nil, "", "").json(); v["pictureUrl"] != "/api/v1/assets/"+itoa(a.ID) {
-		t.Errorf("pictureUrl = %v", v["pictureUrl"])
 	}
 	if r := e.do("GET", "/api/v1/assets/999", nil, "", ""); r.Code != http.StatusNotFound {
 		t.Errorf("missing asset = %d", r.Code)
@@ -209,3 +215,16 @@ func TestUnknownFieldRejected(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestRegisterOptionsFloors(t *testing.T) {
+	e := newAPIEnv(t)
+	nine := 9
+	tall := domain.House{Name: "tall", ApartmentFrom: 100, ApartmentTo: 120, Floors: &nine}
+	if err := e.r.Houses.Create(ctx, &tall); err != nil {
+		t.Fatal(err)
+	}
+	body := e.do("GET", "/api/v1/register/options", nil, "", "").Body.String()
+	if !strings.Contains(body, `"name":"tall","apartmentFrom":100,"apartmentTo":120,"floors":9`) || !strings.Contains(body, `"floors":null`) {
+		t.Fatalf("options = %s", body)
+	}
+}

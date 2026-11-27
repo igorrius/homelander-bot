@@ -3,13 +3,42 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../i18n'
 import en from '../locales/en.json'
 import uk from '../locales/uk.json'
-import { callsTo, mockApi } from '../test/api'
-import { admin, publicRoutes, resident, site } from '../test/fixtures'
+import { mockApi } from '../test/api'
+import { publicRoutes, site } from '../test/fixtures'
 import { renderApp } from '../test/render'
 
 describe('HomePage', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('uk')
+  })
+
+  it('draws the quarter from the houses with their floors', async () => {
+    mockApi({ ...publicRoutes, 'GET /register/options': { body: { houses: [
+      { id: 1, name: 'House A', apartmentFrom: 1, apartmentTo: 9, floors: 16 },
+      { id: 2, name: 'House B', apartmentFrom: 10, apartmentTo: 19, floors: null },
+      { id: 3, name: 'House C', apartmentFrom: 20, apartmentTo: 29, floors: 5 },
+    ], statuses: [] } } })
+    renderApp('/')
+    expect(await screen.findAllByTestId('house')).toHaveLength(3)
+    expect(screen.getByRole('img', { name: /House A.*House B.*House C/ })).toBeInTheDocument()
+  })
+
+  it('shows the chosen public data under the quarter', async () => {
+    mockApi({
+      ...publicRoutes,
+      'GET /site': { body: { ...site, homeItems: [{ key: 'office.phone', title: { uk: 'Телефон офісу' } }, { key: 'secret', title: {} }] } },
+      'GET /public/data': { body: { 'office.phone': { kind: 'value', type: 'phone', value: '+380 44 000 00 00' } } },
+    })
+    renderApp('/')
+    expect(await screen.findByText('Телефон офісу')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /\+380 44 000 00 00/ })).toHaveAttribute('href', 'tel:+380440000000')
+  })
+
+  it('does not load public data when no cards are chosen', async () => {
+    const { calls } = mockApi(publicRoutes)
+    renderApp('/')
+    await screen.findAllByTestId('house')
+    expect(calls.some((c) => c.path === '/public/data')).toBe(false)
   })
 
   it('shows community name, welcome text and illustration for a guest', async () => {
@@ -18,19 +47,11 @@ describe('HomePage', () => {
     expect(await screen.findByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
     expect(screen.getByText('Привіт')).toBeInTheDocument()
     expect(await screen.findAllByTestId('house')).toHaveLength(2)
-    expect(screen.getByText('House A')).toBeInTheDocument()
-    expect(screen.getByText('House B')).toBeInTheDocument()
+    expect(screen.getByText('House A', { selector: 'text' })).toBeInTheDocument()
+    expect(screen.getByText('House B', { selector: 'text' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: uk.home.login })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: uk.home.register })).toHaveAttribute('href', '/register')
     expect(screen.queryByRole('button', { name: uk.home.logout })).not.toBeInTheDocument()
-  })
-
-  it('shows the uploaded picture instead of the illustration', async () => {
-    mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, pictureUrl: '/api/v1/assets/3' } } })
-    renderApp('/')
-    const img = await screen.findByRole('img', { name: 'Тестова громада' })
-    expect(img).toHaveAttribute('src', '/api/v1/assets/3')
-    expect(screen.queryByRole('img', { name: uk.home.illustration })).not.toBeInTheDocument()
   })
 
   it('falls back to the default-locale community name', async () => {
@@ -48,38 +69,17 @@ describe('HomePage', () => {
     expect(screen.getByText(en.home.welcomeDefault)).toBeInTheDocument()
   })
 
-  it('shows name, apartments and logout for a resident', async () => {
-    mockApi({ ...publicRoutes, 'GET /me': { body: resident } })
-    renderApp('/')
-    expect(await screen.findByText('Olena Test')).toBeInTheDocument()
-    const apt = screen.getByRole('listitem')
-    expect(apt).toHaveTextContent('House A, кв. 12')
-    expect(screen.getByRole('button', { name: uk.home.logout })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: uk.home.admin })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: uk.home.login })).not.toBeInTheDocument()
-  })
-
-  it('shows the admin link for an admin', async () => {
-    mockApi({ ...publicRoutes, 'GET /me': { body: admin } })
-    renderApp('/')
-    expect(await screen.findByRole('link', { name: uk.home.admin })).toHaveAttribute('href', '/admin')
-  })
-
-  it('logs out', async () => {
-    const { calls } = mockApi({ ...publicRoutes, 'GET /me': { body: resident }, 'POST /auth/logout': { status: 204 } })
-    const { user } = renderApp('/')
-    await user.click(await screen.findByRole('button', { name: uk.home.logout }))
-    expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
-    expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1)
-  })
-
   it('shows the published page in a frame under our header', async () => {
     mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, pageUrl: '/site/index.html' } } })
     renderApp('/')
-    const frame = await screen.findByTitle('Тестова громада')
-    expect(frame.tagName).toBe('IFRAME')
+    const frame = await waitFor(() => {
+      const f = document.querySelector('iframe')
+      expect(f).not.toBeNull()
+      return f!
+    })
+    expect(frame).toHaveAttribute('title', 'Тестова громада')
     expect(frame).toHaveAttribute('src', '/site/index.html?lang=uk')
-    expect(screen.getByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
+    expect(screen.getByTestId('site-header-name')).toHaveTextContent('Тестова громада')
     expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
     expect(screen.queryByText('Привіт')).not.toBeInTheDocument()
     expect(screen.queryByTestId('house')).not.toBeInTheDocument()
@@ -89,7 +89,7 @@ describe('HomePage', () => {
     mockApi(publicRoutes)
     renderApp('/')
     expect(await screen.findByText('Привіт')).toBeInTheDocument()
-    expect(screen.queryByTitle('Тестова громада')).not.toBeInTheDocument()
+    expect(document.querySelector('iframe')).toBeNull()
   })
 
   it('applies the site default language when the visitor chose none', async () => {

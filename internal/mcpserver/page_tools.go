@@ -27,6 +27,10 @@ const GuideURI = "homelander://guide/page"
 var textExts = map[string]bool{".html": true, ".css": true, ".js": true, ".json": true, ".svg": true}
 
 type (
+	pageOut struct {
+		Name string `json:"name"`
+		Path string `json:"path" jsonschema:"the page's address on the site: / for index.html, /contacts for contacts.html"`
+	}
 	fileMeta struct {
 		Path string `json:"path"`
 		Size int    `json:"size"`
@@ -37,6 +41,7 @@ type (
 		Note       string     `json:"note"`
 		CreatedAt  time.Time  `json:"created_at"`
 		CreatedVia string     `json:"created_via" jsonschema:"the agent's client name when written through MCP"`
+		Pages      []pageOut  `json:"pages" jsonschema:"root *.html files that are pages, with their site addresses"`
 		Files      []fileMeta `json:"files"`
 	}
 	versionsOut struct {
@@ -56,6 +61,7 @@ type (
 		Status     string    `json:"status"`
 		Note       string    `json:"note"`
 		CreatedVia string    `json:"created_via"`
+		Pages      []pageOut `json:"pages"`
 		Files      []fileOut `json:"files"`
 	}
 	fileIn struct {
@@ -73,14 +79,23 @@ type (
 		Delete []string `json:"delete,omitempty" jsonschema:"paths to remove"`
 	}
 	draftOut struct {
-		ID       int64  `json:"id"`
-		AdminURL string `json:"admin_url" jsonschema:"where an admin previews and publishes the draft; give it to them"`
+		ID       int64     `json:"id"`
+		AdminURL string    `json:"admin_url" jsonschema:"where an admin previews and publishes the draft; give it to them"`
+		Pages    []pageOut `json:"pages" jsonschema:"the draft's pages with their site addresses"`
 	}
 )
 
+func pagesOf(files []domain.PageFile) []pageOut {
+	out := []pageOut{}
+	for _, p := range domain.PagesOf(files) {
+		out = append(out, pageOut{p.Name, p.Path})
+	}
+	return out
+}
+
 func toVersion(v domain.PageVersion) versionOut {
 	o := versionOut{ID: v.ID, Status: string(v.Status), Note: v.Note, CreatedAt: v.CreatedAt, CreatedVia: v.CreatedVia,
-		Files: make([]fileMeta, 0, len(v.Files))}
+		Pages: pagesOf(v.Files), Files: make([]fileMeta, 0, len(v.Files))}
 	for _, f := range v.Files {
 		o.Files = append(o.Files, fileMeta{f.Path, f.Size})
 	}
@@ -106,20 +121,20 @@ func toFileInputs(in []fileIn) ([]domain.PageFileInput, error) {
 	return out, nil
 }
 
-func (t tools) draft(id int64) draftOut {
-	return draftOut{ID: id, AdminURL: strings.TrimRight(t.d.PublicURL, "/") + "/admin/pages/" + strconv.FormatInt(id, 10)}
+func (t tools) draft(v domain.PageVersion) draftOut {
+	return draftOut{ID: v.ID, AdminURL: strings.TrimRight(t.d.PublicURL, "/") + "/admin/pages/" + strconv.FormatInt(v.ID, 10), Pages: pagesOf(v.Files)}
 }
 
 // addPages adds the page guide and the draft tools. There is deliberately no
 // tool to publish, unpublish or delete a version: that is an admin's call.
 func (t tools) addPages(s *mcp.Server) {
 	d := t.d
-	s.AddResource(&mcp.Resource{URI: GuideURI, Name: "page-guide", Title: "How to build the Homelander home page", MIMEType: "text/markdown"},
+	s.AddResource(&mcp.Resource{URI: GuideURI, Name: "page-guide", Title: "How to build the Homelander site", MIMEType: "text/markdown"},
 		func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: GuideURI, MIMEType: "text/markdown", Text: Guide}}}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "page_guide", Description: "Read this before writing the home page: the sandbox rules, how to read public data, the height and language messages with ready snippets, and file limits."},
+	mcp.AddTool(s, &mcp.Tool{Name: "page_guide", Description: "Read this before writing the site: the sandbox rules, several pages and links between them, how to read public data, the height and language messages with ready snippets, and file limits."},
 		func(context.Context, *mcp.CallToolRequest, noArgs) (*mcp.CallToolResult, any, error) {
 			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: Guide}}}, nil, nil
 		})
@@ -144,7 +159,7 @@ func (t tools) addPages(s *mcp.Server) {
 			if err != nil {
 				return versionFilesOut{}, err
 			}
-			out := versionFilesOut{ID: v.ID, Status: string(v.Status), Note: v.Note, CreatedVia: v.CreatedVia, Files: make([]fileOut, 0, len(files))}
+			out := versionFilesOut{ID: v.ID, Status: string(v.Status), Note: v.Note, CreatedVia: v.CreatedVia, Pages: pagesOf(v.Files), Files: make([]fileOut, 0, len(files))}
 			for _, f := range files {
 				fo := fileOut{Path: f.Path, ContentType: f.ContentType, Size: f.Size}
 				if textExts[path.Ext(f.Path)] {
@@ -155,14 +170,14 @@ func (t tools) addPages(s *mcp.Server) {
 			return out, nil
 		}))
 
-	mcp.AddTool(s, &mcp.Tool{Name: "page_create_draft", Description: "Create a new draft version from files (index.html required). Returns the admin_url where an admin previews and publishes it; you cannot publish."},
+	mcp.AddTool(s, &mcp.Tool{Name: "page_create_draft", Description: "Create a new draft version from files (index.html required; every other root *.html is a page at /<name>). Returns the admin_url where an admin previews and publishes it; you cannot publish."},
 		handler(t, func(ctx context.Context, a domain.Actor, in createDraftIn) (draftOut, error) {
 			files, err := toFileInputs(in.Files)
 			if err != nil {
 				return draftOut{}, err
 			}
 			v, err := d.Pages.CreateDraft(ctx, files, in.Note, a)
-			return t.draft(v.ID), err
+			return t.draft(v), err
 		}))
 
 	mcp.AddTool(s, &mcp.Tool{Name: "page_update_draft", Description: "Add, replace (put) or remove (delete) files of a draft. Published and archived versions cannot change; copy them to a draft first."},
@@ -172,12 +187,12 @@ func (t tools) addPages(s *mcp.Server) {
 				return draftOut{}, err
 			}
 			v, err := d.Pages.PutFiles(ctx, in.ID, files, in.Delete, a)
-			return t.draft(v.ID), err
+			return t.draft(v), err
 		}))
 
 	mcp.AddTool(s, &mcp.Tool{Name: "page_copy_to_draft", Description: "Start a new draft from any version (for example the published one) to change it."},
 		handler(t, func(ctx context.Context, a domain.Actor, in idIn) (draftOut, error) {
 			v, err := d.Pages.CopyToDraft(ctx, in.ID, a)
-			return t.draft(v.ID), err
+			return t.draft(v), err
 		}))
 }

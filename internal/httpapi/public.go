@@ -82,10 +82,11 @@ func (h handlerCtx) registerOptions(w http.ResponseWriter, r *http.Request) {
 		Name          string `json:"name"`
 		ApartmentFrom int    `json:"apartmentFrom"`
 		ApartmentTo   int    `json:"apartmentTo"`
+		Floors        *int   `json:"floors"` // for the built-in page's quarter
 	}
 	ho := make([]houseOpt, 0, len(houses))
 	for _, x := range houses {
-		ho = append(ho, houseOpt{x.ID, x.Name, x.ApartmentFrom, x.ApartmentTo})
+		ho = append(ho, houseOpt{x.ID, x.Name, x.ApartmentFrom, x.ApartmentTo, x.Floors})
 	}
 	so := make([]statusDTO, 0, len(statuses))
 	for _, x := range statuses {

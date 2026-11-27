@@ -18,7 +18,6 @@ import {
   IconUsers,
   IconWorld,
   IconDatabase,
-  IconLayout,
   type Icon,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +35,8 @@ interface NavItem {
   badge?: number
   /** Active only on this exact path, not on the paths below it. */
   exact?: boolean
+  /** Another path prefix that belongs to this item (a version preview belongs to Site). */
+  also?: string
 }
 
 interface NavGroup {
@@ -68,8 +69,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
     {
       label: t('admin.navGroup.settings'),
       items: [
-        { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site') },
-        { to: '/admin/pages', icon: IconLayout, label: t('admin.nav.pages') },
+        { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site'), also: '/admin/pages' },
         { to: '/admin/data', icon: IconDatabase, label: t('admin.nav.data') },
         { to: '/admin/notifications', icon: IconBell, label: t('admin.nav.notifications') },
         { to: '/admin/statuses', icon: IconTags, label: t('admin.nav.statuses') },
@@ -93,7 +93,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
               to={it.to}
               label={it.label}
               leftSection={<it.icon size={18} stroke={1.6} />}
-              active={it.exact ? pathname === it.to : pathname.startsWith(it.to)}
+              active={it.exact ? pathname === it.to : pathname.startsWith(it.to) || (!!it.also && pathname.startsWith(it.also))}
               onClick={onNavigate}
               rightSection={it.badge ? <Badge size="sm" circle>{it.badge}</Badge> : undefined}
             />

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { QueryClient } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -28,4 +29,14 @@ export function renderApp(path: string) {
 /** Current router path, query and hash, e.g. "/admin/users?page=2". */
 export function currentLocation(): string {
   return screen.getByTestId('location').textContent ?? ''
+}
+
+/** Renders one component inside the app providers (theme, i18n, a fresh query client). */
+export function renderWithProviders(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return render(
+    <Providers client={client} env="test">
+      <MemoryRouter>{ui}</MemoryRouter>
+    </Providers>,
+  )
 }

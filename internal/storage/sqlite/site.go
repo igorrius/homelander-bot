@@ -9,16 +9,22 @@ import (
 )
 
 // Site implements domain.SiteRepo. Settings live as one JSON value under the
-// "site" key of the settings table.
+// "site" key of the settings table; fields no longer used (pictureAssetId)
+// are ignored when read.
 type Site struct{ DB DB }
 
 var _ domain.SiteRepo = Site{}
 
 type siteJSON struct {
-	CommunityName  domain.LocalizedText `json:"communityName"`
-	WelcomeText    domain.LocalizedText `json:"welcomeText"`
-	DefaultLocale  string               `json:"defaultLocale"`
-	PictureAssetID *int64               `json:"pictureAssetId"`
+	CommunityName domain.LocalizedText `json:"communityName"`
+	WelcomeText   domain.LocalizedText `json:"welcomeText"`
+	DefaultLocale string               `json:"defaultLocale"`
+	HomeItems     []homeItemJSON       `json:"homeItems,omitempty"`
+}
+
+type homeItemJSON struct {
+	Key   string               `json:"key"`
+	Title domain.LocalizedText `json:"title"`
 }
 
 // Get returns the site settings, with empty maps when nothing was saved yet.
@@ -37,12 +43,23 @@ func (r Site) Get(ctx context.Context) (domain.SiteSettings, error) {
 	if v.WelcomeText == nil {
 		v.WelcomeText = domain.LocalizedText{}
 	}
-	return domain.SiteSettings(v), err
+	out := domain.SiteSettings{CommunityName: v.CommunityName, WelcomeText: v.WelcomeText, DefaultLocale: v.DefaultLocale, HomeItems: []domain.HomeItem{}}
+	for _, it := range v.HomeItems {
+		if it.Title == nil {
+			it.Title = domain.LocalizedText{}
+		}
+		out.HomeItems = append(out.HomeItems, domain.HomeItem{Key: it.Key, Title: it.Title})
+	}
+	return out, err
 }
 
 // Save replaces the site settings.
 func (r Site) Save(ctx context.Context, s domain.SiteSettings) error {
-	raw, err := json.Marshal(siteJSON(s))
+	v := siteJSON{CommunityName: s.CommunityName, WelcomeText: s.WelcomeText, DefaultLocale: s.DefaultLocale}
+	for _, it := range s.HomeItems {
+		v.HomeItems = append(v.HomeItems, homeItemJSON(it))
+	}
+	raw, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}

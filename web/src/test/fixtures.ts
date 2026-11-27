@@ -5,10 +5,11 @@ export const site: Site = {
   communityName: { uk: 'Тестова громада', en: 'Test Community' },
   welcomeText: { uk: 'Привіт' },
   defaultLocale: 'uk',
-  pictureUrl: null,
   botUrl: 'https://t.me/test_bot',
   registerUrl: 'http://localhost/register',
   pageUrl: null,
+  pages: [],
+  homeItems: [],
 }
 
 export const statuses: ResidencyStatus[] = [
@@ -22,7 +23,7 @@ export const houses: House[] = [
 ]
 
 export const registerOptions: RegisterOptions = {
-  houses: houses.map(({ id, name, apartmentFrom, apartmentTo }) => ({ id, name, apartmentFrom, apartmentTo })),
+  houses: houses.map(({ id, name, apartmentFrom, apartmentTo, floors }) => ({ id, name, apartmentFrom, apartmentTo, floors })),
   statuses,
 }
 

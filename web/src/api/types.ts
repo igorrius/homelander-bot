@@ -41,11 +41,20 @@ export interface Site {
   communityName: LocalizedText
   welcomeText: LocalizedText
   defaultLocale: Locale
-  pictureUrl: string | null
   botUrl: string
   registerUrl: string
   /** The published home page, framed under our header; null shows the built-in page. */
   pageUrl: string | null
+  /** Site paths of the published pages ("/", "/contacts"); [] when nothing is published. */
+  pages: string[]
+  /** Public data items shown as cards on the built-in page, in order. */
+  homeItems: HomeItem[]
+}
+
+export interface HomeItem {
+  key: string
+  /** Card title; empty falls back to the prettified key. */
+  title: LocalizedText
 }
 
 export interface HouseOption {
@@ -53,6 +62,8 @@ export interface HouseOption {
   name: string
   apartmentFrom: number
   apartmentTo: number
+  /** For the built-in page's quarter; null draws a default height. */
+  floors: number | null
 }
 
 export interface ResidencyStatus {
@@ -194,7 +205,7 @@ export interface OutboxStatus {
 
 export type DataKind = 'value' | 'table'
 export type DataType = 'text' | 'localized_text' | 'number' | 'bool' | 'image' | 'json' | 'url' | 'phone'
-export const valueTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'json']
+export const valueTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'url', 'phone', 'json']
 export const columnTypes: DataType[] = ['text', 'localized_text', 'number', 'bool', 'image', 'url', 'phone']
 
 export interface DataColumn {
@@ -233,11 +244,18 @@ export interface PageFileInfo {
 }
 
 /** One uploaded set of home page files. */
+export interface SitePage {
+  name: string
+  path: string
+}
+
 export interface PageVersion {
   id: number
   status: PageStatus
   note: string
   files: PageFileInfo[]
+  /** Root *.html files that are pages: index → "/", contacts → "/contacts". */
+  pages: SitePage[]
   totalSize: number
   createdAt: string
   createdBy: { id: number; name: string } | null

@@ -282,3 +282,67 @@ func TestPagePutFilesCapsDeletes(t *testing.T) {
 	_, err = e.pages.PutFiles(ctx, v.ID, nil, del, a)
 	wantPageErr(t, err, "too_many")
 }
+
+func TestPagesOf(t *testing.T) {
+	var files []domain.PageFile
+	for _, p := range []string{"app.js", "contacts.html", "Rules.html", "admin.html", ".x.html", "css/a.html", "index.html", "a_b.html", "-x.html"} {
+		files = append(files, domain.PageFile{Path: p})
+	}
+	got := domain.PagesOf(files)
+	want := []domain.SitePage{{Name: "index", Path: "/", File: "index.html"}, {Name: "contacts", Path: "/contacts", File: "contacts.html"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PagesOf = %+v; want %+v", got, want)
+	}
+	if got := domain.PagesOf(nil); got == nil || len(got) != 0 {
+		t.Fatalf("PagesOf(nil) = %#v; want empty, not nil", got)
+	}
+}
+
+func TestPageNameRules(t *testing.T) {
+	e := newEnv(t)
+	a := actor(e.mkUser("+380501110001", admin))
+	for path, reason := range map[string]string{
+		"admin.html": "reserved_page_name", "login.html": "reserved_page_name", "api.html": "reserved_page_name",
+		"Rules.html": "invalid_page_name", "a_b.html": "invalid_page_name",
+		strings.Repeat("a", 64) + ".html": "invalid_page_name",
+	} {
+		_, err := e.pages.CreateDraft(ctx, []domain.PageFileInput{index(), pin(path, "x")}, "", a)
+		var ve *domain.ValidationError
+		if !errors.As(err, &ve) || ve.Fields["files"] != reason || ve.Details["path"] != path {
+			t.Errorf("%q: err = %v; want files: %s", path, err, reason)
+		}
+	}
+	v, err := e.pages.CreateDraft(ctx, []domain.PageFileInput{index(), pin("css/Nested.html", "x"), pin("contacts.html", "c"),
+		pin(strings.Repeat("a", 63)+".html", "x")}, "", a)
+	if err != nil {
+		t.Fatalf("good names refused: %v", err)
+	}
+	_, err = e.pages.PutFiles(ctx, v.ID, []domain.PageFileInput{pin("admin.html", "x")}, nil, a)
+	wantPageErr(t, err, "reserved_page_name")
+}
+
+func TestRestoreOldNames(t *testing.T) {
+	e := newEnv(t)
+	a := actor(e.mkUser("+380501110001", admin))
+	now := e.clock.t
+	v := domain.PageVersion{Status: domain.PageDraft, CreatedAt: now, UpdatedAt: now}
+	if err := e.pages.R.Pages.Create(ctx, &v); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.pages.R.Pages.PutFiles(ctx, v.ID, []domain.PageFile{
+		{Path: "index.html", ContentType: "text/html; charset=utf-8", Data: []byte("i"), Size: 1},
+		{Path: "Admin.html", ContentType: "text/html; charset=utf-8", Data: []byte("a"), Size: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.pages.Publish(ctx, v.ID, a); err != nil {
+		t.Fatalf("publish old names = %v", err)
+	}
+	c, err := e.pages.CopyToDraft(ctx, v.ID, a)
+	if err != nil || len(c.Files) != 2 {
+		t.Fatalf("copy old names = %+v, %v", c, err)
+	}
+	if got := domain.PagesOf(c.Files); len(got) != 1 || got[0].Path != "/" {
+		t.Fatalf("pages = %+v", got)
+	}
+}

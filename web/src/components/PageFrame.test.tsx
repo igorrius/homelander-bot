@@ -48,3 +48,18 @@ describe('PageFrame', () => {
     expect(frame().getAttribute('src')).toBe('/site/index.html?lang=uk')
   })
 })
+
+describe('PageFrame navigation', () => {
+  it('passes on navigation only from its own frame and only to listed pages', () => {
+    const onNavigate = vi.fn()
+    render(<PageFrame src="/site/index.html" lang="uk" title="Page" pages={['/', '/contacts']} onNavigate={onNavigate} />)
+    const win = frame().contentWindow
+    send(window, { type: 'homelander:navigate', path: '/contacts' })
+    send(win, { type: 'homelander:navigate', path: '/admin' })
+    send(win, { type: 'homelander:navigate', path: '/rules' })
+    send(win, { type: 'homelander:navigate', path: 5 })
+    expect(onNavigate).not.toHaveBeenCalled()
+    send(win, { type: 'homelander:navigate', path: '/contacts' })
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith('/contacts')
+  })
+})

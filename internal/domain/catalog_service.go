@@ -21,17 +21,17 @@ type CatalogService struct {
 }
 
 const (
-	maxApartments   = 2000
-	maxFloors       = 200
-	maxHouseText    = 200
-	maxSiteName     = 200
-	maxWelcome      = 2000
-	maxPictureBytes = 5 << 20
+	maxApartments = 2000
+	maxFloors     = 200
+	maxHouseText  = 200
+	maxSiteName   = 200
+	maxWelcome    = 2000
+	maxHomeItems  = 20
+	maxHomeTitle  = 100
+	maxImageBytes = 5 << 20
 )
 
 var statusCode = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
-
-var pictureTypes = []string{"image/png", "image/jpeg", "image/webp"}
 
 func (s *CatalogService) audit(ctx context.Context, a Actor, action, target string, details map[string]any) error {
 	return s.R.Audit.Add(ctx, AuditEntry{At: s.Now(), ActorUserID: a.UserID, Action: action, Target: target, Details: details, IP: a.IP})
@@ -168,6 +168,31 @@ func (s *CatalogService) checkTexts(v validation, field string, t LocalizedText,
 	return out
 }
 
+// checkHomeItems validates the built-in page cards: at most maxHomeItems,
+// valid data keys (not necessarily existing), short titles; a repeated key
+// keeps its first entry.
+func (s *CatalogService) checkHomeItems(v validation, in []HomeItem) []HomeItem {
+	out := []HomeItem{}
+	if len(in) > maxHomeItems {
+		v.add("homeItems", "too_many")
+		return out
+	}
+	seen := map[string]bool{}
+	for _, it := range in {
+		if len(it.Key) > maxDataKey || !dataKeyRe.MatchString(it.Key) {
+			v.add("homeItems", "invalid")
+			continue
+		}
+		title := s.checkTexts(v, "homeItems", it.Title, maxHomeTitle)
+		if seen[it.Key] {
+			continue
+		}
+		seen[it.Key] = true
+		out = append(out, HomeItem{Key: it.Key, Title: title})
+	}
+	return out
+}
+
 func (s *CatalogService) checkStatus(st *ResidencyStatus) error {
 	v := validation{}
 	if !statusCode.MatchString(st.Code) {
@@ -230,7 +255,7 @@ func (s *CatalogService) Site(ctx context.Context) (SiteSettings, error) {
 	return st, err
 }
 
-// SaveSite saves the texts and default locale; the picture is kept as it is.
+// SaveSite saves the texts, the default locale and the built-in page cards.
 func (s *CatalogService) SaveSite(ctx context.Context, in SiteSettings, actor Actor) (SiteSettings, error) {
 	var out SiteSettings
 	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
@@ -240,14 +265,11 @@ func (s *CatalogService) SaveSite(ctx context.Context, in SiteSettings, actor Ac
 		}
 		name := s.checkTexts(v, "communityName", in.CommunityName, maxSiteName)
 		welcome := s.checkTexts(v, "welcomeText", in.WelcomeText, maxWelcome)
+		items := s.checkHomeItems(v, in.HomeItems)
 		if err := v.err(); err != nil {
 			return err
 		}
-		cur, err := s.R.Site.Get(ctx)
-		if err != nil {
-			return err
-		}
-		out = SiteSettings{CommunityName: name, WelcomeText: welcome, DefaultLocale: in.DefaultLocale, PictureAssetID: cur.PictureAssetID}
+		out = SiteSettings{CommunityName: name, WelcomeText: welcome, DefaultLocale: in.DefaultLocale, HomeItems: items}
 		if err := s.R.Site.Save(ctx, out); err != nil {
 			return err
 		}
@@ -256,63 +278,7 @@ func (s *CatalogService) SaveSite(ctx context.Context, in SiteSettings, actor Ac
 	return out, err
 }
 
-// SetPicture stores a PNG, JPEG or WebP (detected from the bytes, at most
-// 5 MiB) as the site picture and deletes the previous one. SVG is refused: it
-// can carry scripts.
-func (s *CatalogService) SetPicture(ctx context.Context, data []byte, actor Actor) (Asset, error) {
-	if len(data) > maxPictureBytes {
-		return Asset{}, &ValidationError{Fields: map[string]string{"picture": "size"}}
-	}
-	ct := http.DetectContentType(data)
-	if !slices.Contains(pictureTypes, ct) {
-		return Asset{}, &ValidationError{Fields: map[string]string{"picture": "type"}}
-	}
-	sum := sha256.Sum256(data)
-	a := Asset{Kind: "hero", ContentType: ct, Data: data, SHA256: hex.EncodeToString(sum[:]), UploadedAt: s.Now()}
-	if actor.UserID != nil {
-		a.UploadedBy = *actor.UserID
-	}
-	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
-		cur, err := s.R.Site.Get(ctx)
-		if err != nil {
-			return err
-		}
-		if err := s.R.Site.PutAsset(ctx, &a); err != nil {
-			return err
-		}
-		if cur.PictureAssetID != nil {
-			if err := s.R.Site.DeleteAsset(ctx, *cur.PictureAssetID); err != nil {
-				return err
-			}
-		}
-		cur.PictureAssetID = &a.ID
-		if err := s.R.Site.Save(ctx, cur); err != nil {
-			return err
-		}
-		return s.audit(ctx, actor, ActSitePictureSet, SiteTarget, map[string]any{"contentType": ct, "bytes": len(data)})
-	})
-	return a, err
-}
-
-// RemovePicture deletes the site picture; the built-in illustration shows instead.
-func (s *CatalogService) RemovePicture(ctx context.Context, actor Actor) error {
-	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
-		cur, err := s.R.Site.Get(ctx)
-		if err != nil || cur.PictureAssetID == nil {
-			return err
-		}
-		if err := s.R.Site.DeleteAsset(ctx, *cur.PictureAssetID); err != nil {
-			return err
-		}
-		cur.PictureAssetID = nil
-		if err := s.R.Site.Save(ctx, cur); err != nil {
-			return err
-		}
-		return s.audit(ctx, actor, ActSitePictureRemoved, SiteTarget, nil)
-	})
-}
-
-// Asset returns a stored file (the site picture).
+// Asset returns a stored file (a data space image).
 func (s *CatalogService) Asset(ctx context.Context, id int64) (Asset, error) {
 	return s.R.Site.GetAsset(ctx, id)
 }
@@ -323,7 +289,7 @@ var dataImageTypes = []string{"image/png", "image/jpeg", "image/webp", "image/gi
 // UploadImage stores an image for the data space; it is served publicly only
 // once a public item refers to it. Problems are reported on the "file" field.
 func (s *CatalogService) UploadImage(ctx context.Context, data []byte, actor Actor) (Asset, error) {
-	if len(data) > maxPictureBytes {
+	if len(data) > maxImageBytes {
 		return Asset{}, &ValidationError{Fields: map[string]string{"file": "size"}}
 	}
 	ct := http.DetectContentType(data)

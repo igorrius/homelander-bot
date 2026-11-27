@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -442,5 +443,38 @@ func TestMCPPageDrafts(t *testing.T) {
 	res = call(t, s, "page_update_draft", map[string]any{"id": cid, "delete": many})
 	if !res.IsError || !strings.Contains(text(res), "files: too_many") {
 		t.Errorf("201 deletes = %v %q", res.IsError, text(res))
+	}
+}
+
+func TestMCPSeveralPages(t *testing.T) {
+	e := newEnv(t)
+	s := e.session(e.access)
+	out := ok(t, s, "page_create_draft", map[string]any{"files": []map[string]any{
+		{"path": "index.html", "text": `<a href="/contacts" target="_top">Contacts</a>`}, {"path": "contacts.html", "text": "<h1>Contacts</h1>"}}})
+	want := "[map[name:index path:/] map[name:contacts path:/contacts]]"
+	if got := fmt.Sprint(out["pages"]); got != want {
+		t.Errorf("create pages = %s", got)
+	}
+	id := out["id"]
+	if got := fmt.Sprint(ok(t, s, "page_get_version", map[string]any{"id": id})["pages"]); got != want {
+		t.Errorf("get pages = %s", got)
+	}
+	list := ok(t, s, "page_list_versions", nil)["versions"].([]any)
+	if got := fmt.Sprint(list[0].(map[string]any)["pages"]); got != want {
+		t.Errorf("list pages = %s", got)
+	}
+	upd := ok(t, s, "page_update_draft", map[string]any{"id": id, "put": []map[string]any{{"path": "rules.html", "text": "r"}}})
+	if got := fmt.Sprint(upd["pages"]); !strings.Contains(got, "path:/rules") {
+		t.Errorf("update pages = %s", got)
+	}
+	res := call(t, s, "page_create_draft", map[string]any{"files": []map[string]any{{"path": "index.html", "text": "x"}, {"path": "admin.html", "text": "x"}}})
+	if !res.IsError || !strings.Contains(text(res), "reserved_page_name") || !strings.Contains(text(res), "admin.html") {
+		t.Errorf("reserved = %v %q", res.IsError, text(res))
+	}
+	g := text(call(t, s, "page_guide", nil))
+	for _, w := range []string{"Several pages", "contacts.html", "reserved", "homelander:navigate", "page_copy_to_draft", "`url`", "`phone`"} {
+		if !strings.Contains(g, w) {
+			t.Errorf("guide lacks %q", w)
+		}
 	}
 }
