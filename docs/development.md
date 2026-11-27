@@ -30,6 +30,16 @@ Open http://localhost:8080. The health check is `/healthz`.
 For fast front-end work run the Go server (`make run`) and, in another terminal, `cd web && npm run dev`.
 The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`.
 
+## The Telegram bot
+
+- Create a bot with @BotFather and put its token in `TELEGRAM_BOT_TOKEN` (use a separate test bot locally).
+- The bot reads the community chats it is added to. To receive every group message, turn
+  **privacy mode off** in @BotFather (`/setprivacy` → Disable) or make the bot an admin of the group;
+  with privacy mode on, Telegram delivers only commands and replies to the bot. In M1 the bot never
+  answers in groups; reactions come later as flows.
+- Locally the bot uses long polling (`TELEGRAM_UPDATES=polling`); on Railway use `webhook`. The
+  webhook path is derived from `APP_SECRET`, and Telegram's calls must carry `TELEGRAM_WEBHOOK_SECRET`.
+
 ## Deploying on Railway
 
 - One service built from the `Dockerfile`, one replica.

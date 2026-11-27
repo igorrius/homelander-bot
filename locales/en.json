@@ -16,6 +16,20 @@
   "bot": {
     "login": {
       "code": "Your login code: {{.Code}}\nRequested at {{.Time}}. If it wasn't you, just ignore this message."
-    }
+    },
+    "start": {
+      "prompt": "Hello! To connect your account, share your phone number with the button below.",
+      "button": "📱 Share my phone number"
+    },
+    "contact": {
+      "notOwn": "Please share your own phone number with the button below, not a forwarded contact."
+    },
+    "activated": "Done, {{.Name}}! Your account is connected. Your house page: {{.URL}}",
+    "bootstrap": "You are the system's first administrator. Log in to the admin panel and fill in your name: {{.URL}}",
+    "alreadyConnected": "Your account is already connected.",
+    "pending": "An administrator is still reviewing your application. Share your number again once it is approved.",
+    "notRegistered": "This number is not registered in the system. Please contact an administrator.",
+    "rateLimited": "Too many attempts. Please try again later.",
+    "help": "To connect your account, send /start and share your phone number."
   }
 }
