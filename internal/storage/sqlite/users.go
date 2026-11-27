@@ -62,24 +62,46 @@ func (r Users) Update(ctx context.Context, u *domain.User) error {
 
 type scanner interface{ Scan(dest ...any) error }
 
+// userRow scans userColumns into a domain.User.
+type userRow struct {
+	u                     *domain.User
+	resident, admin       int
+	approvedBy            sql.NullInt64
+	approvedAt, activated sql.NullString
+	createdAt, updatedAt  string
+}
+
+func (r *userRow) dest() []any {
+	u := r.u
+	return []any{&u.ID, &u.Phone, &u.FirstName, &u.LastName, &u.Locale, &r.resident, &r.admin, &u.Status, &u.Source,
+		&r.approvedBy, &r.approvedAt, &r.activated, &r.createdAt, &r.updatedAt}
+}
+
+func (r *userRow) finish() {
+	u := r.u
+	u.IsResident, u.IsAdmin = r.resident == 1, r.admin == 1
+	u.ApprovedBy = intPtr(r.approvedBy)
+	u.ApprovedAt, u.ActivatedAt = parseTimePtr(r.approvedAt), parseTimePtr(r.activated)
+	u.CreatedAt, u.UpdatedAt = parseTime(r.createdAt), parseTime(r.updatedAt)
+}
+
 func scanUser(s scanner) (domain.User, error) {
-	var (
-		u                     domain.User
-		resident, admin       int
-		approvedBy            sql.NullInt64
-		approvedAt, activated sql.NullString
-		createdAt, updatedAt  string
-	)
-	err := s.Scan(&u.ID, &u.Phone, &u.FirstName, &u.LastName, &u.Locale, &resident, &admin, &u.Status, &u.Source,
-		&approvedBy, &approvedAt, &activated, &createdAt, &updatedAt)
-	if err != nil {
+	var u domain.User
+	row := &userRow{u: &u}
+	if err := s.Scan(row.dest()...); err != nil {
 		return domain.User{}, mapErr(err)
 	}
-	u.IsResident, u.IsAdmin = resident == 1, admin == 1
-	u.ApprovedBy = intPtr(approvedBy)
-	u.ApprovedAt, u.ActivatedAt = parseTimePtr(approvedAt), parseTimePtr(activated)
-	u.CreatedAt, u.UpdatedAt = parseTime(createdAt), parseTime(updatedAt)
+	row.finish()
 	return u, nil
+}
+
+// prefixed qualifies a comma-separated column list with a table alias.
+func prefixed(alias, columns string) string {
+	parts := strings.Split(columns, ",")
+	for i, p := range parts {
+		parts[i] = alias + strings.TrimSpace(p)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Get returns the user with id, or domain.ErrNotFound.
