@@ -177,8 +177,8 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("BootstrapAdminPhoneSet", c.BootstrapAdminPhone != ""),
 		slog.String("DefaultLocale", c.DefaultLocale),
 		slog.String("DefaultPhoneRegion", c.DefaultPhoneRegion),
-		slog.Duration("SessionIdleTTL", c.SessionIdleTTL),
-		slog.Duration("SessionMaxTTL", c.SessionMaxTTL),
+		slog.String("SessionIdleTTL", c.SessionIdleTTL.String()),
+		slog.String("SessionMaxTTL", c.SessionMaxTTL.String()),
 		slog.String("LogLevel", c.LogLevel.String()),
 		slog.Bool("TrustProxy", c.TrustProxy),
 	)
