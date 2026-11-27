@@ -1,9 +1,290 @@
 {
-  "app": { "name": "Homelander" },
-  "language": { "label": "Language" },
-  "home": { "title": "Welcome" },
-  "register": { "title": "Registration application" },
-  "login": { "title": "Log in" },
-  "admin": { "title": "Admin panel" },
-  "notFound": { "title": "Page not found", "home": "Go to the home page" }
+  "app": {
+    "name": "Homelander"
+  },
+  "language": {
+    "label": "Language",
+    "uk": "Українська",
+    "en": "English"
+  },
+  "home": {
+    "title": "Welcome",
+    "welcomeDefault": "Welcome to the residents' page of our community.",
+    "illustration": "Houses of the community",
+    "login": "Log in",
+    "register": "Register",
+    "logout": "Log out",
+    "admin": "Admin panel",
+    "apartment": "{{house}}, apt {{n}}"
+  },
+  "register": {
+    "title": "Registration application",
+    "intro": "Fill in the form. An administrator checks it, then you activate your account in the Telegram bot.",
+    "phone": "Phone number",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "house": "House",
+    "apartment": "Apartment",
+    "noApartment": "No such apartment",
+    "status": "I am",
+    "consent": "I agree that my data is stored to check that I live here",
+    "submit": "Submit application",
+    "unavailable": "Registration is not open yet. Please try again later.",
+    "doneTitle": "Application received",
+    "doneText": "After an administrator approves it, open the bot and share your phone number. Then you can log in.",
+    "openBot": "Open the bot",
+    "qrHint": "Scan with your phone if you are on a computer"
+  },
+  "login": {
+    "title": "Log in",
+    "phone": "Phone number",
+    "phonePlaceholder": "+380…",
+    "sendCode": "Send code",
+    "codeSent": "If this number has access, a code was sent to your Telegram. Enter it below.",
+    "code": "Login code",
+    "submit": "Log in",
+    "changePhone": "Change number",
+    "resend": "Send again"
+  },
+  "admin": {
+    "title": "Admin panel",
+    "menu": "Menu",
+    "residentPage": "Resident page",
+    "nav": {
+      "applications": "Applications",
+      "users": "Users",
+      "houses": "Houses",
+      "statuses": "Residency statuses",
+      "site": "Site",
+      "audit": "Audit log"
+    },
+    "applications": {
+      "title": "Applications",
+      "hint": "Open a person to correct the details before approving.",
+      "empty": "No applications are waiting.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectConfirm": "Reject the application of {{name}}?",
+      "appliedAt": "Applied"
+    },
+    "users": {
+      "name": "Name",
+      "phone": "Phone",
+      "apartments": "Apartments",
+      "title": "Users",
+      "add": "Add user",
+      "search": "Search",
+      "searchHint": "Name or phone",
+      "house": "House",
+      "status": "Status",
+      "isAdmin": "Admin",
+      "isResident": "Resident",
+      "flags": "Roles",
+      "telegram": "Telegram",
+      "linked": "Telegram linked",
+      "empty": "No users found."
+    },
+    "user": {
+      "isResident": "Resident",
+      "isAdmin": "Admin",
+      "details": "Details",
+      "saveDetails": "Save details",
+      "locale": "Language of bot messages",
+      "phoneLocked": "Unlink Telegram to change the phone of an activated user.",
+      "access": "Access",
+      "approve": "Approve",
+      "reject": "Reject",
+      "disable": "Disable",
+      "enable": "Enable",
+      "disableConfirm": "Disable {{name}}? They will be logged out and cannot log in until enabled.",
+      "channels": "Messengers",
+      "noChannels": "No messenger is linked yet. The person activates the account by sharing their phone in the bot.",
+      "channelType": {
+        "telegram": "Telegram"
+      },
+      "unlink": "Unlink",
+      "unlinkHint": "The user goes back to awaiting activation and must share the phone in the bot again.",
+      "residencies": "Apartments",
+      "noResidencies": "No apartments.",
+      "addResidency": "Add apartment",
+      "saveResidency": "Save apartment",
+      "editResidency": "Change apartment",
+      "removeResidency": "Remove apartment",
+      "removeResidencyConfirm": "Remove {{house}}, apt {{n}} from this user?",
+      "notResidentHint": "The Resident flag is off: these apartments are kept but ignored.",
+      "audit": "Recent actions",
+      "allAudit": "All entries",
+      "created": "Created {{at}}",
+      "approved": "approved {{at}}",
+      "activated": "activated {{at}}",
+      "source": {
+        "application": "Application",
+        "admin": "Added by admin",
+        "bootstrap": "First admin"
+      },
+      "residencyStatus": "Residency status"
+    },
+    "audit": {
+      "empty": "No entries.",
+      "at": "Time",
+      "action": "Action",
+      "target": "Object",
+      "actor": "By",
+      "ip": "IP",
+      "title": "Audit log",
+      "clearFilter": "Show all entries"
+    },
+    "houses": {
+      "title": "Houses",
+      "add": "Add house",
+      "showArchived": "Show archived",
+      "archived": "Archived",
+      "apartments": "Apartments",
+      "empty": "No houses yet. Add the houses of your community to open registration."
+    },
+    "house": {
+      "name": "Name",
+      "nameHint": "As residents know it, e.g. \"12\" or \"7, section 1\"",
+      "address": "Address",
+      "apartmentFrom": "First apartment",
+      "apartmentTo": "Last apartment",
+      "floors": "Floors",
+      "sortOrder": "Order",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "archivedHint": "An archived house is hidden from registration.",
+      "settings": "Settings",
+      "withResidents": "Apartments with residents",
+      "people": "People",
+      "byResidencyStatus": "By residency status",
+      "byUserStatus": "By account status",
+      "grid": "Apartments",
+      "apartmentCell": "Apartment {{n}}, residents: {{count}}",
+      "apartmentTitle": "Apartment {{n}}"
+    },
+    "statuses": {
+      "title": "Residency statuses",
+      "add": "Add status",
+      "code": "Code",
+      "codeHint": "Latin letters, digits and _; cannot be changed later",
+      "name": "Name",
+      "sortOrder": "Order",
+      "archived": "Archived"
+    },
+    "site": {
+      "title": "Site",
+      "texts": "Texts",
+      "communityName": "Community name",
+      "welcomeText": "Welcome text",
+      "defaultLocale": "Default language",
+      "save": "Save texts",
+      "picture": "Picture",
+      "noPicture": "No picture is uploaded: residents see this illustration drawn from the houses.",
+      "upload": "Upload a picture",
+      "pictureHint": "PNG, JPEG or WebP, up to 5 MB",
+      "removePicture": "Remove picture",
+      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration.",
+      "registerLink": "Registration link",
+      "registerLinkHint": "Pin this link in the community chat. Residents apply with it; you approve each application."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "home": "Go to the home page"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "yes": "Yes",
+    "no": "No",
+    "any": "Any",
+    "saved": "Saved",
+    "back": "Back",
+    "copy": "Copy",
+    "copied": "Copied",
+    "close": "Close"
+  },
+  "errors": {
+    "validation": "Please check the highlighted fields.",
+    "bad_request": "The request could not be understood. Reload the page and try again.",
+    "not_found": "Not found.",
+    "conflict": "This action is not possible in the current state.",
+    "forbidden": "You do not have access to this.",
+    "last_admin": "This is the last active administrator: they cannot lose admin rights or be disabled.",
+    "rate_limited": "Too many attempts. Please wait a few minutes and try again.",
+    "try_later": "Too many applications are waiting right now. Please try again later.",
+    "invalid_code": "The code is wrong or has expired.",
+    "unauthorized": "Please log in.",
+    "internal": "Something went wrong on the server. Please try again.",
+    "unknown": "Something went wrong. Please try again."
+  },
+  "validation": {
+    "required": "Required",
+    "invalid": "Invalid value",
+    "too_long": "Too long",
+    "out_of_range": "Out of the allowed range",
+    "taken": "Already in use",
+    "linked": "Unlink the messenger first to change the phone",
+    "has_residents": "Residents are registered in apartments outside this range",
+    "type": "Only PNG, JPEG or WebP images",
+    "size": "The file is larger than 5 MB"
+  },
+  "qr": {
+    "title": "QR code"
+  },
+  "userStatus": {
+    "pending_approval": "Waiting for approval",
+    "awaiting_activation": "Awaiting activation",
+    "active": "Active",
+    "rejected": "Rejected",
+    "disabled": "Disabled"
+  },
+  "audit": {
+    "action": {
+      "user": {
+        "applied": "Applied",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "created": "Added by an administrator",
+        "updated": "Details changed",
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "admin_granted": "Admin rights granted",
+        "admin_revoked": "Admin rights revoked",
+        "resident_set": "Marked as resident",
+        "resident_unset": "No longer a resident"
+      },
+      "channel": {
+        "linked": "Messenger linked",
+        "unlinked": "Messenger unlinked"
+      },
+      "auth": {
+        "code_sent": "Login code sent",
+        "login": "Logged in",
+        "login_failed": "Failed login",
+        "logout": "Logged out"
+      },
+      "house": {
+        "created": "House created",
+        "updated": "House changed"
+      },
+      "status": {
+        "created": "Residency status created",
+        "updated": "Residency status changed"
+      },
+      "site": {
+        "updated": "Site settings changed",
+        "picture_set": "Site picture uploaded",
+        "picture_removed": "Site picture removed"
+      },
+      "bootstrap": {
+        "admin_created": "First administrator created"
+      }
+    }
+  }
 }

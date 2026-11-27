@@ -1,8 +1,15 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { cleanup, configure } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
 
-afterEach(() => cleanup())
+// Whole-app renders can take over a second on a loaded CI machine.
+configure({ asyncUtilTimeout: 5000 })
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+  localStorage.clear()
+})
 
 // Mantine reads these browser APIs that jsdom lacks.
 Object.defineProperty(window, 'matchMedia', {
@@ -25,3 +32,6 @@ class ResizeObserverStub {
   disconnect() {}
 }
 window.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver
+if (!('fonts' in document)) {
+  Object.defineProperty(document, 'fonts', { value: { addEventListener: () => {}, removeEventListener: () => {}, ready: Promise.resolve() } })
+}
