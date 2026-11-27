@@ -1,4 +1,4 @@
-import { Box, Center, Container, Image, Loader, Stack, Text, Title, useComputedColorScheme } from '@mantine/core'
+import { Box, Center, Container, Loader, Stack, Text, Title, useComputedColorScheme } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { useRegisterOptions, useSite } from '../api/public'
 import { usePublicData } from '../api/publicData'
@@ -18,7 +18,6 @@ export function HomePage() {
   const text = useLocalized()
   const name = text(site.data?.communityName) || t('home.title')
   const welcome = text(site.data?.welcomeText) || t('home.welcomeDefault')
-  const pictureUrl = site.data?.pictureUrl
   const pageUrl = site.data?.pageUrl
   const dark = useComputedColorScheme('light') === 'dark'
   const homeItems = site.data?.homeItems ?? []
@@ -54,8 +53,6 @@ export function HomePage() {
               <Center h={240}>
                 <Loader />
               </Center>
-            ) : pictureUrl ? (
-              <Image src={pictureUrl} alt={name} radius="md" mah={480} fit="contain" />
             ) : (
               <Quarter houses={options.data?.houses ?? []} />
             )}

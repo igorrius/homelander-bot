@@ -13,19 +13,18 @@ import (
 func TestSiteDefaultsWhenUnset(t *testing.T) {
 	site := sqlite.Site{DB: sqlitetest.New(t)}
 	got, err := site.Get(ctx)
-	if err != nil || got.CommunityName == nil || got.WelcomeText == nil || got.PictureAssetID != nil || got.DefaultLocale != "" {
+	if err != nil || got.CommunityName == nil || got.WelcomeText == nil || got.DefaultLocale != "" {
 		t.Errorf("Get = %+v, %v", got, err)
 	}
 }
 
 func TestSiteRoundTrip(t *testing.T) {
 	site := sqlite.Site{DB: sqlitetest.New(t)}
-	id := int64(7)
 	want := domain.SiteSettings{
 		CommunityName: domain.LocalizedText{"uk": "Наш дім", "en": "Our home"},
 		WelcomeText:   domain.LocalizedText{"uk": "Вітаємо", "en": "Welcome"},
-		DefaultLocale: "uk", PictureAssetID: &id,
-		HomeItems: []domain.HomeItem{{Key: "contacts", Title: domain.LocalizedText{"uk": "Контакти"}}, {Key: "house.address", Title: domain.LocalizedText{}}},
+		DefaultLocale: "uk",
+		HomeItems:     []domain.HomeItem{{Key: "contacts", Title: domain.LocalizedText{"uk": "Контакти"}}, {Key: "house.address", Title: domain.LocalizedText{}}},
 	}
 	if err := site.Save(ctx, want); err != nil {
 		t.Fatal(err)

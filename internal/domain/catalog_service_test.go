@@ -2,7 +2,6 @@ package domain_test
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/igorrius/homelander-bot/internal/domain"
 )
-
-var pngHeader = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
 
 func TestHouseValidation(t *testing.T) {
 	e := newEnv(t)
@@ -97,57 +94,6 @@ func TestSiteValidation(t *testing.T) {
 	got, err := e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "en", CommunityName: domain.LocalizedText{"uk": "Дім"}}, actor(adm))
 	if err != nil || got.DefaultLocale != "en" || got.CommunityName["uk"] != "Дім" {
 		t.Errorf("SaveSite = %+v, %v", got, err)
-	}
-}
-
-func TestSaveSiteKeepsPicture(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	a, err := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, _ := e.catalog.SaveSite(ctx, domain.SiteSettings{DefaultLocale: "uk"}, actor(adm))
-	if got.PictureAssetID == nil || *got.PictureAssetID != a.ID {
-		t.Errorf("SaveSite dropped the picture: %+v", got)
-	}
-}
-
-func TestPictureTypes(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	a, err := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if err != nil || a.ContentType != "image/png" || a.SHA256 == "" {
-		t.Fatalf("PNG = %+v, %v", a, err)
-	}
-	_, err = e.catalog.SetPicture(ctx, []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`), actor(adm))
-	wantFields(t, err, map[string]string{"picture": "type"})
-	big := append(append([]byte{}, pngHeader...), make([]byte, 5<<20)...)
-	_, err = e.catalog.SetPicture(ctx, big, actor(adm))
-	wantFields(t, err, map[string]string{"picture": "size"})
-}
-
-func TestPictureReplaceDeletesOld(t *testing.T) {
-	e := newEnv(t)
-	adm := e.mkUser("+380500000099", admin)
-	first, _ := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	second, _ := e.catalog.SetPicture(ctx, pngHeader, actor(adm))
-	if _, err := e.r.Site.GetAsset(ctx, first.ID); !errors.Is(err, domain.ErrNotFound) {
-		t.Errorf("old asset err = %v", err)
-	}
-	site, _ := e.catalog.Site(ctx)
-	if site.PictureAssetID == nil || *site.PictureAssetID != second.ID {
-		t.Errorf("site picture = %v", site.PictureAssetID)
-	}
-	if err := e.catalog.RemovePicture(ctx, actor(adm)); err != nil {
-		t.Fatal(err)
-	}
-	site, _ = e.catalog.Site(ctx)
-	if site.PictureAssetID != nil {
-		t.Error("picture not removed")
-	}
-	if _, err := e.r.Site.GetAsset(ctx, second.ID); !errors.Is(err, domain.ErrNotFound) {
-		t.Errorf("removed asset err = %v", err)
 	}
 }
 

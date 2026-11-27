@@ -278,7 +278,7 @@ func (t tools) addData(s *mcp.Server) {
 			return doneOut{true}, d.Data.Delete(ctx, in.Key, a)
 		}))
 
-	mcp.AddTool(s, &mcp.Tool{Name: "asset_upload", Description: "Upload an image (PNG, JPEG, WebP or GIF, up to the site picture limit) for image values and cells; returns its asset id."},
+	mcp.AddTool(s, &mcp.Tool{Name: "asset_upload", Description: "Upload an image (PNG, JPEG, WebP or GIF, up to 5 MB) for image values and cells; returns its asset id."},
 		handler(t, func(ctx context.Context, a domain.Actor, in assetIn) (assetOut, error) {
 			data, err := base64.StdEncoding.DecodeString(in.Base64)
 			if err != nil {

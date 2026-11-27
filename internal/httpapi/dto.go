@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -160,12 +159,4 @@ func (n *namer) toAdminUser(u domain.User, rs []domain.Residency, hasTelegram bo
 	d.IsMCP = &u.IsMCP
 	d.CreatedAt, d.ApprovedAt, d.ActivatedAt = &u.CreatedAt, u.ApprovedAt, u.ActivatedAt
 	return d
-}
-
-func assetURL(id *int64) *string {
-	if id == nil {
-		return nil
-	}
-	s := "/api/v1/assets/" + strconv.FormatInt(*id, 10)
-	return &s
 }

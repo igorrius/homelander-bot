@@ -3,6 +3,7 @@ package sqlite_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -118,12 +119,9 @@ func TestDataListPublicOnly(t *testing.T) {
 
 func TestAssetIsPublic(t *testing.T) {
 	r := newDataRepos(t)
-	ref, pic, lone := r.asset(t), r.asset(t), r.asset(t)
+	ref, lone := r.asset(t), r.asset(t)
 	it := r.item(t, domain.DataItem{Key: "logo", Kind: domain.DataValue, ValueType: domain.DataImage, Value: json.RawMessage(`null`)})
 	if err := r.data.SetAssetRefs(ctx, it.ID, []int64{ref}); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.site.Save(ctx, domain.SiteSettings{PictureAssetID: &pic}); err != nil {
 		t.Fatal(err)
 	}
 	check := func(id int64, want bool) {
@@ -133,7 +131,6 @@ func TestAssetIsPublic(t *testing.T) {
 		}
 	}
 	check(ref, false)
-	check(pic, true)
 	check(lone, false)
 	it.Public = true
 	if err := r.data.Update(ctx, &it); err != nil {
@@ -144,4 +141,20 @@ func TestAssetIsPublic(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(ref, false)
+}
+
+func TestOldSitePictureIgnored(t *testing.T) {
+	r := newDataRepos(t)
+	pic := r.asset(t)
+	raw := fmt.Sprintf(`{"communityName":{"uk":"Дім"},"welcomeText":{},"defaultLocale":"uk","pictureAssetId":%d}`, pic)
+	if _, err := r.db.Q(ctx).ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES ('site', ?, '2026-11-27T00:00:00Z')`, raw); err != nil {
+		t.Fatal(err)
+	}
+	st, err := r.site.Get(ctx)
+	if err != nil || st.CommunityName["uk"] != "Дім" || st.DefaultLocale != "uk" {
+		t.Fatalf("Get = %+v, %v", st, err)
+	}
+	if got, err := r.data.AssetIsPublic(ctx, pic); err != nil || got {
+		t.Fatalf("old site picture public = %v, %v", got, err)
+	}
 }

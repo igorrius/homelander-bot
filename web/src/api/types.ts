@@ -41,7 +41,6 @@ export interface Site {
   communityName: LocalizedText
   welcomeText: LocalizedText
   defaultLocale: Locale
-  pictureUrl: string | null
   botUrl: string
   registerUrl: string
   /** The published home page, framed under our header; null shows the built-in page. */

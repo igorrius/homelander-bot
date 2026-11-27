@@ -9,17 +9,17 @@ import (
 )
 
 // Site implements domain.SiteRepo. Settings live as one JSON value under the
-// "site" key of the settings table.
+// "site" key of the settings table; fields no longer used (pictureAssetId)
+// are ignored when read.
 type Site struct{ DB DB }
 
 var _ domain.SiteRepo = Site{}
 
 type siteJSON struct {
-	CommunityName  domain.LocalizedText `json:"communityName"`
-	WelcomeText    domain.LocalizedText `json:"welcomeText"`
-	DefaultLocale  string               `json:"defaultLocale"`
-	PictureAssetID *int64               `json:"pictureAssetId"`
-	HomeItems      []homeItemJSON       `json:"homeItems,omitempty"`
+	CommunityName domain.LocalizedText `json:"communityName"`
+	WelcomeText   domain.LocalizedText `json:"welcomeText"`
+	DefaultLocale string               `json:"defaultLocale"`
+	HomeItems     []homeItemJSON       `json:"homeItems,omitempty"`
 }
 
 type homeItemJSON struct {
@@ -43,8 +43,7 @@ func (r Site) Get(ctx context.Context) (domain.SiteSettings, error) {
 	if v.WelcomeText == nil {
 		v.WelcomeText = domain.LocalizedText{}
 	}
-	out := domain.SiteSettings{CommunityName: v.CommunityName, WelcomeText: v.WelcomeText, DefaultLocale: v.DefaultLocale,
-		PictureAssetID: v.PictureAssetID, HomeItems: []domain.HomeItem{}}
+	out := domain.SiteSettings{CommunityName: v.CommunityName, WelcomeText: v.WelcomeText, DefaultLocale: v.DefaultLocale, HomeItems: []domain.HomeItem{}}
 	for _, it := range v.HomeItems {
 		if it.Title == nil {
 			it.Title = domain.LocalizedText{}
@@ -56,7 +55,7 @@ func (r Site) Get(ctx context.Context) (domain.SiteSettings, error) {
 
 // Save replaces the site settings.
 func (r Site) Save(ctx context.Context, s domain.SiteSettings) error {
-	v := siteJSON{CommunityName: s.CommunityName, WelcomeText: s.WelcomeText, DefaultLocale: s.DefaultLocale, PictureAssetID: s.PictureAssetID}
+	v := siteJSON{CommunityName: s.CommunityName, WelcomeText: s.WelcomeText, DefaultLocale: s.DefaultLocale}
 	for _, it := range s.HomeItems {
 		v.HomeItems = append(v.HomeItems, homeItemJSON(it))
 	}

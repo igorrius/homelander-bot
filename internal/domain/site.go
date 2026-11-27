@@ -7,10 +7,9 @@ import (
 
 // SiteSettings is what the resident page shows, all entered in the admin panel.
 type SiteSettings struct {
-	CommunityName  LocalizedText
-	WelcomeText    LocalizedText
-	DefaultLocale  string
-	PictureAssetID *int64
+	CommunityName LocalizedText
+	WelcomeText   LocalizedText
+	DefaultLocale string
 	// HomeItems are the public data items shown as cards on the built-in
 	// page, in order. A key that is not (or no longer) public is skipped there.
 	HomeItems []HomeItem

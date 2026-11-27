@@ -1,19 +1,15 @@
-import { Alert, Button, Card, FileInput, Group, Image, Loader, Select, Stack, Text, Title } from '@mantine/core'
+import { Alert, Button, Card, Group, Loader, Select, Stack, Title } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState, type FormEvent } from 'react'
 import { IconWorld } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
-import { useAdminSite, useDeletePicture, useHouses, useSaveSite, useUploadPicture } from '../../api/admin'
+import { useAdminSite, useSaveSite } from '../../api/admin'
 import type { Locale, Site } from '../../api/types'
-import { ConfirmButton } from '../../components/ConfirmButton'
-import { Quarter } from '../../components/Quarter'
 import { LocalizedTextInputs } from '../../components/LocalizedTextInputs'
 import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { cleanLocalized } from '../../lib/localized'
 import { PageHeader } from '../../components/PageHeader'
-
-const maxPictureBytes = 5 << 20
 
 function Texts({ site }: { site: Site }) {
   const { t } = useTranslation()
@@ -25,7 +21,7 @@ function Texts({ site }: { site: Site }) {
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     save.mutate(
-      { communityName: cleanLocalized(communityName), welcomeText: cleanLocalized(welcomeText), defaultLocale },
+      { communityName: cleanLocalized(communityName), welcomeText: cleanLocalized(welcomeText), defaultLocale, homeItems: site.homeItems },
       { onSuccess: () => notifications.show({ message: t('common.saved'), color: 'green' }) },
     )
   }
@@ -50,54 +46,6 @@ function Texts({ site }: { site: Site }) {
   )
 }
 
-function Picture({ site }: { site: Site }) {
-  const { t } = useTranslation()
-  const houses = useHouses()
-  const upload = useUploadPicture()
-  const remove = useDeletePicture()
-  const [tooBig, setTooBig] = useState(false)
-  const { message, fields } = useApiErrors(upload.error ?? remove.error)
-  return (
-    <Card withBorder>
-      <Stack>
-        <Title order={3}>{t('admin.site.picture')}</Title>
-        {site.pictureUrl ? (
-          <Image src={site.pictureUrl} alt={t('admin.site.picture')} mah={320} fit="contain" radius="md" />
-        ) : (
-          <>
-            <Text size="sm" c="dimmed">{t('admin.site.noPicture')}</Text>
-            <Quarter houses={(houses.data ?? []).filter((h) => !h.archived)} />
-          </>
-        )}
-        <Group align="flex-end">
-          <FileInput label={t('admin.site.upload')} description={t('admin.site.pictureHint')} accept="image/png,image/jpeg,image/webp"
-            value={null} onChange={(f) => {
-              remove.reset()
-              upload.reset()
-              // Checked here too: the server may cut an oversized upload off before it can answer.
-              setTooBig(!!f && f.size > maxPictureBytes)
-              if (f && f.size <= maxPictureBytes) {
-                upload.mutate(f, { onSuccess: () => notifications.show({ message: t('common.saved'), color: 'green' }) })
-              }
-            }}
-            error={tooBig ? t('validation.size') : fields.picture} disabled={upload.isPending} w={280} clearable={false} />
-          {upload.isPending && <Loader size="sm" />}
-          {site.pictureUrl && (
-            <ConfirmButton color="red" variant="light" loading={remove.isPending} message={t('admin.site.removePictureConfirm')}
-              onConfirm={() => {
-                upload.reset()
-                remove.mutate()
-              }}>
-              {t('admin.site.removePicture')}
-            </ConfirmButton>
-          )}
-        </Group>
-        {message && <Alert color="red">{message}</Alert>}
-      </Stack>
-    </Card>
-  )
-}
-
 export function SitePage() {
   const { t } = useTranslation()
   const site = useAdminSite()
@@ -107,7 +55,6 @@ export function SitePage() {
     <Stack>
       <PageHeader icon={IconWorld} title={t('admin.site.title')} />
       <Texts site={site.data} />
-      <Picture site={site.data} />
     </Stack>
   )
 }

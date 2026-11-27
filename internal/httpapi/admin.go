@@ -47,8 +47,6 @@ func RegisterAdmin(s *Server, api API) {
 		"PATCH /api/v1/admin/statuses/{id}":                    h.patchStatus,
 		"GET /api/v1/admin/site":                               h.adminSite,
 		"PUT /api/v1/admin/site":                               h.saveSite,
-		"PUT /api/v1/admin/site/picture":                       h.uploadPicture,
-		"DELETE /api/v1/admin/site/picture":                    h.deletePicture,
 		"GET /api/v1/admin/audit":                              h.audit,
 	}
 	registerChats(h, routes)
@@ -642,8 +640,8 @@ func (h handlerCtx) writeSite(w http.ResponseWriter, r *http.Request, st domain.
 		return
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"communityName": st.CommunityName, "welcomeText": st.WelcomeText,
-		"defaultLocale": st.DefaultLocale, "pictureUrl": assetURL(st.PictureAssetID),
-		"registerUrl": h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL, "pages": pages,
+		"defaultLocale": st.DefaultLocale,
+		"registerUrl":   h.api.Cfg.PublicURL.String() + "/register", "botUrl": h.api.Messenger.BotURL(), "pageUrl": pageURL, "pages": pages,
 		"homeItems": toHomeItems(st.HomeItems)})
 }
 
@@ -722,26 +720,6 @@ func (h handlerCtx) readUpload(w http.ResponseWriter, r *http.Request, field str
 		return nil, false
 	}
 	return data, true
-}
-
-func (h handlerCtx) uploadPicture(w http.ResponseWriter, r *http.Request) {
-	data, ok := h.readUpload(w, r, "picture")
-	if !ok {
-		return
-	}
-	if _, err := h.api.Catalog.SetPicture(r.Context(), data, h.actor(r)); err != nil {
-		h.fail(w, err)
-		return
-	}
-	h.adminSite(w, r)
-}
-
-func (h handlerCtx) deletePicture(w http.ResponseWriter, r *http.Request) {
-	if err := h.api.Catalog.RemovePicture(r.Context(), h.actor(r)); err != nil {
-		h.fail(w, err)
-		return
-	}
-	h.adminSite(w, r)
 }
 
 func (h handlerCtx) audit(w http.ResponseWriter, r *http.Request) {

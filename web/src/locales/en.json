@@ -231,13 +231,7 @@
       "communityName": "Community name",
       "welcomeText": "Welcome text",
       "defaultLocale": "Default language",
-      "save": "Save texts",
-      "picture": "Picture",
-      "noPicture": "No picture is uploaded: residents see this illustration drawn from the houses.",
-      "upload": "Upload a picture",
-      "pictureHint": "PNG, JPEG or WebP, up to 5 MB",
-      "removePicture": "Remove picture",
-      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration."
+      "save": "Save texts"
     },
     "navGroup": {
       "people": "People",

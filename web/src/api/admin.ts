@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
 import { qk } from './public'
-import type { AdminUser, AuditEntry, House, HouseStats, Locale, LocalizedText, Me, Page, Residency, ResidencyStatus, Site, Summary, UserCard, UserStatus } from './types'
+import type { AdminUser, AuditEntry, House, HouseStats, HomeItem, Locale, LocalizedText, Me, Page, Residency, ResidencyStatus, Site, Summary, UserCard, UserStatus } from './types'
 
 /** Query keys of the admin API; all start with 'admin' so logout can drop them together. */
 export const qka = {
@@ -222,6 +222,7 @@ export interface SiteInput {
   communityName: LocalizedText
   welcomeText: LocalizedText
   defaultLocale: Locale
+  homeItems: HomeItem[]
 }
 
 export function useAdminSite() {
@@ -242,18 +243,6 @@ function useSiteMutation<V>(fn: (v: V) => Promise<Site>) {
 
 export function useSaveSite() {
   return useSiteMutation((body: SiteInput) => api<Site>('/admin/site', json('PUT', body)))
-}
-
-export function useUploadPicture() {
-  return useSiteMutation((file: File) => {
-    const form = new FormData()
-    form.append('picture', file)
-    return api<Site>('/admin/site/picture', { method: 'PUT', body: form })
-  })
-}
-
-export function useDeletePicture() {
-  return useSiteMutation(() => api<Site>('/admin/site/picture', json('DELETE')))
 }
 
 export interface AuditQuery {

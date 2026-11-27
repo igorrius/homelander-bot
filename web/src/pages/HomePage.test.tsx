@@ -54,14 +54,6 @@ describe('HomePage', () => {
     expect(screen.queryByRole('button', { name: uk.home.logout })).not.toBeInTheDocument()
   })
 
-  it('shows the uploaded picture instead of the illustration', async () => {
-    mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, pictureUrl: '/api/v1/assets/3' } } })
-    renderApp('/')
-    const img = await screen.findByRole('img', { name: 'Тестова громада' })
-    expect(img).toHaveAttribute('src', '/api/v1/assets/3')
-    expect(screen.queryByRole('img', { name: uk.home.illustration })).not.toBeInTheDocument()
-  })
-
   it('falls back to the default-locale community name', async () => {
     await i18n.changeLanguage('en')
     mockApi({ ...publicRoutes, 'GET /site': { body: { ...site, communityName: { uk: 'Тестова громада' } } } })

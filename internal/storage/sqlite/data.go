@@ -222,18 +222,10 @@ func (r Data) SetAssetRefs(ctx context.Context, itemID int64, assetIDs []int64) 
 	return nil
 }
 
-// AssetIsPublic reports whether the site picture is this asset or a public
-// item refers to it.
+// AssetIsPublic reports whether a public item refers to this asset.
 func (r Data) AssetIsPublic(ctx context.Context, assetID int64) (bool, error) {
-	site, err := Site(r).Get(ctx)
-	if err != nil {
-		return false, err
-	}
-	if site.PictureAssetID != nil && *site.PictureAssetID == assetID {
-		return true, nil
-	}
 	var n int
-	err = r.DB.Q(ctx).QueryRowContext(ctx, `SELECT count(*) FROM data_asset_refs a JOIN data_items i ON i.id = a.item_id
+	err := r.DB.Q(ctx).QueryRowContext(ctx, `SELECT count(*) FROM data_asset_refs a JOIN data_items i ON i.id = a.item_id
 		WHERE a.asset_id = ? AND i.is_public = 1`, assetID).Scan(&n)
 	return n > 0, err
 }

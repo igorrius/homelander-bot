@@ -1,17 +1,12 @@
 package httpapi_test
 
 import (
-	"bytes"
 	"fmt"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
-	"github.com/igorrius/homelander-bot/internal/httpapi"
 )
 
 func TestAdminRoutesRequireAdmin(t *testing.T) {
@@ -26,8 +21,7 @@ func TestAdminRoutesRequireAdmin(t *testing.T) {
 		{"GET", "/api/v1/admin/houses"}, {"POST", "/api/v1/admin/houses"}, {"GET", "/api/v1/admin/houses/1"},
 		{"PATCH", "/api/v1/admin/houses/1"}, {"GET", "/api/v1/admin/houses/1/apartments/3"},
 		{"GET", "/api/v1/admin/statuses"}, {"POST", "/api/v1/admin/statuses"}, {"PATCH", "/api/v1/admin/statuses/1"},
-		{"GET", "/api/v1/admin/site"}, {"PUT", "/api/v1/admin/site"}, {"PUT", "/api/v1/admin/site/picture"},
-		{"DELETE", "/api/v1/admin/site/picture"}, {"GET", "/api/v1/admin/audit"},
+		{"GET", "/api/v1/admin/site"}, {"PUT", "/api/v1/admin/site"}, {"GET", "/api/v1/admin/audit"},
 	}
 	for _, rt := range routes {
 		if r := e.do(rt[0], rt[1], "{}", "", ""); r.Code != 401 {
@@ -237,51 +231,6 @@ func TestStatusCRUD(t *testing.T) {
 	}
 }
 
-func upload(e *apiEnv, tok string, data []byte) resp {
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	fw, _ := mw.CreateFormFile("picture", "p.bin")
-	_, _ = fw.Write(data)
-	_ = mw.Close()
-	req := httptest.NewRequest("PUT", "/api/v1/admin/site/picture", &buf)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.Header.Set("X-Requested-With", "homelander")
-	req.AddCookie(&http.Cookie{Name: httpapi.SessionCookie, Value: tok})
-	req.RemoteAddr = "10.8.0.1:1"
-	rec := httptest.NewRecorder()
-	e.h.ServeHTTP(rec, req)
-	return resp{rec, e.t}
-}
-
-func TestSitePictureUpload(t *testing.T) {
-	e, tok := adminEnv(t)
-	r := e.do("PUT", "/api/v1/admin/site", map[string]any{"communityName": map[string]string{"uk": "Наш ЖК"}, "welcomeText": map[string]string{"uk": "Вітаємо"}, "defaultLocale": "uk"}, tok, "")
-	if r.Code != 200 || r.json()["communityName"].(map[string]any)["uk"] != "Наш ЖК" {
-		t.Fatalf("save site = %d %s", r.Code, r.Body)
-	}
-	png := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
-	r = upload(e, tok, png)
-	url, _ := r.json()["pictureUrl"].(string)
-	if r.Code != 200 || url == "" {
-		t.Fatalf("upload = %d %s", r.Code, r.Body)
-	}
-	if got := e.do("GET", url, nil, "", ""); got.Code != 200 || got.Body.String() != string(png) {
-		t.Errorf("served picture = %d", got.Code)
-	}
-	r = upload(e, tok, []byte(`<svg xmlns="http://www.w3.org/2000/svg"/>`))
-	if r.Code != 422 || r.json()["error"].(map[string]any)["fields"].(map[string]any)["picture"] != "type" {
-		t.Errorf("svg = %d %s", r.Code, r.Body)
-	}
-	r = upload(e, tok, append(append([]byte{}, png...), make([]byte, 5<<20)...))
-	if r.Code != 422 {
-		t.Errorf("oversize = %d %s", r.Code, r.Body)
-	}
-	r = e.do("DELETE", "/api/v1/admin/site/picture", nil, tok, "")
-	if r.Code != 200 || r.json()["pictureUrl"] != nil {
-		t.Errorf("delete picture = %d %s", r.Code, r.Body)
-	}
-}
-
 func TestAuditList(t *testing.T) {
 	e, tok := adminEnv(t)
 	u := e.mkUser("+380500000001")
@@ -420,5 +369,19 @@ func TestSiteHomeItemsAPI(t *testing.T) {
 	}
 	if !strings.Contains(e.do("GET", "/api/v1/site", nil, "", "").Body.String(), `"homeItems":[{"key":"contacts"`) {
 		t.Fatal("refused save changed the items")
+	}
+}
+
+func TestSitePictureGone(t *testing.T) {
+	e, tok := adminEnv(t)
+	for _, m := range []string{"PUT", "DELETE"} {
+		if r := e.do(m, "/api/v1/admin/site/picture", nil, tok, ""); r.Code != 404 {
+			t.Errorf("%s picture = %d %s", m, r.Code, r.Body)
+		}
+	}
+	for _, path := range []string{"/api/v1/site", "/api/v1/admin/site"} {
+		if _, ok := e.do("GET", path, nil, tok, "").json()["pictureUrl"]; ok {
+			t.Errorf("%s still has pictureUrl", path)
+		}
 	}
 }

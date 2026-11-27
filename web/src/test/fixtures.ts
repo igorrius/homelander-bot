@@ -5,7 +5,6 @@ export const site: Site = {
   communityName: { uk: 'Тестова громада', en: 'Test Community' },
   welcomeText: { uk: 'Привіт' },
   defaultLocale: 'uk',
-  pictureUrl: null,
   botUrl: 'https://t.me/test_bot',
   registerUrl: 'http://localhost/register',
   pageUrl: null,
