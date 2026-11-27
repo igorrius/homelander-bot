@@ -57,6 +57,20 @@ const (
 	ActSitePictureSet     = "site.picture_set"
 	ActSitePictureRemoved = "site.picture_removed"
 	ActBootstrapAdmin     = "bootstrap.admin_created"
+	ActChatAdded          = "chat.added"
+	ActChatAutoLeft       = "chat.auto_left"
+	ActChatAccepted       = "chat.accepted"
+	ActChatLeft           = "chat.left"
+	ActChatRemoved        = "chat.removed"
+	ActChatMoved          = "chat.moved"
+	ActTopicRenamed       = "topic.renamed"
+	ActLabelCreated       = "label.created"
+	ActLabelUpdated       = "label.updated"
+	ActLabelDeleted       = "label.deleted"
+	ActLabelBound         = "label.bound"
+	ActLabelUnbound       = "label.unbound"
+	ActNotificationsSaved = "notifications.updated"
+	ActUserActivated      = "user.activated"
 )
 
 // UserTarget is the audit target of a user.

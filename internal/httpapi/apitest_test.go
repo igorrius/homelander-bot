@@ -41,6 +41,14 @@ func (f *fakeMessenger) SendText(_ context.Context, _, text string) error {
 	return nil
 }
 
+func (f *fakeMessenger) Send(_ context.Context, _ domain.Destination, m domain.OutMessage) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sent = append(f.sent, m.Text)
+	return nil
+}
+func (f *fakeMessenger) LeaveChat(context.Context, string) error { return nil }
+
 func (f *fakeMessenger) last() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -66,11 +74,7 @@ type apiEnv struct {
 func newAPIEnv(t *testing.T) *apiEnv {
 	t.Helper()
 	db := sqlitetest.New(t)
-	r := domain.Repos{
-		Tx: db, Users: sqlite.Users{DB: db}, Channels: sqlite.Channels{DB: db}, Houses: sqlite.Houses{DB: db},
-		Statuses: sqlite.Statuses{DB: db}, Residencies: sqlite.Residencies{DB: db}, Codes: sqlite.Codes{DB: db},
-		Sessions: sqlite.Sessions{DB: db}, Site: sqlite.Site{DB: db}, Audit: sqlite.Audit{DB: db},
-	}
+	r := sqlite.NewRepos(db)
 	e := &apiEnv{t: t, db: db, r: r, msgr: &fakeMessenger{}, now: time.Date(2026, 11, 27, 12, 0, 0, 0, time.UTC)}
 	clock := func() time.Time { return e.now }
 	tr, err := i18n.New(locales.FS, "uk", []string{"uk", "en"})
@@ -81,12 +85,21 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	pub, _ := url.Parse("https://example.com")
 	cfg := config.Config{PublicURL: pub, SessionMaxTTL: 168 * time.Hour, DefaultLocale: "uk"}
 	locs := []string{"uk", "en"}
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	defLocale := func(context.Context) string { return "uk" }
+	silent := slog.New(slog.NewTextHandler(io.Discard, nil))
+	notifier := &domain.Notifier{R: r, Now: clock, I18n: tr, DefaultLocale: defLocale}
 	e.api = httpapi.API{
-		Users:   &domain.UserService{R: r, Now: clock, Limits: limits, Region: "UA", PendingCap: 200, Locales: locs},
-		Catalog: &domain.CatalogService{R: r, Now: clock, Locales: locs},
-		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: []byte("0123456789abcdef0123456789abcdef"),
+		Users: &domain.UserService{R: r, Now: clock, Limits: limits, Region: "UA", PendingCap: 200, Locales: locs,
+			Secret: secret, Notifier: notifier, I18n: tr, PublicURL: "https://example.com", DefaultLocale: defLocale},
+		Chats:    &domain.ChatService{R: r, Now: clock, Messengers: domain.Messengers{"telegram": e.msgr}, Log: silent, LeaveGrace: 2 * time.Minute},
+		Labels:   &domain.LabelService{R: r, Now: clock},
+		Notifier: notifier,
+		Catalog:  &domain.CatalogService{R: r, Now: clock, Locales: locs},
+		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: secret,
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,
-			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() }},
+			IdleTTL: 12 * time.Hour, MaxTTL: 168 * time.Hour, Deliver: func(f func()) { f() },
+			PublicURL: "https://example.com", TokenTTL: time.Hour},
 		Messenger: e.msgr,
 		Cfg:       cfg,
 	}

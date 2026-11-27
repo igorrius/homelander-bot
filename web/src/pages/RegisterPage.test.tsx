@@ -4,7 +4,7 @@ import { i18n } from '../i18n'
 import uk from '../locales/uk.json'
 import { callsTo, mockApi } from '../test/api'
 import { publicRoutes } from '../test/fixtures'
-import { renderApp } from '../test/render'
+import { currentLocation, renderApp } from '../test/render'
 import { choose } from '../test/select'
 
 type User = ReturnType<typeof renderApp>['user']
@@ -94,5 +94,70 @@ describe('RegisterPage', () => {
     mockApi({ ...publicRoutes, 'GET /register/options': { body: { houses: [], statuses: [] } } })
     renderApp('/register')
     expect(await screen.findByText(uk.register.unavailable)).toBeInTheDocument()
+  })
+
+  describe('with a link from the bot', () => {
+    const fillRest = async (user: User) => {
+      await user.type(screen.getByLabelText(uk.register.firstName), 'Olena')
+      await user.type(screen.getByLabelText(uk.register.lastName), 'Test')
+      await choose(user, uk.register.house, 'House A')
+      await choose(user, uk.register.apartment, '12')
+      await choose(user, uk.register.status, 'Власник')
+      await user.click(screen.getByRole('checkbox', { name: uk.register.consent }))
+    }
+
+    it('locks the phone from a valid token and sends the token', async () => {
+      const { calls } = mockApi({
+        ...publicRoutes,
+        'POST /register/prefill': { body: { phone: '+380500000011' } },
+        'POST /register': { status: 202, body: { status: 'received' } },
+      })
+      const { user } = renderApp('/register#t=tok123')
+      const phone = await screen.findByDisplayValue('+380500000011')
+      expect(phone).toHaveAttribute('readonly')
+      expect(screen.getByText(uk.register.phoneConfirmed)).toBeInTheDocument()
+      expect(callsTo(calls, 'POST /register/prefill')[0]?.body).toEqual({ token: 'tok123' })
+      await fillRest(user)
+      await user.click(submit())
+      expect(await screen.findByText(uk.register.doneTitle)).toBeInTheDocument()
+      expect(callsTo(calls, 'POST /register')[0]?.body).toMatchObject({ phone: '+380500000011', token: 'tok123' })
+    })
+
+    it('falls back on an invalid token', async () => {
+      mockApi({ ...publicRoutes, 'POST /register/prefill': { status: 422, body: { error: { code: 'token_invalid' } } } })
+      renderApp('/register#t=old')
+      expect(await screen.findByText(uk.register.linkExpired)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: uk.register.openBot })).toHaveAttribute('href', 'https://t.me/test_bot')
+      expect(screen.getByLabelText(uk.register.phone)).not.toHaveAttribute('readonly')
+    })
+
+    it('falls back when the token is refused on submit', async () => {
+      const { calls } = mockApi({
+        ...publicRoutes,
+        'POST /register/prefill': { body: { phone: '+380500000011' } },
+        'POST /register': { status: 422, body: { error: { code: 'token_invalid' } } },
+      })
+      const { user } = renderApp('/register#t=tok123')
+      await screen.findByDisplayValue('+380500000011')
+      await fillRest(user)
+      await user.click(submit())
+      expect(await screen.findByText(uk.register.linkExpired)).toBeInTheDocument()
+      expect(screen.getByLabelText(uk.register.phone)).not.toHaveAttribute('readonly')
+      expect(callsTo(calls, 'POST /register')).toHaveLength(1)
+    })
+
+    it('removes the token from the address bar', async () => {
+      mockApi({ ...publicRoutes, 'POST /register/prefill': { body: { phone: '+380500000011' } } })
+      renderApp('/register#t=tok123')
+      await screen.findByDisplayValue('+380500000011')
+      expect(currentLocation()).toBe('/register')
+    })
+
+    it('without a token does not call prefill', async () => {
+      const { calls } = mockApi(publicRoutes)
+      renderApp('/register')
+      await screen.findByLabelText(uk.register.phone)
+      expect(callsTo(calls, 'POST /register/prefill')).toHaveLength(0)
+    })
   })
 })

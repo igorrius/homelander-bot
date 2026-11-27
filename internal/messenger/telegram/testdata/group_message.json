@@ -1,0 +1,4 @@
+{"update_id": 130, "message": {"message_id": 80, "date": 1764244800,
+  "chat": {"id": -1000000001, "type": "group", "title": "log"},
+  "from": {"id": 1000001, "is_bot": false, "first_name": "Admin"},
+  "text": "test"}}

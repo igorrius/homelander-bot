@@ -1,4 +1,4 @@
-import type { AdminUser, House, Me, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
+import type { AdminUser, Chat, House, Label, Me, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
 
 // Synthetic data only: no real names, phones or addresses.
 export const site: Site = {
@@ -67,3 +67,25 @@ export const adminRoutes = {
   'GET /admin/houses': { body: houses },
   'GET /admin/statuses': { body: statuses },
 }
+
+/** A chat the bot is in that nobody accepted yet. */
+export function chat(over: Partial<Chat> = {}): Chat {
+  return {
+    id: 1, messenger: 'telegram', kind: 'group', title: 'log', isForum: false, state: 'new', botStatus: 'member', canSend: true,
+    addedBy: { externalId: '', userId: null }, leaveAt: null, leftAt: null, firstSeenAt: '2026-11-27T10:00:00Z',
+    lastSeenAt: '2026-11-27T10:00:00Z', labelIds: [], topics: [], ...over,
+  }
+}
+
+export const yard: Chat = chat({
+  id: 2, kind: 'supergroup', title: 'Our yard', isForum: true, state: 'accepted', botStatus: 'administrator', labelIds: [1],
+  topics: [
+    { id: 21, externalId: '5', title: 'Announcements', titleSetByAdmin: false, gone: false, lastSeenAt: '2026-11-27T10:00:00Z', labelIds: [2] },
+    { id: 22, externalId: '42', title: '', titleSetByAdmin: false, gone: false, lastSeenAt: '2026-11-27T10:00:00Z', labelIds: [] },
+  ],
+})
+
+export const labels: Label[] = [
+  { id: 1, name: 'residents', description: '', targets: [{ type: 'chat', id: 2 }], usedByApplications: false },
+  { id: 2, name: 'journal', description: 'admins', targets: [{ type: 'chat_topic', id: 21 }], usedByApplications: true },
+]

@@ -13,6 +13,9 @@ type API struct {
 	Users     *domain.UserService
 	Catalog   *domain.CatalogService
 	Auth      *domain.AuthService
+	Chats     *domain.ChatService
+	Labels    *domain.LabelService
+	Notifier  *domain.Notifier
 	Messenger domain.Messenger
 	Cfg       config.Config
 }
@@ -39,6 +42,7 @@ func RegisterPublic(s *Server, api API) {
 	m.HandleFunc("GET /api/v1/site", h.site)
 	m.HandleFunc("GET /api/v1/register/options", h.registerOptions)
 	m.HandleFunc("POST /api/v1/register", h.register)
+	m.HandleFunc("POST /api/v1/register/prefill", h.prefill)
 	m.HandleFunc("POST /api/v1/auth/code", h.authCode)
 	m.HandleFunc("POST /api/v1/auth/verify", h.authVerify)
 	m.HandleFunc("POST /api/v1/auth/logout", h.logout)
@@ -97,18 +101,36 @@ func (h handlerCtx) register(w http.ResponseWriter, r *http.Request) {
 		StatusID  int64  `json:"statusId"`
 		Consent   bool   `json:"consent"`
 		Locale    string `json:"locale"`
+		Token     string `json:"token"`
 	}
 	if err := decode(r, &in); err != nil {
 		h.fail(w, err)
 		return
 	}
 	err := h.api.Users.Apply(r.Context(), domain.Application{Phone: in.Phone, FirstName: in.FirstName, LastName: in.LastName,
-		HouseID: in.HouseID, Apartment: in.Apartment, StatusID: in.StatusID, Consent: in.Consent, Locale: in.Locale}, h.actor(r))
+		HouseID: in.HouseID, Apartment: in.Apartment, StatusID: in.StatusID, Consent: in.Consent, Locale: in.Locale, Token: in.Token}, h.actor(r))
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
 	WriteJSON(w, http.StatusAccepted, map[string]string{"status": "received"})
+}
+
+// prefill returns the phone a registration link from the bot proved.
+func (h handlerCtx) prefill(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Token string `json:"token"`
+	}
+	if err := decode(r, &in); err != nil {
+		h.fail(w, err)
+		return
+	}
+	phone, err := h.api.Users.PrefillRegistration(r.Context(), in.Token)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	WriteJSON(w, http.StatusOK, map[string]string{"phone": phone})
 }
 
 func (h handlerCtx) authCode(w http.ResponseWriter, r *http.Request) {

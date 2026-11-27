@@ -1,6 +1,7 @@
 import { AppShell, Avatar, Box, type MantineColorScheme, useMantineColorScheme, Badge, Burger, Center, Group, Image, Loader, Menu, NavLink, ScrollArea, Stack, Text, Title, UnstyledButton } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
+  IconBell,
   IconBuildingCommunity,
   IconCheck,
   IconDeviceDesktop,
@@ -10,6 +11,7 @@ import {
   IconInbox,
   IconLayoutDashboard,
   IconLogout,
+  IconMessages,
   IconMoon,
   IconSun,
   IconTags,
@@ -44,6 +46,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
   const { pathname } = useLocation()
   const summary = useSummary()
   const pending = summary.data?.pendingApplications ?? 0
+  const newChats = summary.data?.newChats ?? 0
   const groups: NavGroup[] = [
     { items: [{ to: '/admin', icon: IconLayoutDashboard, label: t('admin.nav.overview'), exact: true }] },
     {
@@ -53,12 +56,18 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
         { to: '/admin/users', icon: IconUsers, label: t('admin.nav.users') },
       ],
     },
-    // M2 adds "Chats" to this group.
-    { label: t('admin.navGroup.community'), items: [{ to: '/admin/houses', icon: IconBuildingCommunity, label: t('admin.nav.houses') }] },
+    {
+      label: t('admin.navGroup.community'),
+      items: [
+        { to: '/admin/houses', icon: IconBuildingCommunity, label: t('admin.nav.houses') },
+        { to: '/admin/chats', icon: IconMessages, label: t('admin.nav.chats'), badge: newChats },
+      ],
+    },
     {
       label: t('admin.navGroup.settings'),
       items: [
         { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site') },
+        { to: '/admin/notifications', icon: IconBell, label: t('admin.nav.notifications') },
         { to: '/admin/statuses', icon: IconTags, label: t('admin.nav.statuses') },
         { to: '/admin/audit', icon: IconHistory, label: t('admin.nav.audit') },
       ],

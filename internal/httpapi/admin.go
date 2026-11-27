@@ -49,6 +49,7 @@ func RegisterAdmin(s *Server, api API) {
 		"DELETE /api/v1/admin/site/picture":                    h.deletePicture,
 		"GET /api/v1/admin/audit":                              h.audit,
 	}
+	registerChats(h, routes)
 	for pattern, fn := range routes {
 		s.API().Handle(pattern, RequireAdmin(fn))
 	}
@@ -115,6 +116,12 @@ func (h handlerCtx) summary(w http.ResponseWriter, r *http.Request) {
 		}
 		out[key] = n
 	}
+	chats, err := h.api.Chats.NewCount(r.Context())
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	out["newChats"] = chats
 	WriteJSON(w, http.StatusOK, out)
 }
 

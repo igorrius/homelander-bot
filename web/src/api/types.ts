@@ -123,4 +123,58 @@ export interface Summary {
   activeUsers: number
   disabledUsers: number
   rejectedUsers: number
+  /** Chats the bot is in that no admin has accepted yet. */
+  newChats?: number
+}
+
+export type ChatState = 'new' | 'accepted' | 'left'
+export type BotStatus = 'member' | 'administrator' | 'restricted' | 'unknown'
+export type LabelTargetType = 'chat' | 'chat_topic'
+
+/** A forum topic; the General topic is the chat itself. */
+export interface Topic {
+  id: number
+  externalId: string
+  /** '' when the bot has not seen its name yet. */
+  title: string
+  titleSetByAdmin: boolean
+  gone: boolean
+  lastSeenAt: string
+  labelIds: number[]
+}
+
+/** A group, forum or channel the bot is or was in. */
+export interface Chat {
+  id: number
+  messenger: string
+  kind: 'group' | 'supergroup' | 'channel'
+  title: string
+  isForum: boolean
+  state: ChatState
+  botStatus: BotStatus
+  canSend: boolean
+  addedBy: { externalId: string; userId: number | null }
+  leaveAt: string | null
+  leftAt: string | null
+  firstSeenAt: string
+  lastSeenAt: string
+  labelIds: number[]
+  topics: Topic[]
+}
+
+export interface Label {
+  id: number
+  name: string
+  description: string
+  targets: { type: LabelTargetType; id: number }[]
+  usedByApplications: boolean
+}
+
+export interface NotificationSettings {
+  applicationsLabelId: number | null
+}
+
+export interface OutboxStatus {
+  state: 'pending' | 'sent' | 'failed'
+  lastError: string
 }

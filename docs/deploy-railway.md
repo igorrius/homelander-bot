@@ -19,7 +19,8 @@ volume. The repository is public, so nothing about a particular deployment goes 
 1. In @BotFather: `/newbot`, pick a name and a username. Keep the token for step 4. Use a different
    bot from the one you develop with.
 2. `/setprivacy` → choose the bot → **Disable**. Without this the bot sees only commands and
-   replies in groups, not the messages it will later react to.
+   replies in groups, not the messages it will later react to. More on the bot's group settings
+   (who may add it, rights per chat, `/setjoingroups`): [Telegram bot setup](telegram-bot-setup.md).
 3. Optional: `/setdescription` and `/setuserpic` — residents see them before pressing Start.
 
 ## 2. Create and link the Railway project
@@ -116,7 +117,11 @@ backup plan).
    houses (PNG, JPEG or WebP up to 5 MB). Without a picture the page draws the houses itself.
 2. **Houses**: one per building or section — name, address, floors, the apartment number range.
 3. **Residency statuses**: owner and tenant exist; add others if you need them.
-4. Add the bot to the community group or forum. It reads messages but does not answer there.
+4. Add the bot to the community group or forum and to the admins' journal, as an admin of the
+   system. They appear under **Chats** as accepted. Create labels (for example "journal"), hang
+   them on the chats, and in **Settings → Notifications** pick the label that gets new
+   applications. Details and checks: [Telegram bot setup](telegram-bot-setup.md). A group the bot
+   was in before this version shows up only after a message in it, or after re-adding the bot.
 5. Pin the registration link from **Overview** (`https://<domain>/register`, also as a QR code) in the chat. Review the
    applications as they come in; approved residents activate themselves in the bot.
 

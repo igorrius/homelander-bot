@@ -33,6 +33,10 @@ const (
 	maxCodeAttempts = 5
 	shutdownTimeout = 15 * time.Second
 	cleanupEvery    = time.Hour
+	leaveGrace      = 2 * time.Minute
+	leaveCheckEvery = 30 * time.Second
+
+	registrationTokenTTL = time.Hour
 )
 
 func main() {
@@ -77,28 +81,39 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 		return err
 	}
 
-	repos := domain.Repos{
-		Tx: db, Users: sqlite.Users{DB: db}, Channels: sqlite.Channels{DB: db}, Houses: sqlite.Houses{DB: db},
-		Statuses: sqlite.Statuses{DB: db}, Residencies: sqlite.Residencies{DB: db}, Codes: sqlite.Codes{DB: db},
-		Sessions: sqlite.Sessions{DB: db}, Site: sqlite.Site{DB: db}, Audit: sqlite.Audit{DB: db},
-	}
+	repos := sqlite.NewRepos(db)
 	now := domain.SystemClock
 	limits := ratelimit.New(now)
+	siteLocale := func(ctx context.Context) string {
+		if s, err := repos.Site.Get(ctx); err == nil && s.DefaultLocale != "" {
+			return s.DefaultLocale
+		}
+		return cfg.DefaultLocale
+	}
+	notifier := &domain.Notifier{R: repos, Now: now, I18n: tr, DefaultLocale: siteLocale}
 	users := &domain.UserService{R: repos, Now: now, Limits: limits, Region: cfg.DefaultPhoneRegion,
-		PendingCap: pendingCap, Locales: config.SupportedLocales}
+		PendingCap: pendingCap, Locales: config.SupportedLocales,
+		Secret: cfg.AppSecret, Notifier: notifier, I18n: tr, PublicURL: cfg.PublicURL.String(), DefaultLocale: siteLocale}
+	labels := &domain.LabelService{R: repos, Now: now}
 	catalog := &domain.CatalogService{R: repos, Now: now, Locales: config.SupportedLocales, DefaultLocale: cfg.DefaultLocale}
 	auth := &domain.AuthService{R: repos, Now: now, Limits: limits, Secret: cfg.AppSecret, Region: cfg.DefaultPhoneRegion,
 		I18n: tr, BootstrapPhone: cfg.BootstrapAdminPhone, CodeTTL: codeTTL, MaxAttempts: maxCodeAttempts,
-		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL, Log: log}
+		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL, Log: log,
+		PublicURL: cfg.PublicURL.String(), TokenTTL: registrationTokenTTL}
 
 	tgAPI, err := newAPI(cfg.TelegramBotToken)
 	if err != nil {
 		return fmt.Errorf("telegram client: %w", err)
 	}
-	bot, err := telegram.NewWithLocales(tgAPI, auth, telegram.NopSink{}, tr, config.SupportedLocales, cfg.PublicURL.String(), log)
+	messengers := domain.Messengers{}
+	chats := &domain.ChatService{R: repos, Now: now, Messengers: messengers, Log: log, LeaveGrace: leaveGrace}
+	bot, err := telegram.NewWithLocales(tgAPI, auth, chats, telegram.NopSink{}, tr, config.SupportedLocales, cfg.PublicURL.String(), log)
 	if err != nil {
 		return err
 	}
+	messengers[telegram.Type] = bot
+	worker := domain.NewOutboxWorker(repos, now, messengers, chats, log)
+	notifier.Wake = worker.Wake
 	if err := bot.SetCommands(ctx); err != nil {
 		log.Warn("telegram command menu not set", "err", err)
 	}
@@ -106,7 +121,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 
 	server := httpapi.New(cfg, httpapi.Deps{DB: rawDB, I18n: tr, Log: log, Static: web.Dist()})
 	server.WithSession(auth)
-	api := httpapi.API{Users: users, Catalog: catalog, Auth: auth, Messenger: bot, Cfg: cfg}
+	api := httpapi.API{Users: users, Catalog: catalog, Auth: auth, Chats: chats, Labels: labels, Notifier: notifier, Messenger: bot, Cfg: cfg}
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
 	webhookPath := telegram.WebhookPath(cfg.AppSecret)
@@ -140,7 +155,9 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 			}
 		}()
 	}
-	go cleanSessions(ctx, auth, log)
+	go cleanup(ctx, auth, users, notifier, log)
+	go worker.Run(ctx)
+	go leaveDue(ctx, chats, log)
 
 	select {
 	case err := <-errc:
@@ -156,8 +173,8 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	return nil
 }
 
-// cleanSessions deletes expired sessions every hour.
-func cleanSessions(ctx context.Context, auth *domain.AuthService, log *slog.Logger) {
+// cleanup deletes expired sessions, expired registration links and old outbox rows every hour.
+func cleanup(ctx context.Context, auth *domain.AuthService, users *domain.UserService, notifier *domain.Notifier, log *slog.Logger) {
 	t := time.NewTicker(cleanupEvery)
 	defer t.Stop()
 	for {
@@ -169,6 +186,32 @@ func cleanSessions(ctx context.Context, auth *domain.AuthService, log *slog.Logg
 				log.Warn("session cleanup failed", "err", err)
 			} else if n > 0 {
 				log.Info("expired sessions removed", "count", n)
+			}
+			if _, err := users.CleanRegistrationTokens(ctx); err != nil {
+				log.Warn("registration link cleanup failed", "err", err)
+			}
+			if n, err := notifier.Clean(ctx); err != nil {
+				log.Warn("outbox cleanup failed", "err", err)
+			} else if n > 0 {
+				log.Info("old outbox messages removed", "count", n)
+			}
+		}
+	}
+}
+
+// leaveDue makes the bot leave chats added by strangers once their grace is over.
+func leaveDue(ctx context.Context, chats *domain.ChatService, log *slog.Logger) {
+	t := time.NewTicker(leaveCheckEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if n, err := chats.LeaveDue(ctx); err != nil {
+				log.Warn("leaving chats failed", "err", err)
+			} else if n > 0 {
+				log.Info("left chats added by strangers", "count", n)
 			}
 		}
 	}
