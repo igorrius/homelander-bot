@@ -130,6 +130,34 @@
       "target": "Object",
       "actor": "By",
       "ip": "IP"
+    },
+    "houses": {
+      "title": "Houses",
+      "add": "Add house",
+      "showArchived": "Show archived",
+      "archived": "Archived",
+      "apartments": "Apartments",
+      "empty": "No houses yet. Add the houses of your community to open registration."
+    },
+    "house": {
+      "name": "Name",
+      "nameHint": "As residents know it, e.g. \"12\" or \"7, section 1\"",
+      "address": "Address",
+      "apartmentFrom": "First apartment",
+      "apartmentTo": "Last apartment",
+      "floors": "Floors",
+      "sortOrder": "Order",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "archivedHint": "An archived house is hidden from registration.",
+      "settings": "Settings",
+      "withResidents": "Apartments with residents",
+      "people": "People",
+      "byResidencyStatus": "By residency status",
+      "byUserStatus": "By account status",
+      "grid": "Apartments",
+      "apartmentCell": "Apartment {{n}}, residents: {{count}}",
+      "apartmentTitle": "Apartment {{n}}"
     }
   },
   "notFound": {

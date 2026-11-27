@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { AdminUser, House, Me, Page, ResidencyStatus, UserCard, UserStatus } from './types'
+import { qk } from './public'
+import type { AdminUser, House, HouseStats, Me, Page, Residency, ResidencyStatus, UserCard, UserStatus } from './types'
 
 /** Query keys of the admin API; all start with 'admin' so logout can drop them together. */
 export const qka = {
@@ -10,6 +11,8 @@ export const qka = {
   user: (id: number) => ['admin', 'user', id] as const,
   houses: (archived = false) => ['admin', 'houses', archived] as const,
   statuses: ['admin', 'statuses'] as const,
+  house: (id: number) => ['admin', 'house', id] as const,
+  apartment: (houseId: number, n: number | null) => ['admin', 'house', houseId, 'apartment', n] as const,
 }
 
 export interface UserQuery {
@@ -140,6 +143,43 @@ export function useDeleteResidency() {
 
 export function useStatuses() {
   return useQuery({ queryKey: qka.statuses, queryFn: () => api<ResidencyStatus[]>('/admin/statuses') })
+}
+
+export type HouseInput = Omit<House, 'id'>
+
+/** After a house change: refresh house lists, details and the public register options. */
+function housesChanged(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: ['admin', 'houses'] })
+  void qc.invalidateQueries({ queryKey: ['admin', 'house'] })
+  void qc.invalidateQueries({ queryKey: qk.registerOptions })
+}
+
+export function useCreateHouse() {
+  const qc = useQueryClient()
+  return useMutation<House, ApiError, HouseInput>({
+    mutationFn: (body) => api<House>('/admin/houses', json('POST', body)),
+    onSuccess: () => housesChanged(qc),
+  })
+}
+
+export function useUpdateHouse(id: number) {
+  const qc = useQueryClient()
+  return useMutation<House, ApiError, HouseInput>({
+    mutationFn: (body) => api<House>(`/admin/houses/${id}`, json('PATCH', body)),
+    onSuccess: () => housesChanged(qc),
+  })
+}
+
+export function useHouse(id: number) {
+  return useQuery({ queryKey: qka.house(id), queryFn: () => api<{ house: House; stats: HouseStats }>(`/admin/houses/${id}`) })
+}
+
+export function useApartment(houseId: number, n: number | null) {
+  return useQuery({
+    queryKey: qka.apartment(houseId, n),
+    queryFn: () => api<{ user: AdminUser; residency: Residency }[]>(`/admin/houses/${houseId}/apartments/${n}`),
+    enabled: n !== null,
+  })
 }
 
 export { json }
