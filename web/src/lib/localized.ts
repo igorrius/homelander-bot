@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useSite } from '../api/public'
 import type { LocalizedText } from '../api/types'
-import { defaultLocale } from '../i18n'
+import { defaultLocale, supportedLocales } from '../i18n'
 
 /**
  * Text for lang, else for the site's default locale, else any non-empty
@@ -26,4 +26,14 @@ export function useLocalized(): (text: LocalizedText | undefined) => string {
   const site = useSite()
   const fallback = site.data?.defaultLocale ?? defaultLocale
   return (text) => localized(text, i18n.language, fallback)
+}
+
+/** Drops empty and whitespace-only values before saving. */
+export function cleanLocalized(v: LocalizedText): LocalizedText {
+  const out: LocalizedText = {}
+  for (const loc of supportedLocales) {
+    const s = v[loc]?.trim()
+    if (s) out[loc] = s
+  }
+  return out
 }

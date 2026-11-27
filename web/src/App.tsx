@@ -7,8 +7,11 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
+import { AuditPage } from './pages/admin/AuditPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
+import { SitePage } from './pages/admin/SitePage'
+import { StatusesPage } from './pages/admin/StatusesPage'
 import { UserCardPage } from './pages/admin/UserCardPage'
 import { UsersPage } from './pages/admin/UsersPage'
 
@@ -28,6 +31,9 @@ export default function App() {
           <Route path="users/:id" element={<UserCardPage />} />
           <Route path="houses" element={<HousesPage />} />
           <Route path="houses/:id" element={<HousePage />} />
+          <Route path="statuses" element={<StatusesPage />} />
+          <Route path="site" element={<SitePage />} />
+          <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />

@@ -129,7 +129,9 @@
       "action": "Action",
       "target": "Object",
       "actor": "By",
-      "ip": "IP"
+      "ip": "IP",
+      "title": "Audit log",
+      "clearFilter": "Show all entries"
     },
     "houses": {
       "title": "Houses",
@@ -158,6 +160,31 @@
       "grid": "Apartments",
       "apartmentCell": "Apartment {{n}}, residents: {{count}}",
       "apartmentTitle": "Apartment {{n}}"
+    },
+    "statuses": {
+      "title": "Residency statuses",
+      "add": "Add status",
+      "code": "Code",
+      "codeHint": "Latin letters, digits and _; cannot be changed later",
+      "name": "Name",
+      "sortOrder": "Order",
+      "archived": "Archived"
+    },
+    "site": {
+      "title": "Site",
+      "texts": "Texts",
+      "communityName": "Community name",
+      "welcomeText": "Welcome text",
+      "defaultLocale": "Default language",
+      "save": "Save texts",
+      "picture": "Picture",
+      "noPicture": "No picture is uploaded: residents see this illustration drawn from the houses.",
+      "upload": "Upload a picture",
+      "pictureHint": "PNG, JPEG or WebP, up to 5 MB",
+      "removePicture": "Remove picture",
+      "removePictureConfirm": "Remove the picture? Residents will see the built-in illustration.",
+      "registerLink": "Registration link",
+      "registerLinkHint": "Pin this link in the community chat. Residents apply with it; you approve each application."
     }
   },
   "notFound": {
