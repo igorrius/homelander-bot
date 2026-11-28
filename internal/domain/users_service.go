@@ -102,6 +102,7 @@ type UserCard struct {
 	Channels    []Channel
 	Residencies []Residency
 	Audit       []AuditEntry
+	LabelIDs    []int64
 }
 
 // UserService manages applications, review and admin changes to users.
@@ -754,7 +755,7 @@ func (s *UserService) ResidencyOwner(ctx context.Context, id int64) (int64, erro
 	return r.UserID, err
 }
 
-// Card returns a user with channels, residencies and the latest audit entries.
+// Card returns a user with channels, residencies, labels and the latest audit entries.
 func (s *UserService) Card(ctx context.Context, id int64) (UserCard, error) {
 	var c UserCard
 	var err error
@@ -766,6 +767,12 @@ func (s *UserService) Card(ctx context.Context, id int64) (UserCard, error) {
 	}
 	if c.Residencies, err = s.R.Residencies.ListByUser(ctx, id); err != nil {
 		return c, err
+	}
+	if c.LabelIDs, err = s.R.Labels.LabelsOf(ctx, LabelTarget{TargetUser, id}); err != nil {
+		return c, err
+	}
+	if c.LabelIDs == nil {
+		c.LabelIDs = []int64{}
 	}
 	c.Audit, _, err = s.R.Audit.List(ctx, AuditFilter{TargetUserID: &id, Limit: cardAuditSize})
 	return c, err

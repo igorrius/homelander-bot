@@ -21,8 +21,11 @@ const NotificationsTarget = "notifications"
 func LabelAuditTarget(id int64) string { return "label:" + strconv.FormatInt(id, 10) }
 
 func (t LabelTarget) auditTarget() string {
-	if t.Type == TargetTopic {
+	switch t.Type {
+	case TargetTopic:
 		return TopicTarget(t.ID)
+	case TargetUser:
+		return UserTarget(t.ID)
 	}
 	return ChatTarget(t.ID)
 }
@@ -38,7 +41,15 @@ type LabelService struct {
 type LabelView struct {
 	Label
 	Targets            []LabelTarget
+	Users              []LabelUser // one per user target, in Targets order
 	UsedByApplications bool
+}
+
+// LabelUser is a user a label hangs on; Reachable when messages sent to the
+// label would reach them now (active, with a linked messenger account).
+type LabelUser struct {
+	ID        int64
+	Reachable bool
 }
 
 func (s *LabelService) audit(ctx context.Context, a Actor, action, target string, details map[string]any) error {
@@ -85,6 +96,17 @@ func (s *LabelService) List(ctx context.Context) ([]LabelView, error) {
 		}
 		if v.Targets == nil {
 			v.Targets = []LabelTarget{}
+		}
+		v.Users = []LabelUser{}
+		for _, t := range v.Targets {
+			if t.Type != TargetUser {
+				continue
+			}
+			_, ok, err := userChannel(ctx, s.R, t.ID)
+			if err != nil {
+				return nil, err
+			}
+			v.Users = append(v.Users, LabelUser{ID: t.ID, Reachable: ok})
 		}
 		out = append(out, v)
 	}
@@ -163,13 +185,15 @@ func (s *LabelService) targetExists(ctx context.Context, t LabelTarget) error {
 		_, err = s.R.Chats.Get(ctx, t.ID)
 	case TargetTopic:
 		_, err = s.R.Topics.Get(ctx, t.ID)
+	case TargetUser:
+		_, err = s.R.Users.Get(ctx, t.ID)
 	default:
 		err = ErrNotFound
 	}
 	return err
 }
 
-// SetLabels replaces the labels on a chat or topic.
+// SetLabels replaces the labels on a chat, topic or user.
 func (s *LabelService) SetLabels(ctx context.Context, t LabelTarget, labelIDs []int64, a Actor) error {
 	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
 		if err := s.targetExists(ctx, t); err != nil {
