@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
-import type { DataColumn, DataItem, DataKind, DataRow, DataType } from './types'
+import type { DataColumn, DataItem, DataKind, DataRow, DataType, Visibility } from './types'
 
 const json = (method: string, body?: unknown): RequestInit => ({ method, body: body === undefined ? undefined : JSON.stringify(body) })
 
@@ -21,7 +21,7 @@ export interface DataInput {
   key?: string
   kind?: DataKind
   description?: string
-  public?: boolean
+  visibility?: Visibility
   valueType?: DataType
   value?: unknown
   columns?: DataColumn[]

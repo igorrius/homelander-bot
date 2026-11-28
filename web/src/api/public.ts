@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
+import { myDataKey } from './publicData'
 import type { Me, RegisterOptions, Site } from './types'
 
 /** Query keys of the public API. Admin keys all start with 'admin' (see api/admin.ts). */
@@ -13,6 +14,7 @@ export const qk = { site: ['site'], me: ['me'], registerOptions: ['registerOptio
 export function setSessionUser(qc: QueryClient, user: Me | null) {
   qc.removeQueries({ queryKey: ['admin'] })
   qc.removeQueries({ queryKey: ['cabinet'] })
+  qc.removeQueries({ queryKey: myDataKey })
   qc.setQueryData(qk.me, user)
 }
 

@@ -3,6 +3,9 @@ package domain
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -17,20 +20,23 @@ import (
 )
 
 // DataService manages the data space: values and tables admins (later agents
-// and modules) keep, and the public read of them.
+// and modules) keep, and the public and residents reads of them.
 type DataService struct {
 	R       Repos
 	Now     Clock
 	Limits  *ratelimit.Limiter
 	Locales []string
+	// Secret signs the expiring asset URLs of residents-level images.
+	Secret []byte
 }
 
-// DataInput creates an item or, in Patch, changes it; nil fields stay as they are.
+// DataInput creates an item or, in Patch, changes it; nil fields stay as they
+// are. A new item without Visibility is admins-only.
 type DataInput struct {
 	Key         string
 	Kind        DataKind
 	Description *string
-	Public      *bool
+	Visibility  *Visibility
 	ValueType   *DataType
 	Value       json.RawMessage
 	Columns     *[]DataColumn
@@ -66,7 +72,7 @@ func (s *DataService) audit(ctx context.Context, a Actor, action, key string, de
 }
 
 // List returns every item without rows.
-func (s *DataService) List(ctx context.Context) ([]DataItem, error) { return s.R.Data.List(ctx, false) }
+func (s *DataService) List(ctx context.Context) ([]DataItem, error) { return s.R.Data.List(ctx) }
 
 // Get returns an item with its rows.
 func (s *DataService) Get(ctx context.Context, key string) (DataView, error) {
@@ -96,12 +102,15 @@ func (s *DataService) Create(ctx context.Context, in DataInput, a Actor) (DataIt
 		v.add("key", "invalid")
 	}
 	now := s.Now()
-	it := DataItem{Key: in.Key, Kind: in.Kind, CreatedBy: a.UserID, UpdatedBy: a.UserID, CreatedAt: now, UpdatedAt: now}
+	it := DataItem{Key: in.Key, Kind: in.Kind, Visibility: VisAdmins, CreatedBy: a.UserID, UpdatedBy: a.UserID, CreatedAt: now, UpdatedAt: now}
 	if in.Description != nil {
 		it.Description = strings.TrimSpace(*in.Description)
 	}
-	if in.Public != nil {
-		it.Public = *in.Public
+	if in.Visibility != nil {
+		if !in.Visibility.Valid() {
+			v.add("visibility", "invalid")
+		}
+		it.Visibility = *in.Visibility
 	}
 	switch in.Kind {
 	case DataValue:
@@ -141,7 +150,7 @@ func (s *DataService) Create(ctx context.Context, in DataInput, a Actor) (DataIt
 		if err := s.R.Data.SetAssetRefs(ctx, it.ID, imageRefs(it, nil)); err != nil {
 			return err
 		}
-		return s.audit(ctx, a, ActDataCreated, it.Key, map[string]any{"kind": string(it.Kind), "public": it.Public})
+		return s.audit(ctx, a, ActDataCreated, it.Key, map[string]any{"kind": string(it.Kind), "visibility": string(it.Visibility)})
 	})
 	return it, err
 }
@@ -290,7 +299,7 @@ func imageRefs(it DataItem, rows []DataRow) []int64 {
 	return ids
 }
 
-// Patch changes the description, public flag, value or columns of an item.
+// Patch changes the description, visibility, value or columns of an item.
 func (s *DataService) Patch(ctx context.Context, key string, in DataInput, a Actor) (DataItem, error) {
 	var it DataItem
 	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
@@ -304,9 +313,12 @@ func (s *DataService) Patch(ctx context.Context, key string, in DataInput, a Act
 			it.Description = strings.TrimSpace(*in.Description)
 			changed = append(changed, "description")
 		}
-		publicChanged := in.Public != nil && *in.Public != it.Public
-		if in.Public != nil {
-			it.Public = *in.Public
+		oldVis := it.Visibility
+		if in.Visibility != nil {
+			if !in.Visibility.Valid() {
+				v.add("visibility", "invalid")
+			}
+			it.Visibility = *in.Visibility
 		}
 		if in.ValueType != nil || in.Value != nil {
 			if it.Kind != DataValue {
@@ -350,14 +362,12 @@ func (s *DataService) Patch(ctx context.Context, key string, in DataInput, a Act
 			return err
 		}
 		if len(changed) > 0 {
-			details := map[string]any{"fields": changed}
-			if publicChanged {
-				details["public"] = it.Public
+			if err := s.audit(ctx, a, ActDataUpdated, it.Key, map[string]any{"fields": changed}); err != nil {
+				return err
 			}
-			return s.audit(ctx, a, ActDataUpdated, it.Key, details)
 		}
-		if publicChanged {
-			return s.audit(ctx, a, ActDataPublicSet, it.Key, map[string]any{"public": it.Public})
+		if it.Visibility != oldVis {
+			return s.audit(ctx, a, ActDataVisibilitySet, it.Key, map[string]any{"from": string(oldVis), "to": string(it.Visibility)})
 		}
 		return nil
 	})
@@ -577,7 +587,30 @@ func (s *DataService) Public(ctx context.Context, ip string) ([]DataView, error)
 	if !s.allowPublic(ip) {
 		return nil, ErrRateLimited
 	}
-	items, err := s.R.Data.List(ctx, true)
+	return s.views(ctx, VisPublic)
+}
+
+// CanReadResidents reports whether u reads residents-level data: an active
+// resident or an active admin.
+func CanReadResidents(u User) bool {
+	return u.Status == StatusActive && (u.IsResident || u.IsAdmin)
+}
+
+// ForUser returns the items u may read outside the admin panel: public and,
+// for a resident or an admin, residents items. It is rate-limited per user
+// like Public is per IP.
+func (s *DataService) ForUser(ctx context.Context, u User) ([]DataView, error) {
+	if !s.Limits.Allow("medata:"+strconv.FormatInt(u.ID, 10), publicLimit, publicWindow) {
+		return nil, ErrRateLimited
+	}
+	if CanReadResidents(u) {
+		return s.views(ctx, VisPublic, VisResidents)
+	}
+	return s.views(ctx, VisPublic)
+}
+
+func (s *DataService) views(ctx context.Context, only ...Visibility) ([]DataView, error) {
+	items, err := s.R.Data.List(ctx, only...)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +634,7 @@ func (s *DataService) PublicOne(ctx context.Context, key, ip string) (DataView, 
 	if err != nil {
 		return DataView{}, err
 	}
-	if !it.Public {
+	if it.Visibility != VisPublic {
 		return DataView{}, ErrNotFound
 	}
 	return s.view(ctx, it)
@@ -610,4 +643,35 @@ func (s *DataService) PublicOne(ctx context.Context, key, ip string) (DataView, 
 // AssetIsPublic reports whether anyone may download the asset.
 func (s *DataService) AssetIsPublic(ctx context.Context, assetID int64) (bool, error) {
 	return s.R.Data.AssetIsPublic(ctx, assetID)
+}
+
+// AssetURLTTL is about how long a signed asset URL works: it expires at the
+// start of the hour after next, so it lasts 1–2 hours and stays the same for
+// an hour, which lets browsers cache the image.
+const AssetURLTTL = time.Hour
+
+const assetURLSalt = "data-asset:"
+
+func (s *DataService) assetSig(id, exp string) string {
+	m := hmac.New(sha256.New, s.Secret)
+	m.Write([]byte(assetURLSalt + id + "." + exp))
+	return base64.RawURLEncoding.EncodeToString(m.Sum(nil))
+}
+
+// SignedAssetURL returns an expiring URL of the asset that works without a
+// cookie: a site page's frame has none, yet must show residents-level images.
+func (s *DataService) SignedAssetURL(id int64) string {
+	ids := strconv.FormatInt(id, 10)
+	exp := strconv.FormatInt(s.Now().Truncate(AssetURLTTL).Add(2*AssetURLTTL).Unix(), 10)
+	return "/api/v1/assets/" + ids + "?exp=" + exp + "&sig=" + s.assetSig(ids, exp)
+}
+
+// ValidAssetSig reports whether exp and sig of a SignedAssetURL name asset id
+// and have not expired.
+func (s *DataService) ValidAssetSig(id int64, exp, sig string) bool {
+	e, err := strconv.ParseInt(exp, 10, 64)
+	if err != nil || len(s.Secret) == 0 {
+		return false
+	}
+	return hmac.Equal([]byte(sig), []byte(s.assetSig(strconv.FormatInt(id, 10), exp))) && s.Now().Before(time.Unix(e, 0))
 }

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { QueryClient } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -31,12 +31,13 @@ export function currentLocation(): string {
   return screen.getByTestId('location').textContent ?? ''
 }
 
-/** Renders one component inside the app providers (theme, i18n, a fresh query client). */
+/** Renders one component inside the app providers (theme, i18n, a fresh query client); rerender keeps them. */
 export function renderWithProviders(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(
+  const wrapper = ({ children }: { children: ReactNode }) => (
     <Providers client={client} env="test">
-      <MemoryRouter>{ui}</MemoryRouter>
-    </Providers>,
+      <MemoryRouter>{children}</MemoryRouter>
+    </Providers>
   )
+  return render(ui, { wrapper })
 }

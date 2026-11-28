@@ -35,7 +35,7 @@ type dataItemDTO struct {
 	Key         string              `json:"key"`
 	Kind        domain.DataKind     `json:"kind"`
 	Description string              `json:"description"`
-	Public      bool                `json:"public"`
+	Visibility  domain.Visibility   `json:"visibility"`
 	ValueType   domain.DataType     `json:"valueType,omitempty"`
 	Value       json.RawMessage     `json:"value,omitempty"`
 	Columns     []domain.DataColumn `json:"columns,omitempty"`
@@ -51,7 +51,7 @@ type dataRowDTO struct {
 }
 
 func (h handlerCtx) toDataItem(r *http.Request, n *namer, it domain.DataItem) dataItemDTO {
-	d := dataItemDTO{Key: it.Key, Kind: it.Kind, Description: it.Description, Public: it.Public, ValueType: it.ValueType,
+	d := dataItemDTO{Key: it.Key, Kind: it.Kind, Description: it.Description, Visibility: it.Visibility, ValueType: it.ValueType,
 		Value: it.Value, Columns: it.Columns, RowCount: it.RowCount, UpdatedAt: it.UpdatedAt}
 	if it.Kind == domain.DataTable && d.Columns == nil {
 		d.Columns = []domain.DataColumn{}
@@ -105,14 +105,14 @@ type dataIn struct {
 	Key         string               `json:"key"`
 	Kind        domain.DataKind      `json:"kind"`
 	Description *string              `json:"description"`
-	Public      *bool                `json:"public"`
+	Visibility  *domain.Visibility   `json:"visibility"`
 	ValueType   *domain.DataType     `json:"valueType"`
 	Value       json.RawMessage      `json:"value"`
 	Columns     *[]domain.DataColumn `json:"columns"`
 }
 
 func (in dataIn) input() domain.DataInput {
-	return domain.DataInput{Key: in.Key, Kind: in.Kind, Description: in.Description, Public: in.Public,
+	return domain.DataInput{Key: in.Key, Kind: in.Kind, Description: in.Description, Visibility: in.Visibility,
 		ValueType: in.ValueType, Value: in.Value, Columns: in.Columns}
 }
 
@@ -223,12 +223,12 @@ func (h handlerCtx) uploadDataImage(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusCreated, map[string]any{"id": a.ID, "url": adminAssetURL(a.ID)})
 }
 
-// publicItem is what anyone may read about a public item: no description,
-// no author, images as URLs.
-func publicItem(v domain.DataView) map[string]any {
+// publicItem is what a site page may read about an item: no description, no
+// author, images as URLs made by image.
+func publicItem(v domain.DataView, image func(id int64) string) map[string]any {
 	it := v.Item
 	if it.Kind == domain.DataValue {
-		return map[string]any{"kind": "value", "type": it.ValueType, "value": publicCell(it.ValueType, it.Value)}
+		return map[string]any{"kind": "value", "type": it.ValueType, "value": publicCell(it.ValueType, it.Value, image)}
 	}
 	types := map[string]domain.DataType{}
 	for _, c := range it.Columns {
@@ -238,7 +238,7 @@ func publicItem(v domain.DataView) map[string]any {
 	for _, r := range v.Rows {
 		row := map[string]any{"id": r.ID}
 		for name, raw := range r.Cells {
-			row[name] = publicCell(types[name], raw)
+			row[name] = publicCell(types[name], raw, image)
 		}
 		rows = append(rows, row)
 	}
@@ -249,11 +249,11 @@ func publicItem(v domain.DataView) map[string]any {
 	return map[string]any{"kind": "table", "columns": cols, "rows": rows}
 }
 
-// publicCell turns an image id into its public URL and leaves other values as they are.
-func publicCell(t domain.DataType, raw json.RawMessage) any {
+// publicCell turns an image id into its URL and leaves other values as they are.
+func publicCell(t domain.DataType, raw json.RawMessage, image func(id int64) string) any {
 	if t == domain.DataImage {
 		if id, err := strconv.ParseInt(string(raw), 10, 64); err == nil {
-			return "/api/v1/assets/" + strconv.FormatInt(id, 10)
+			return image(id)
 		}
 	}
 	if len(raw) == 0 {
@@ -292,7 +292,7 @@ func (h handlerCtx) publicData(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make(map[string]any, len(list))
 	for _, v := range list {
-		out[v.Item.Key] = publicItem(v)
+		out[v.Item.Key] = publicItem(v, publicAssetURL)
 	}
 	writePublic(w, r, out)
 }
@@ -304,5 +304,37 @@ func (h handlerCtx) publicDataOne(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	writePublic(w, r, publicItem(v))
+	writePublic(w, r, publicItem(v, publicAssetURL))
+}
+
+// publicAssetURL is the URL of an asset a public item refers to.
+func publicAssetURL(id int64) string { return "/api/v1/assets/" + strconv.FormatInt(id, 10) }
+
+// myData returns what the signed-in user may read on the site: public items,
+// and residents items for a resident or an admin, in the shape of
+// /public/data. Images of residents items are signed, expiring URLs, because
+// the page's frame sends no cookie. Only our shell calls it: no CORS.
+func (h handlerCtx) myData(w http.ResponseWriter, r *http.Request) {
+	u, _ := CurrentUser(r)
+	list, err := h.api.Data.ForUser(r.Context(), u)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	out := make(map[string]any, len(list))
+	for _, v := range list {
+		image := publicAssetURL
+		if v.Item.Visibility != domain.VisPublic {
+			image = h.api.Data.SignedAssetURL
+		}
+		out[v.Item.Key] = publicItem(v, image)
+	}
+	body, err := json.Marshal(out)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "private, no-store")
+	_, _ = w.Write(body)
 }
