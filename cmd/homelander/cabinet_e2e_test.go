@@ -34,7 +34,10 @@ func TestCabinetLoginLinkEndToEnd(t *testing.T) {
 	defer func() {
 		cancel()
 		select {
-		case <-done:
+		case err := <-done:
+			if err != nil {
+				t.Errorf("runWith = %v", err)
+			}
 		case <-time.After(20 * time.Second):
 			t.Error("runWith did not stop")
 		}
