@@ -93,8 +93,11 @@ Every data item has a **visibility**:
 - `public` — anyone, guests too; pages read it from `/api/v1/public/data`.
 - `residents` — signed-in residents and admins. A page cannot ask for it (it runs in a sandbox
   without the visitor's session): the site header sends it to the page in a `homelander:data`
-  message after the page posts `homelander:ready` (see `page_guide`, section 3). Images of such
-  items come as signed links that work for about an hour.
+  message (see `page_guide`, section 3). Homelander adds a small script to every page it serves
+  that asks for it with a one-time code from the frame address and a private `MessageChannel`, so
+  the data reaches only the page the header opened: if the frame goes to another document (for
+  example a link without `target="_top"`), nothing more is sent there. Images of such items come
+  as signed links that work for about an hour.
 - `admins` — only admins, in the panel and through MCP; never served to the site.
 
 New items are `admins` unless the agent or the admin sets another visibility. A published page can

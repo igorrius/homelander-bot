@@ -10,9 +10,20 @@ export const PAGE_SANDBOX =
 const MIN_HEIGHT = 100
 const MAX_HEIGHT = 20000
 
-function withLang(src: string, lang: string) {
-  return `${src}${src.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`
+/** The frame URL: the page, its first language and, for our pages, the nonce of this load. */
+function frameUrl(src: string, lang: string, nonce: string | null) {
+  const url = `${src}${src.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`
+  return nonce ? `${url}&hl=${nonce}` : url
 }
+
+function newNonce(): string {
+  const b = new Uint8Array(16)
+  crypto.getRandomValues(b)
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
+}
+
+/** The end of the MessageChannel the page's bridge script hands over with homelander:ready. */
+type Port = Pick<MessagePort, 'postMessage' | 'close'>
 
 /** What the page learns about the viewer: residents data reaches it only through this message. */
 export type FrameData =
@@ -37,6 +48,7 @@ function useFrameData(enabled: boolean): FrameData | null {
   }, [enabled, me.isPending, me.data, mine.isPending, mine.data])
 }
 
+
 /**
  * A published (or preview) site page in a sandboxed frame. The page reports its height with
  * { type: 'homelander:height', height }; language changes are posted to it as
@@ -44,10 +56,12 @@ function useFrameData(enabled: boolean): FrameData | null {
  * script that posts { type: 'homelander:navigate', path } for links to the draft's pages; onNavigate gets
  * such a path only from this frame and only when it is one of pages.
  *
- * When the page posts { type: 'homelander:ready' }, it gets a homelander:data message (FrameData): who is
- * looking and, for a signed-in user, the items of /api/v1/me/data (residents items for a resident or an
- * admin). It is posted again after a language change and when the data is reloaded. Only our own page URLs
- * get it, and only from this frame.
+ * Viewer data (FrameData: who is looking and, when signed in, the items of /api/v1/me/data) goes only to
+ * our own page URLs. Each frame load gets a random nonce in its URL (hl=…). The server injects a bridge
+ * script into every page that posts { type: 'homelander:ready', nonce } with a MessagePort; the data is
+ * posted only through the port of a ready that came from this frame with the current nonce, and again on
+ * a language change or a re-fetch. A port belongs to the document that made it, so a frame that navigated
+ * elsewhere cannot receive data; besides, a second load event without a fresh ready drops the port.
  */
 export function PageFrame({ src, lang, title, pages, onNavigate }: {
   src: string
@@ -59,28 +73,33 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(600)
   // The language goes into the URL only when the frame (re)loads; later switches are posted.
-  const [loaded, setLoaded] = useState({ src, lang })
-  if (loaded.src !== src) setLoaded({ src, lang })
-  const url = withLang(loaded.src, loaded.lang)
+  const [loaded, setLoaded] = useState(() => ({ src, lang, nonce: newNonce() }))
+  if (loaded.src !== src) setLoaded({ src, lang, nonce: newNonce() })
+  const ours = isOurPageUrl(loaded.src)
+  const nonce = ours ? loaded.nonce : null
+  const url = frameUrl(loaded.src, loaded.lang, nonce)
   const posted = useRef(lang)
   const nav = useRef({ pages, onNavigate })
   useEffect(() => {
     nav.current = { pages, onNavigate }
   })
 
-  const ours = isOurPageUrl(loaded.src)
   const data = useFrameData(ours)
-  const ready = useRef(false)
   const dataRef = useRef(data)
-  // The sandboxed page has an opaque origin, so '*' is the only target that reaches it.
+  const link = useRef<{ port: Port | null; fresh: boolean; loadedOnce: boolean }>({ port: null, fresh: false, loadedOnce: false })
   const postData = useCallback(() => {
     const message = dataRef.current
-    if (ready.current && message) ref.current?.contentWindow?.postMessage(message, '*')
+    if (message) link.current.port?.postMessage(message)
   }, [])
-  // A new document in the frame says ready again.
+  const dropPort = useCallback(() => {
+    link.current.port?.close()
+    link.current.port = null
+  }, [])
+  // A new frame URL is a new load: nothing is ready until its page says so.
   useEffect(() => {
-    ready.current = false
-  }, [url])
+    link.current = { port: null, fresh: false, loadedOnce: false }
+    return dropPort
+  }, [url, dropPort])
   useEffect(() => {
     dataRef.current = data
     postData()
@@ -90,9 +109,13 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
     const onMessage = (e: MessageEvent) => {
       const win = ref.current?.contentWindow
       if (!win || e.source !== win) return
-      const msg = e.data as { type?: unknown; height?: unknown; path?: unknown } | null
+      const msg = e.data as { type?: unknown; height?: unknown; path?: unknown; nonce?: unknown } | null
       if (msg?.type === 'homelander:ready') {
-        ready.current = ours
+        const port = e.ports?.[0] as Port | undefined
+        if (!nonce || msg.nonce !== nonce || !port) return
+        dropPort()
+        link.current.port = port
+        link.current.fresh = true
         postData()
         return
       }
@@ -106,11 +129,21 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [ours, postData])
+  }, [nonce, postData, dropPort])
+
+  // The first load is the page we set; a later one is another document (a link without target, a reload).
+  // Its page must say ready again; a ready that came since the last load is that new page's own.
+  const onLoad = () => {
+    const l = link.current
+    if (l.loadedOnce && !l.fresh) dropPort()
+    l.loadedOnce = true
+    l.fresh = false
+  }
 
   useEffect(() => {
     if (posted.current === lang) return
     posted.current = lang
+    // The sandboxed page has an opaque origin, so '*' is the only target that reaches it; no data here.
     ref.current?.contentWindow?.postMessage({ type: 'homelander:lang', lang }, '*')
     postData()
   }, [lang, postData])
@@ -121,6 +154,7 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
       src={url}
       title={title}
       sandbox={PAGE_SANDBOX}
+      onLoad={onLoad}
       style={{ width: '100%', border: 0, height, display: 'block' }}
     />
   )

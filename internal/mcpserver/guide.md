@@ -96,13 +96,18 @@ async function loadData() {
 }
 ```
 
-### Residents data: the `ready` and `data` messages
+### Residents data: the `homelander:data` message
 
-The page cannot ask for residents data itself (it has no session), so our header sends it:
+The page cannot ask for residents data itself (it has no session), so our header sends it.
+**You do not send anything for it**: Homelander adds a small script to every page it serves
+(published and drafts) that tells the header the page is ready (`homelander:ready`, with a one-time
+code from the frame address and a private channel) once the document is parsed. Do not post
+`homelander:ready` yourself and do not remove the `hl` parameter from the address.
 
-1. When your script starts listening, post `{ type: 'homelander:ready' }` to the parent.
-2. The header answers with a `homelander:data` message — once after `ready`, and again when the
-   visitor switches language or the data is reloaded:
+1. Listen for `message` events from `parent` with `type: 'homelander:data'`. The script also keeps
+   the latest one in `window.homelanderData`, for code that starts later (an `async` script).
+2. The message comes once the page is parsed, and again when the visitor switches language or the
+   data is reloaded:
    - signed in: `{ type: 'homelander:data', viewer: { signedIn: true, resident: true|false, admin: true|false }, items: { ... } }`
      — `items` has the same shape as `/api/v1/public/data` and holds the public items **and**, for
      a resident or an admin, the `residents` items;
@@ -110,6 +115,9 @@ The page cannot ask for residents data itself (it has no session), so our header
      and show the public view.
 3. Keep loading `/api/v1/public/data` yourself (it is the guest view and the fallback, for example
    when the page is opened without our header), and merge `items` over it when the message comes.
+4. Residents data reaches only the page our header opened. If the frame goes to another document
+   (a link without `target="_top"`, a form, `location.href = …`), that document gets nothing — so
+   link pages with `target="_top"` (section 6).
 
 Images of `residents` items arrive as signed URLs (`/api/v1/assets/<id>?exp=…&sig=…`) that work for
 about an hour: use them as they are and do not store them in page files.
@@ -118,13 +126,15 @@ about an hour: use them as they are and do not store them in page files.
 <script>
   let data = {}       // key → item, public first, then merged with residents items
   let viewer = null   // null until the header answers
-  window.addEventListener('message', (e) => {
-    if (e.source !== parent || !e.data || e.data.type !== 'homelander:data') return
-    viewer = e.data.viewer
-    if (e.data.items) data = { ...data, ...e.data.items }
+  function onData(msg) {
+    viewer = msg.viewer
+    if (msg.items) data = { ...data, ...msg.items }
     render()
+  }
+  window.addEventListener('message', (e) => {
+    if (e.source === parent && e.data && e.data.type === 'homelander:data') onData(e.data)
   })
-  parent.postMessage({ type: 'homelander:ready' }, '*')
+  if (window.homelanderData) onData(window.homelanderData) // already arrived
   fetch('/api/v1/public/data').then((r) => (r.ok ? r.json() : {})).then((pub) => {
     data = { ...pub, ...data }
     render()
