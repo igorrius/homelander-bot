@@ -20,6 +20,10 @@ var (
 	ErrLastAdmin    = errors.New("last_admin")
 	ErrFirstAdmin   = errors.New("first_admin")
 	ErrTokenInvalid = errors.New("token_invalid")
+	// ErrModuleOff: the module is turned off, so what it serves is not there.
+	ErrModuleOff = errors.New("module_disabled")
+	// ErrOwned: a module writes this data item; only its visibility can change.
+	ErrOwned = errors.New("module_owned")
 )
 
 // ValidationError maps field names to reason codes such as "required",
