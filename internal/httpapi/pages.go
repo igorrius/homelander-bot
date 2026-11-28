@@ -3,7 +3,9 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -23,6 +25,16 @@ const pageCSP = "sandbox allow-scripts allow-popups allow-popups-to-escape-sandb
 
 //go:embed preview_nav.js
 var previewNavJS string
+
+//go:embed frame_bridge.js
+var frameBridgeJS string
+
+// frameBridgeTag goes into the ETag of HTML pages, so a page served with an
+// older bridge is not kept by a cache.
+var frameBridgeTag = func() string {
+	sum := sha256.Sum256([]byte(frameBridgeJS))
+	return hex.EncodeToString(sum[:4])
+}()
 
 // lastBodyClose finds the last "</body>" in any letter case. It folds only
 // ASCII letters, so the offset stays valid for any encoding (bytes.ToLower
@@ -48,15 +60,20 @@ func lastBodyClose(data []byte) int {
 	return -1
 }
 
-// injectPreviewNav adds the preview navigation script, listing the draft's
-// page paths, before the last </body> (or at the end when there is none).
-func injectPreviewNav(data []byte, pages []domain.SitePage) []byte {
+// previewNav is the preview navigation script listing the draft's page paths.
+func previewNav(pages []domain.SitePage) string {
 	paths := make([]string, 0, len(pages))
 	for _, p := range pages {
 		paths = append(paths, p.Path)
 	}
 	list, _ := json.Marshal(paths) // page paths are [a-z0-9-/] only
-	script := []byte("<script>" + strings.Replace(previewNavJS, "__PAGES__", string(list), 1) + "</script>")
+	return strings.Replace(previewNavJS, "__PAGES__", string(list), 1)
+}
+
+// injectScripts adds the scripts before the last </body> (or at the end when
+// there is none).
+func injectScripts(data []byte, scripts ...string) []byte {
+	script := []byte("<script>" + strings.Join(scripts, "\n") + "</script>")
 	at := lastBodyClose(data)
 	if at < 0 {
 		at = len(data)
@@ -93,14 +110,17 @@ func SiteHandler(api API) http.Handler {
 				return
 			}
 			f, err = api.Pages.PreviewFile(r.Context(), token, indexIfEmpty(p))
-			if err == nil && strings.HasPrefix(f.ContentType, "text/html") {
+			if err == nil && isHTML(f) {
 				var v domain.PageVersion
 				if v, err = api.Pages.PreviewVersion(r.Context(), token); err == nil {
-					f.Data = injectPreviewNav(f.Data, domain.PagesOf(v.Files))
+					f.Data = injectScripts(f.Data, frameBridgeJS, previewNav(domain.PagesOf(v.Files)))
 				}
 			}
 		} else {
 			f, err = api.Pages.PublishedFile(r.Context(), indexIfEmpty(rest))
+			if err == nil && isHTML(f) {
+				f.Data = injectScripts(f.Data, frameBridgeJS)
+			}
 		}
 		if errors.Is(err, domain.ErrNotFound) {
 			http.NotFound(w, r)
@@ -118,11 +138,17 @@ func SiteHandler(api API) http.Handler {
 			h.Set("Cache-Control", "private, no-store")
 		} else {
 			h.Set("Cache-Control", "no-cache")
-			h.Set("ETag", `"`+f.SHA256+`"`)
+			tag := f.SHA256
+			if isHTML(f) {
+				tag += "-" + frameBridgeTag
+			}
+			h.Set("ETag", `"`+tag+`"`)
 		}
 		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(f.Data))
 	})
 }
+
+func isHTML(f domain.PageFile) bool { return strings.HasPrefix(f.ContentType, "text/html") }
 
 func indexIfEmpty(p string) string {
 	if p == "" {

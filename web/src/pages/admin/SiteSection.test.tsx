@@ -128,9 +128,9 @@ describe('SiteSection', () => {
 
 describe('SiteSection built-in page tab', () => {
   const items: DataItem[] = [
-    { key: 'contacts', kind: 'table', description: '', public: true, rowCount: 2, columns: [], updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
-    { key: 'office.phone', kind: 'value', description: '', public: true, valueType: 'phone', value: '+380 44 000 00 00', rowCount: 0, updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
-    { key: 'secret.code', kind: 'value', description: '', public: false, valueType: 'text', value: 'x', rowCount: 0, updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
+    { key: 'contacts', kind: 'table', description: '', visibility: 'public', rowCount: 2, columns: [], updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
+    { key: 'office.phone', kind: 'value', description: '', visibility: 'public', valueType: 'phone', value: '+380 44 000 00 00', rowCount: 0, updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
+    { key: 'secret.code', kind: 'value', description: '', visibility: 'residents', valueType: 'text', value: 'x', rowCount: 0, updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
   ]
   const homeRoutes = { ...routes, 'GET /admin/data': { body: items }, 'GET /public/data': { body: {} } }
 

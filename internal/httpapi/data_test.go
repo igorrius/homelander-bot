@@ -7,7 +7,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
 	"github.com/igorrius/homelander-bot/internal/httpapi"
@@ -69,15 +72,16 @@ func TestAssetAccess(t *testing.T) {
 	if r := e.do("GET", fmt.Sprintf("/api/v1/admin/assets/%d", id), nil, "", ""); r.Code != 401 {
 		t.Fatalf("guest on admin route = %d", r.Code)
 	}
-	vt, yes, no := domain.DataImage, true, false
+	vt := domain.DataImage
+	visPub, visRes := domain.VisPublic, domain.VisResidents
 	if _, err := e.api.Data.Create(ctx, domain.DataInput{Key: "logo", Kind: domain.DataValue, ValueType: &vt,
-		Value: json.RawMessage(fmt.Sprint(id)), Public: &yes}, domain.Actor{}); err != nil {
+		Value: json.RawMessage(fmt.Sprint(id)), Visibility: &visPub}, domain.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	if r := e.do("GET", pub, nil, "", ""); r.Code != 200 || r.Body.String() != string(pngBytes) || r.Header().Get("Cache-Control") != "public, max-age=60" {
 		t.Fatalf("guest public = %d %q", r.Code, r.Header().Get("Cache-Control"))
 	}
-	if _, err := e.api.Data.Patch(ctx, "logo", domain.DataInput{Public: &no}, domain.Actor{}); err != nil {
+	if _, err := e.api.Data.Patch(ctx, "logo", domain.DataInput{Visibility: &visRes}, domain.Actor{}); err != nil {
 		t.Fatal(err)
 	}
 	if r := e.do("GET", pub, nil, "", ""); r.Code != 404 {
@@ -102,8 +106,8 @@ func TestDataAssetUpload(t *testing.T) {
 func TestAdminDataCRUD(t *testing.T) {
 	e, tok := adminEnv(t)
 	r := e.do("POST", "/api/v1/admin/data", map[string]any{"key": "house.address", "kind": "value", "valueType": "text",
-		"value": "Main st 1", "description": "where we live", "public": false}, tok, "")
-	if r.Code != 201 || r.json()["key"] != "house.address" || r.json()["value"] != "Main st 1" {
+		"value": "Main st 1", "description": "where we live"}, tok, "")
+	if r.Code != 201 || r.json()["key"] != "house.address" || r.json()["value"] != "Main st 1" || r.json()["visibility"] != "admins" {
 		t.Fatalf("create = %d %s", r.Code, r.Body)
 	}
 	var list []map[string]any
@@ -111,9 +115,15 @@ func TestAdminDataCRUD(t *testing.T) {
 	if len(list) != 1 || list[0]["kind"] != "value" || list[0]["updatedBy"].(map[string]any)["name"] != "F L" {
 		t.Fatalf("list = %v", list)
 	}
-	r = e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"public": true, "valueType": "text", "value": "Main st 2"}, tok, "")
-	if r.Code != 200 || r.json()["public"] != true || r.json()["value"] != "Main st 2" {
+	r = e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"visibility": "residents", "valueType": "text", "value": "Main st 2"}, tok, "")
+	if r.Code != 200 || r.json()["visibility"] != "residents" || r.json()["value"] != "Main st 2" {
 		t.Fatalf("patch = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"visibility": "everyone"}, tok, ""); r.Code != 422 || fieldOf(r, "visibility") != "invalid" {
+		t.Fatalf("bad visibility = %d %s", r.Code, r.Body)
+	}
+	if r := e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"public": true}, tok, ""); r.Code != 400 {
+		t.Fatalf("old public field = %d %s", r.Code, r.Body)
 	}
 	r = e.do("GET", "/api/v1/admin/data/house.address", nil, tok, "")
 	if r.Code != 200 || r.json()["item"].(map[string]any)["description"] != "where we live" {
@@ -179,9 +189,10 @@ func publicFixture(t *testing.T) (*apiEnv, string, int64) {
 	e, tok := adminEnv(t)
 	img := dataImage(t, e, tok)
 	for _, body := range []map[string]any{
-		{"key": "house.address", "kind": "value", "valueType": "text", "value": "Main st 1", "public": true},
+		{"key": "house.address", "kind": "value", "valueType": "text", "value": "Main st 1", "visibility": "public"},
 		{"key": "secret", "kind": "value", "valueType": "text", "value": "hidden"},
-		{"key": "contacts", "kind": "table", "public": true, "description": "not for the public",
+		{"key": "dues", "kind": "value", "valueType": "text", "value": "apartment 3 paid", "visibility": "residents"},
+		{"key": "contacts", "kind": "table", "visibility": "public", "description": "not for the public",
 			"columns": []map[string]string{{"name": "name", "label": "Name", "type": "text"}, {"name": "pic", "label": "Pic", "type": "image"}}},
 	} {
 		if r := e.do("POST", "/api/v1/admin/data", body, tok, ""); r.Code != 201 {
@@ -283,5 +294,78 @@ func TestPublicDataRateLimit(t *testing.T) {
 	}
 	if r := e.do("GET", "/api/v1/public/data", nil, "", "10.5.0.2"); r.Code != 200 {
 		t.Fatalf("other IP = %d", r.Code)
+	}
+}
+
+func keysOf(m map[string]any) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, " ")
+}
+
+func TestMyData(t *testing.T) {
+	e, _, img := publicFixture(t)
+	if r := e.do("GET", "/api/v1/me/data", nil, "", ""); r.Code != 401 {
+		t.Fatalf("guest = %d", r.Code)
+	}
+	resident := e.login(e.mkUser("+380500000001"))
+	r := e.do("GET", "/api/v1/me/data", nil, resident, "")
+	if r.Code != 200 || keysOf(r.json()) != "contacts dues house.address" {
+		t.Fatalf("resident = %d %s", r.Code, r.Body)
+	}
+	if r.Header().Get("Cache-Control") != "private, no-store" || r.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("headers = %v", r.Header())
+	}
+	if v := r.json()["dues"].(map[string]any); v["kind"] != "value" || v["value"] != "apartment 3 paid" {
+		t.Fatalf("dues = %v", v)
+	}
+	// Public items keep plain asset URLs.
+	row := r.json()["contacts"].(map[string]any)["rows"].([]any)[0].(map[string]any)
+	if row["pic"] != fmt.Sprintf("/api/v1/assets/%d", img) {
+		t.Fatalf("public image = %v", row["pic"])
+	}
+	adminOnly := e.login(e.mkUser("+380500000002", admin, func(u *domain.User) { u.IsResident = false }))
+	if r := e.do("GET", "/api/v1/me/data", nil, adminOnly, ""); r.Code != 200 || keysOf(r.json()) != "contacts dues house.address" {
+		t.Fatalf("admin = %d %s", r.Code, r.Body)
+	}
+	neither := e.login(e.mkUser("+380500000003", func(u *domain.User) { u.IsResident = false }))
+	if r := e.do("GET", "/api/v1/me/data", nil, neither, ""); r.Code != 200 || keysOf(r.json()) != "contacts house.address" {
+		t.Fatalf("not a resident = %d %s", r.Code, r.Body)
+	}
+}
+
+func TestSignedAssetURLs(t *testing.T) {
+	e, tok := adminEnv(t)
+	img, other := dataImage(t, e, tok), dataImage(t, e, tok)
+	if r := e.do("POST", "/api/v1/admin/data", map[string]any{"key": "house.photo", "kind": "value", "valueType": "image",
+		"value": img, "visibility": "residents"}, tok, ""); r.Code != 201 {
+		t.Fatalf("create = %d %s", r.Code, r.Body)
+	}
+	plain := fmt.Sprintf("/api/v1/assets/%d", img)
+	if r := e.do("GET", plain, nil, "", ""); r.Code != 404 {
+		t.Fatalf("residents image without signature = %d", r.Code)
+	}
+	r := e.do("GET", "/api/v1/me/data", nil, tok, "")
+	signed, _ := r.json()["house.photo"].(map[string]any)["value"].(string)
+	if !strings.HasPrefix(signed, plain+"?exp=") || !strings.Contains(signed, "&sig=") {
+		t.Fatalf("signed url = %q", signed)
+	}
+	r = e.do("GET", signed, nil, "", "")
+	if r.Code != 200 || r.Body.String() != string(pngBytes) || r.Header().Get("Cache-Control") != "private, max-age=600" {
+		t.Fatalf("signed = %d %q", r.Code, r.Header().Get("Cache-Control"))
+	}
+	query := signed[len(plain):]
+	if r := e.do("GET", fmt.Sprintf("/api/v1/assets/%d", other)+query, nil, "", ""); r.Code != 404 {
+		t.Fatalf("signature of another asset = %d", r.Code)
+	}
+	if r := e.do("GET", strings.Replace(signed, "&sig=", "&sig=x", 1), nil, "", ""); r.Code != 404 {
+		t.Fatalf("tampered = %d", r.Code)
+	}
+	e.now = e.now.Add(2 * time.Hour)
+	if r := e.do("GET", signed, nil, "", ""); r.Code != 404 {
+		t.Fatalf("expired = %d", r.Code)
 	}
 }

@@ -23,7 +23,7 @@ type itemOut struct {
 	Key         string              `json:"key"`
 	Kind        string              `json:"kind" jsonschema:"value or table"`
 	Description string              `json:"description"`
-	Public      bool                `json:"public" jsonschema:"public items are readable by anyone, including the home page"`
+	Visibility  string              `json:"visibility" jsonschema:"public: anyone, through /api/v1/public/data; residents: signed-in residents and admins, posted to site pages; admins: only admins"`
 	ValueType   string              `json:"value_type,omitempty"`
 	Value       any                 `json:"value,omitempty"`
 	Columns     []domain.DataColumn `json:"columns,omitempty"`
@@ -32,7 +32,7 @@ type itemOut struct {
 }
 
 func toItem(it domain.DataItem, withValue bool) itemOut {
-	o := itemOut{Key: it.Key, Kind: string(it.Kind), Description: it.Description, Public: it.Public, UpdatedAt: it.UpdatedAt}
+	o := itemOut{Key: it.Key, Kind: string(it.Kind), Description: it.Description, Visibility: string(it.Visibility), UpdatedAt: it.UpdatedAt}
 	switch it.Kind {
 	case domain.DataValue:
 		o.ValueType = string(it.ValueType)
@@ -95,13 +95,13 @@ type (
 		ValueType   *string `json:"value_type,omitempty" jsonschema:"text, localized_text, number, bool, image, url, phone or json; required when the value is new"`
 		Value       any     `json:"value" jsonschema:"the value: a string for text, {\"uk\":...,\"en\":...} for localized_text, a number, a bool, an asset id for image, any JSON for json"`
 		Description *string `json:"description,omitempty"`
-		Public      *bool   `json:"public,omitempty"`
+		Visibility  *string `json:"visibility,omitempty" jsonschema:"public, residents or admins; a new item is admins unless set"`
 	}
 	createTableIn struct {
 		Key         string              `json:"key"`
 		Columns     []domain.DataColumn `json:"columns" jsonschema:"ordered columns; type is text, localized_text, number, bool, image, url or phone"`
 		Description *string             `json:"description,omitempty"`
-		Public      *bool               `json:"public,omitempty"`
+		Visibility  *string             `json:"visibility,omitempty" jsonschema:"public, residents or admins; default admins"`
 	}
 	columnsIn struct {
 		Key     string              `json:"key"`
@@ -123,9 +123,9 @@ type (
 		Key string  `json:"key"`
 		IDs []int64 `json:"ids"`
 	}
-	publicIn struct {
-		Key    string `json:"key"`
-		Public bool   `json:"public"`
+	visibilityIn struct {
+		Key        string `json:"key"`
+		Visibility string `json:"visibility" jsonschema:"public: anyone; residents: signed-in residents and admins; admins: only admins"`
 	}
 	keyIn struct {
 		Key string `json:"key"`
@@ -142,6 +142,15 @@ type (
 		URL string `json:"url" jsonschema:"served publicly once a public item refers to the asset"`
 	}
 )
+
+// visibility converts an optional tool argument; the domain validates it.
+func visibility(s *string) *domain.Visibility {
+	if s == nil {
+		return nil
+	}
+	v := domain.Visibility(*s)
+	return &v
+}
 
 // handler adapts a tool body that needs the actor; domain errors become
 // readable tool errors.
@@ -162,7 +171,7 @@ func handler[In, Out any](t tools, fn func(context.Context, domain.Actor, In) (O
 
 func (t tools) addData(s *mcp.Server) {
 	d := t.d
-	mcp.AddTool(s, &mcp.Tool{Name: "data_catalog", Description: "List every data item (values and tables) with its key, kind, type or columns, public flag, description and row count. Start here to see what data exists."},
+	mcp.AddTool(s, &mcp.Tool{Name: "data_catalog", Description: "List every data item (values and tables) with its key, kind, type or columns, visibility, description and row count. Start here to see what data exists."},
 		handler(t, func(ctx context.Context, _ domain.Actor, _ noArgs) (catalogOut, error) {
 			items, err := d.Data.List(ctx)
 			out := catalogOut{Items: make([]itemOut, 0, len(items))}
@@ -194,13 +203,13 @@ func (t tools) addData(s *mcp.Server) {
 			return out, nil
 		}))
 
-	mcp.AddTool(s, &mcp.Tool{Name: "data_set_value", Description: "Create a value item, or change an existing one (value, type, description, public). value_type is required when the key is new."},
+	mcp.AddTool(s, &mcp.Tool{Name: "data_set_value", Description: "Create a value item, or change an existing one (value, type, description, visibility). value_type is required when the key is new; a new item is visible to admins only unless visibility says otherwise."},
 		handler(t, func(ctx context.Context, a domain.Actor, in setValueIn) (itemOut, error) {
 			raw, err := rawJSON(in.Value)
 			if err != nil {
 				return itemOut{}, err
 			}
-			di := domain.DataInput{Key: in.Key, Kind: domain.DataValue, Value: raw, Description: in.Description, Public: in.Public}
+			di := domain.DataInput{Key: in.Key, Kind: domain.DataValue, Value: raw, Description: in.Description, Visibility: visibility(in.Visibility)}
 			if in.ValueType != nil {
 				vt := domain.DataType(*in.ValueType)
 				di.ValueType = &vt
@@ -230,7 +239,7 @@ func (t tools) addData(s *mcp.Server) {
 				cols = []domain.DataColumn{}
 			}
 			it, err := d.Data.Create(ctx, domain.DataInput{Key: in.Key, Kind: domain.DataTable, Columns: &cols,
-				Description: in.Description, Public: in.Public}, a)
+				Description: in.Description, Visibility: visibility(in.Visibility)}, a)
 			return toItem(it, false), err
 		}))
 
@@ -267,9 +276,10 @@ func (t tools) addData(s *mcp.Server) {
 			return doneOut{true}, d.Data.DeleteRows(ctx, in.Key, in.IDs, a)
 		}))
 
-	mcp.AddTool(s, &mcp.Tool{Name: "data_set_public", Description: "Make an item public (readable by anyone, including the home page) or private."},
-		handler(t, func(ctx context.Context, a domain.Actor, in publicIn) (itemOut, error) {
-			it, err := d.Data.Patch(ctx, in.Key, domain.DataInput{Public: &in.Public}, a)
+	mcp.AddTool(s, &mcp.Tool{Name: "data_set_visibility", Description: "Set who can read an item: public (anyone, through /api/v1/public/data), residents (signed-in residents and admins; site pages get it in a homelander:data message) or admins (only admins, in the panel and here)."},
+		handler(t, func(ctx context.Context, a domain.Actor, in visibilityIn) (itemOut, error) {
+			v := domain.Visibility(in.Visibility)
+			it, err := d.Data.Patch(ctx, in.Key, domain.DataInput{Visibility: &v}, a)
 			return toItem(it, false), err
 		}))
 

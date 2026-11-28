@@ -2,6 +2,8 @@ package sqlite
 
 import (
 	"context"
+	"io/fs"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -95,5 +97,59 @@ func TestEmbeddedMigrationsApply(t *testing.T) {
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'settings'`).Scan(&n); err != nil || n != 1 {
 		t.Errorf("settings table missing (n=%d, err=%v)", n, err)
+	}
+}
+
+// upTo returns the embedded migrations with a version up to last.
+func upTo(t *testing.T, last int) fstest.MapFS {
+	t.Helper()
+	entries, err := fs.ReadDir(Migrations, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := fstest.MapFS{}
+	for _, e := range entries {
+		m := migrationName.FindStringSubmatch(e.Name())
+		if v, _ := strconv.Atoi(m[1]); v <= last {
+			body, err := fs.ReadFile(Migrations, e.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			out[e.Name()] = file(string(body))
+		}
+	}
+	return out
+}
+
+func TestMigrationDataVisibility(t *testing.T) {
+	ctx := context.Background()
+	db := openTemp(t)
+	if err := Migrate(ctx, db, upTo(t, 6)); err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range []struct {
+		key    string
+		public int
+	}{{"open", 1}, {"closed", 0}} {
+		if _, err := db.Exec(`INSERT INTO data_items (key, kind, is_public, value_type, value_json, created_at, updated_at)
+			VALUES (?, 'value', ?, 'text', '"x"', '2026-11-28T00:00:00Z', '2026-11-28T00:00:00Z')`, it.key, it.public); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := Migrate(ctx, db, Migrations); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"open": "public", "closed": "admins"} {
+		var got string
+		if err := db.QueryRow(`SELECT visibility FROM data_items WHERE key = ?`, key).Scan(&got); err != nil || got != want {
+			t.Errorf("%s visibility = %q, %v; want %q", key, got, err, want)
+		}
+	}
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM pragma_table_info('data_items') WHERE name = 'is_public'`).Scan(&n); err != nil || n != 0 {
+		t.Errorf("is_public still there (n=%d, err=%v)", n, err)
+	}
+	if _, err := db.Exec(`UPDATE data_items SET visibility = 'everyone' WHERE key = 'open'`); err == nil {
+		t.Error("CHECK accepted an unknown visibility")
 	}
 }

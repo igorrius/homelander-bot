@@ -5,6 +5,7 @@ import en from '../locales/en.json'
 import uk from '../locales/uk.json'
 import { mockApi } from '../test/api'
 import { publicRoutes, site } from '../test/fixtures'
+import { framedPage } from '../test/frame'
 import { renderApp } from '../test/render'
 
 describe('HomePage', () => {
@@ -78,7 +79,7 @@ describe('HomePage', () => {
       return f!
     })
     expect(frame).toHaveAttribute('title', 'Тестова громада')
-    expect(frame).toHaveAttribute('src', '/site/index.html?lang=uk')
+    expect(framedPage(frame as HTMLIFrameElement)).toBe('/site/index.html?lang=uk')
     expect(screen.getByTestId('site-header-name')).toHaveTextContent('Тестова громада')
     expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
     expect(screen.queryByText('Привіт')).not.toBeInTheDocument()

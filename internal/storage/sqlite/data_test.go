@@ -29,6 +29,9 @@ func (r dataRepos) item(t *testing.T, it domain.DataItem) domain.DataItem {
 	if it.CreatedAt.IsZero() {
 		it.CreatedAt, it.UpdatedAt = t0, t0
 	}
+	if it.Visibility == "" {
+		it.Visibility = domain.VisAdmins
+	}
 	if err := r.data.Create(ctx, &it); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +60,7 @@ func TestDataItemCRUD(t *testing.T) {
 	if err := r.data.Create(ctx, &dup); !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("duplicate = %v; want ErrConflict", err)
 	}
-	it.Public, it.Description, it.UpdatedAt = true, "", t0.Add(time.Hour)
+	it.Visibility, it.Description, it.UpdatedAt = domain.VisResidents, "", t0.Add(time.Hour)
 	if err := r.data.Update(ctx, &it); err != nil {
 		t.Fatal(err)
 	}
@@ -101,19 +104,37 @@ func TestDataRows(t *testing.T) {
 	if err := r.data.DeleteRows(ctx, tbl.ID, []int64{rows[0].ID}); err != nil {
 		t.Fatal(err)
 	}
-	list, err := r.data.List(ctx, false)
+	list, err := r.data.List(ctx)
 	if err != nil || len(list) != 2 || list[0].Key != "contacts" || list[0].RowCount != 1 || !reflect.DeepEqual(list[0].Columns, cols) {
 		t.Fatalf("List = %+v, %v", list, err)
 	}
 }
 
-func TestDataListPublicOnly(t *testing.T) {
+func TestDataListByVisibility(t *testing.T) {
 	r := newDataRepos(t)
-	r.item(t, domain.DataItem{Key: "a", Kind: domain.DataValue, ValueType: domain.DataText, Value: json.RawMessage(`null`)})
-	r.item(t, domain.DataItem{Key: "b", Kind: domain.DataValue, ValueType: domain.DataText, Value: json.RawMessage(`null`), Public: true})
-	list, err := r.data.List(ctx, true)
-	if err != nil || len(list) != 1 || list[0].Key != "b" {
-		t.Fatalf("List(public) = %+v, %v", list, err)
+	for key, vis := range map[string]domain.Visibility{"a": domain.VisAdmins, "b": domain.VisPublic, "c": domain.VisResidents} {
+		r.item(t, domain.DataItem{Key: key, Kind: domain.DataValue, ValueType: domain.DataText, Value: json.RawMessage(`null`), Visibility: vis})
+	}
+	keys := func(only ...domain.Visibility) string {
+		t.Helper()
+		list, err := r.data.List(ctx, only...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, it := range list {
+			out = append(out, it.Key+":"+string(it.Visibility))
+		}
+		return fmt.Sprint(out)
+	}
+	if got := keys(domain.VisPublic); got != "[b:public]" {
+		t.Errorf("List(public) = %s", got)
+	}
+	if got := keys(domain.VisPublic, domain.VisResidents); got != "[b:public c:residents]" {
+		t.Errorf("List(public, residents) = %s", got)
+	}
+	if got := keys(); got != "[a:admins b:public c:residents]" {
+		t.Errorf("List() = %s", got)
 	}
 }
 
@@ -132,7 +153,12 @@ func TestAssetIsPublic(t *testing.T) {
 	}
 	check(ref, false)
 	check(lone, false)
-	it.Public = true
+	it.Visibility = domain.VisResidents
+	if err := r.data.Update(ctx, &it); err != nil {
+		t.Fatal(err)
+	}
+	check(ref, false)
+	it.Visibility = domain.VisPublic
 	if err := r.data.Update(ctx, &it); err != nil {
 		t.Fatal(err)
 	}

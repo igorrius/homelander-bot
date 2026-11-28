@@ -37,13 +37,27 @@ type DataColumn struct {
 	Type  DataType `json:"type"`
 }
 
+// Visibility says who may read a data item outside the admin panel and MCP.
+type Visibility string
+
+// Visibility levels. Admins read every item in the panel and through MCP;
+// VisAdmins items are never served anywhere else.
+const (
+	VisPublic    Visibility = "public"    // anyone, through /public/data
+	VisResidents Visibility = "residents" // signed-in residents and admins, through /me/data
+	VisAdmins    Visibility = "admins"    // only admins
+)
+
+// Valid reports whether v is one of the levels.
+func (v Visibility) Valid() bool { return v == VisPublic || v == VisResidents || v == VisAdmins }
+
 // DataItem is a named value or table in the data space.
 type DataItem struct {
 	ID          int64
 	Key         string
 	Kind        DataKind
 	Description string
-	Public      bool
+	Visibility  Visibility
 	ValueType   DataType        // value items
 	Value       json.RawMessage // value items; "null" when empty
 	Columns     []DataColumn    // table items
@@ -67,7 +81,9 @@ type DataRepo interface {
 	Update(ctx context.Context, it *DataItem) error
 	Delete(ctx context.Context, id int64) error
 	GetByKey(ctx context.Context, key string) (DataItem, error)
-	List(ctx context.Context, publicOnly bool) ([]DataItem, error)
+	// List returns items ordered by key: those with one of the given
+	// visibilities, or every item when only is empty.
+	List(ctx context.Context, only ...Visibility) ([]DataItem, error)
 	Rows(ctx context.Context, itemID int64) ([]DataRow, error)
 	PutRows(ctx context.Context, itemID int64, rows []DataRow) error
 	DeleteRows(ctx context.Context, itemID int64, ids []int64) error

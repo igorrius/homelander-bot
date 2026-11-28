@@ -5,6 +5,7 @@ import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
 import { callsTo, mockApi } from '../../test/api'
 import { adminRoutes } from '../../test/fixtures'
+import { framedPage } from '../../test/frame'
 import { currentLocation, renderApp } from '../../test/render'
 import { choose } from '../../test/select'
 
@@ -25,7 +26,7 @@ const routes = {
 
 async function previewFrame() {
   const frame = (await screen.findByTitle(uk.admin.pages.previewTitle)) as HTMLIFrameElement
-  await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/index.html?lang=uk'))
+  await waitFor(() => expect(framedPage(frame)).toBe('/site/preview/tok8/index.html?lang=uk'))
   return frame
 }
 
@@ -46,9 +47,9 @@ describe('PagePreviewPage', () => {
     const frame = await previewFrame()
     expect(screen.getByRole('radio', { name: '/' })).toBeChecked()
     await user.click(screen.getByRole('radio', { name: '/contacts' }))
-    await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/contacts.html?lang=uk'))
+    await waitFor(() => expect(framedPage(frame)).toBe('/site/preview/tok8/contacts.html?lang=uk'))
     await user.click(screen.getByRole('radio', { name: '/' }))
-    await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/index.html?lang=uk'))
+    await waitFor(() => expect(framedPage(frame)).toBe('/site/preview/tok8/index.html?lang=uk'))
   })
 
   it('follows a link inside the draft to another of its pages', async () => {
@@ -56,7 +57,7 @@ describe('PagePreviewPage', () => {
     renderApp('/admin/pages/8')
     const frame = await previewFrame()
     fromFrame(frame, '/contacts')
-    await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/contacts.html?lang=uk'))
+    await waitFor(() => expect(framedPage(frame)).toBe('/site/preview/tok8/contacts.html?lang=uk'))
     expect(screen.getByRole('radio', { name: '/contacts' })).toBeChecked()
   })
 
@@ -67,7 +68,7 @@ describe('PagePreviewPage', () => {
     fromFrame(null, '/contacts')
     fromFrame(frame, '/admin')
     fromFrame(frame, '/rules')
-    expect(frame.getAttribute('src')).toBe('/site/preview/tok8/index.html?lang=uk')
+    expect(framedPage(frame)).toBe('/site/preview/tok8/index.html?lang=uk')
   })
 
   it('uses a select when the draft has many pages', async () => {
@@ -79,7 +80,7 @@ describe('PagePreviewPage', () => {
     expect(screen.queryByRole('radio', { name: '/' })).not.toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: uk.admin.pages.previewPage })).toHaveValue('/')
     await choose(user, uk.admin.pages.previewPage, '/f')
-    await waitFor(() => expect(frame.getAttribute('src')).toBe('/site/preview/tok8/f.html?lang=uk'))
+    await waitFor(() => expect(framedPage(frame)).toBe('/site/preview/tok8/f.html?lang=uk'))
   })
 
   it('publishes a draft after confirmation', async () => {
