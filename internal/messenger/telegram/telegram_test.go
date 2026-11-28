@@ -25,9 +25,17 @@ type sent struct {
 	opts   *gotgbot.SendMessageOpts
 }
 
+type photo struct {
+	chatID int64
+	name   string
+	data   []byte
+	opts   *gotgbot.SendPhotoOpts
+}
+
 type fakeAPI struct {
 	mu             sync.Mutex
 	sent           []sent
+	photos         []photo
 	updates        [][]gotgbot.Update
 	offsets        []int64
 	webhook        string
@@ -118,6 +126,21 @@ func (f *fakeAPI) SendMessage(chatID int64, text string, o *gotgbot.SendMessageO
 		return nil, f.sendErr
 	}
 	f.sent = append(f.sent, sent{chatID, text, o})
+	return &gotgbot.Message{}, nil
+}
+
+func (f *fakeAPI) SendPhoto(chatID int64, p gotgbot.InputFileOrString, o *gotgbot.SendPhotoOpts) (*gotgbot.Message, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.sendErr != nil {
+		return nil, f.sendErr
+	}
+	ph := photo{chatID: chatID, opts: o}
+	if nf, ok := p.(*gotgbot.FileReader); ok {
+		ph.name = nf.Name
+		ph.data, _ = io.ReadAll(nf.Data)
+	}
+	f.photos = append(f.photos, ph)
 	return &gotgbot.Message{}, nil
 }
 

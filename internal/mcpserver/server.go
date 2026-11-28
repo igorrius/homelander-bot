@@ -41,7 +41,7 @@ const (
 )
 
 const instructions = `Homelander is the website and bot of one resident community. Through these tools you act as the admin who connected you.
-- The data space holds named values and tables (keys like "house.address"). Each item has a visibility: public (anyone), residents (signed-in residents and admins) or admins (only admins). Site pages read public items themselves and get residents items from the header when a resident is logged in.
+- The data space holds named values and tables (keys like "house.address"). Each item has a visibility: public (anyone), residents (signed-in residents and admins) or admins (only admins). Site pages read public items themselves and get residents items from the header when a resident is logged in. Items with an owner (e.g. "feed.posts", owner module:feed) are written by a built-in module: read-only except their visibility.
 - Before writing or changing the site (index.html is the home page, every other root *.html is a page at /<name>), call page_guide (also the resource homelander://guide/page): the page runs in a sandbox with strict rules.
 - You can only write drafts. An admin previews and publishes them in the admin panel; give them the admin_url you get back.
 - Everything you change is recorded in the audit log as the admin, via MCP.`
@@ -127,6 +127,9 @@ func (t tools) toolError(err error) error {
 		}
 		sort.Strings(parts)
 		msg := "validation failed: " + strings.Join(parts, ", ")
+		if ve.Fields["key"] == "key_reserved" {
+			msg += " (keys starting with a module code, such as \"feed.\", belong to that module; choose another key)"
+		}
 		if len(ve.Details) > 0 {
 			keys := make([]string, 0, len(ve.Details))
 			for k := range ve.Details {
@@ -136,6 +139,8 @@ func (t tools) toolError(err error) error {
 			msg += " (" + strings.Join(keys, ", ") + ")"
 		}
 		return errors.New(msg)
+	case errors.Is(err, domain.ErrOwned):
+		return errors.New("a module writes this item (see its owner): it is read-only except its visibility (data_set_visibility), and it cannot be deleted")
 	case errors.Is(err, domain.ErrNotFound):
 		return errors.New("not found")
 	case errors.Is(err, domain.ErrConflict):

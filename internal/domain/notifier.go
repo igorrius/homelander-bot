@@ -92,17 +92,31 @@ func (n *Notifier) SendToLabel(ctx context.Context, labelID int64, m OutMessage,
 }
 
 func (n *Notifier) sendToLabel(ctx context.Context, labelID int64, m OutMessage, origin string) ([]int64, error) {
-	dests, err := n.resolve(ctx, labelID)
-	if err != nil {
-		return nil, err
-	}
+	return n.SendToLabels(ctx, []int64{labelID}, m, origin)
+}
+
+// SendToLabels queues m once for every accepted place carrying any of the
+// labels: a chat or topic with two of them gets one message. Each row records
+// the first of the labels that reaches its place. It returns the queued ids.
+func (n *Notifier) SendToLabels(ctx context.Context, labelIDs []int64, m OutMessage, origin string) ([]int64, error) {
 	var ids []int64
-	for _, d := range dests {
-		id, err := n.add(ctx, d, m, origin, &labelID, nil)
+	seen := map[destination]bool{}
+	for _, labelID := range labelIDs {
+		dests, err := n.resolve(ctx, labelID)
 		if err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
+		for _, d := range dests {
+			if seen[d] {
+				continue
+			}
+			seen[d] = true
+			id, err := n.add(ctx, d, m, origin, &labelID, nil)
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
 	}
 	return ids, nil
 }

@@ -82,6 +82,19 @@ The Vite dev server proxies `/api` and `/healthz` to `localhost:8080`. The sessi
   fails and never touches `/api/`, `/site/`, `/mcp`, `/oauth`. It is registered in production builds
   only, so `npm run dev` runs without it; check it with `make build && make run`.
 
+## Modules and the information feed
+
+- Built-in modules are Go code registered in `cmd/homelander/main.go` (`ModuleService.Defs`); the
+  `modules` table only keeps an admin's on/off choice and settings (a missing row is the module's
+  default). `GET /api/v1/modules` gives the cabinet the navigation of the modules that are on.
+- A module owns the data keys under its code (`feed.`): its items have `owner = module:<code>`, admins
+  and MCP can change only their visibility, and they are not served while the module is off.
+  `ModuleDef.Ensure` creates them when the module is turned on and at startup.
+- The feed (`internal/domain/feed_service.go`): a published post goes once to every chat or topic its
+  labels reach (`Notifier.SendToLabels`, outbox origin `feed:<id>`), as a photo when it has an image
+  (the outbox worker loads the asset at send time). The fake Telegram in `cmd/homelander` records
+  photos as `[photo] <caption>`.
+
 ## Deploying on Railway
 
 See [deploy-railway.md](deploy-railway.md): the infrastructure is a local, git-ignored

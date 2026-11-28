@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 	"unicode/utf8"
@@ -93,6 +94,9 @@ func (w *OutboxWorker) RunOnce(ctx context.Context) (int, error) {
 func (w *OutboxWorker) deliver(ctx context.Context, it OutboxItem, now time.Time) error {
 	m, err := w.Messengers.Get(it.Messenger)
 	if err == nil {
+		err = w.loadImage(ctx, &it.Msg)
+	}
+	if err == nil {
 		err = m.Send(ctx, it.To, it.Msg)
 	}
 	it.Attempts++
@@ -134,6 +138,22 @@ func (w *OutboxWorker) deliver(ctx context.Context, it OutboxItem, now time.Time
 		w.Log.Warn("outbox message failed", "id", it.ID, "origin", it.Origin, "err", err)
 	}
 	return w.R.Outbox.Update(ctx, &it)
+}
+
+// loadImage reads the photo of a message from the asset store; a missing
+// asset will not come back, so it is a permanent failure.
+func (w *OutboxWorker) loadImage(ctx context.Context, m *OutMessage) error {
+	if m.ImageAssetID == 0 {
+		return nil
+	}
+	a, err := w.R.Site.GetAsset(ctx, m.ImageAssetID)
+	if errors.Is(err, ErrNotFound) {
+		return &SendError{Kind: SendPermanent, Err: fmt.Errorf("image asset %d not found", m.ImageAssetID)}
+	} else if err != nil {
+		return err
+	}
+	m.Image = &OutImage{Data: a.Data, ContentType: a.ContentType}
+	return nil
 }
 
 // backoff is BackoffMin doubled per earlier attempt, capped at BackoffMax.

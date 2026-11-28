@@ -19,6 +19,8 @@ type API struct {
 	Chats     *domain.ChatService
 	Labels    *domain.LabelService
 	Notifier  *domain.Notifier
+	Modules   *domain.ModuleService
+	Feed      *domain.FeedService
 	MCPAuth   *domain.McpAuthService
 	Limits    *ratelimit.Limiter // nil disables the OAuth endpoint limits
 	Messenger domain.Messenger
@@ -215,20 +217,20 @@ func (h handlerCtx) asset(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusNotFound, "not_found")
 		return
 	}
-	ok, err := h.api.Data.AssetIsPublic(r.Context(), id)
+	public, blocked, err := h.api.Data.AssetAccess(r.Context(), id)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
-	if ok {
+	if public {
 		// Short: an item made non-public must stop being served by caches soon.
 		h.serveAsset(w, r, id, "public, max-age=60")
 		return
 	}
 	// A signed URL from /me/data: a residents-level image for a page's frame,
-	// which sends no cookie.
+	// which sends no cookie. Not for an image only a module that is off uses.
 	q := r.URL.Query()
-	if h.api.Data.ValidAssetSig(id, q.Get("exp"), q.Get("sig")) {
+	if !blocked && h.api.Data.ValidAssetSig(id, q.Get("exp"), q.Get("sig")) {
 		h.serveAsset(w, r, id, "private, max-age=600")
 		return
 	}

@@ -90,9 +90,9 @@ const SiteTarget = "site"
 
 // Data space audit actions.
 const (
-	ActDataCreated     = "data.created"
-	ActDataUpdated     = "data.updated"
-	ActDataDeleted     = "data.deleted"
+	ActDataCreated       = "data.created"
+	ActDataUpdated       = "data.updated"
+	ActDataDeleted       = "data.deleted"
 	ActDataVisibilitySet = "data.visibility_set"
 	ActDataRowsChanged   = "data.rows_changed"
 	// The public flag became a visibility; this stays for older audit entries.
@@ -113,3 +113,21 @@ const (
 
 // PageTarget is the audit target of a page version.
 func PageTarget(id int64) string { return "page:" + strconv.FormatInt(id, 10) }
+
+// Module audit actions.
+const (
+	ActModuleEnabled       = "module.enabled"
+	ActModuleDisabled      = "module.disabled"
+	ActModuleSettingsSaved = "module.settings_saved"
+)
+
+// Feed audit actions.
+const (
+	ActFeedPostCreated   = "feed.post_created"
+	ActFeedPostPublished = "feed.post_published"
+	ActFeedPostUpdated   = "feed.post_updated"
+	ActFeedPostDeleted   = "feed.post_deleted"
+)
+
+// FeedPostTarget is the audit target of a feed post.
+func FeedPostTarget(id int64) string { return "feed_post:" + strconv.FormatInt(id, 10) }

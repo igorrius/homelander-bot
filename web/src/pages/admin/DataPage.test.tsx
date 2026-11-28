@@ -88,4 +88,28 @@ describe('DataPage', () => {
     await user.click(screen.getByRole('button', { name: uk.admin.data.create }))
     expect(await screen.findByText(uk.validation.invalid)).toBeInTheDocument()
   })
+
+  it('refuses a key under a module prefix', async () => {
+    mockApi({ ...routes, 'POST /admin/data': { status: 422, body: { error: { code: 'validation', fields: { key: 'key_reserved' } } } } })
+    const { user } = renderApp('/admin/data')
+    await user.click(await screen.findByRole('button', { name: uk.admin.data.add }))
+    await user.type(await screen.findByLabelText(uk.admin.data.key), 'feed.news')
+    await user.click(screen.getByRole('button', { name: uk.admin.data.create }))
+    expect(await screen.findByText(uk.validation.key_reserved)).toBeInTheDocument()
+  })
+
+  it('marks items a module manages, and those of a module that is off', async () => {
+    const posts: DataItem = { ...dataItems[0], key: 'feed.posts', description: 'Feed posts', visibility: 'residents', owner: 'feed', ownerEnabled: true }
+    const old: DataItem = { ...dataItems[0], key: 'feed.archive', description: '', visibility: 'residents', owner: 'feed', ownerEnabled: false }
+    mockApi({ ...routes, 'GET /admin/data': { body: [...dataItems, posts, old] } })
+    renderApp('/admin/data')
+    const on = (await screen.findByText('feed.posts')).closest('tr') as HTMLElement
+    expect(await within(on).findByText('Модуль: Стрічка новин')).toBeInTheDocument()
+    expect(within(on).queryByText(uk.admin.data.ownerOff)).not.toBeInTheDocument()
+    const off = screen.getByText('feed.archive').closest('tr') as HTMLElement
+    expect(within(off).getByText('Модуль: Стрічка новин')).toBeInTheDocument()
+    expect(within(off).getByText(uk.admin.data.ownerOff)).toBeInTheDocument()
+    const own = screen.getByText('contacts').closest('tr') as HTMLElement
+    expect(within(own).queryByText(/Модуль/)).not.toBeInTheDocument()
+  })
 })

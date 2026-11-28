@@ -15,6 +15,8 @@ import {
   IconLogout,
   IconMessages,
   IconMoon,
+  IconNews,
+  IconPuzzle,
   IconSun,
   IconTags,
   IconUserCircle,
@@ -25,6 +27,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, Outlet, useLocation } from 'react-router'
 import { useSummary } from '../../api/admin'
+import { useModuleEnabled } from '../../api/modules'
 import { useLogout, useMe } from '../../api/public'
 import type { Me } from '../../api/types'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
@@ -52,6 +55,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
   const summary = useSummary()
   const pending = summary.data?.pendingApplications ?? 0
   const newChats = summary.data?.newChats ?? 0
+  const feedOn = useModuleEnabled('feed') === true
   const groups: NavGroup[] = [
     { items: [{ to: '/admin', icon: IconLayoutDashboard, label: t('admin.nav.overview'), exact: true }] },
     {
@@ -66,6 +70,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
       items: [
         { to: '/admin/houses', icon: IconBuildingCommunity, label: t('admin.nav.houses') },
         { to: '/admin/chats', icon: IconMessages, label: t('admin.nav.chats'), badge: newChats },
+        ...(feedOn ? [{ to: '/admin/modules/feed', icon: IconNews, label: t('admin.nav.feed') }] : []),
       ],
     },
     {
@@ -73,6 +78,7 @@ function Nav({ onNavigate }: { onNavigate(): void }) {
       items: [
         { to: '/admin/site', icon: IconWorld, label: t('admin.nav.site'), also: '/admin/pages' },
         { to: '/admin/data', icon: IconDatabase, label: t('admin.nav.data') },
+        { to: '/admin/modules', icon: IconPuzzle, label: t('admin.nav.modules'), exact: true },
         { to: '/admin/notifications', icon: IconBell, label: t('admin.nav.notifications') },
         { to: '/admin/statuses', icon: IconTags, label: t('admin.nav.statuses') },
         { to: '/admin/audit', icon: IconHistory, label: t('admin.nav.audit') },

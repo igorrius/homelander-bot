@@ -61,6 +61,16 @@ func (f *fakeTelegram) SendMessage(chat int64, text string, o *gotgbot.SendMessa
 	return &gotgbot.Message{}, nil
 }
 
+// SendPhoto records a photo as a sent message with its caption, marked "[photo] ".
+func (f *fakeTelegram) SendPhoto(chat int64, _ gotgbot.InputFileOrString, o *gotgbot.SendPhotoOpts) (*gotgbot.Message, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	text := "[photo] " + o.Caption
+	f.sent = append(f.sent, text)
+	f.sentTo = append(f.sentTo, sentMsg{chat, o.MessageThreadId, text})
+	return &gotgbot.Message{}, nil
+}
+
 func (f *fakeTelegram) SetWebhook(string, *gotgbot.SetWebhookOpts) (bool, error) { return true, nil }
 func (f *fakeTelegram) DeleteWebhook(*gotgbot.DeleteWebhookOpts) (bool, error)   { return true, nil }
 

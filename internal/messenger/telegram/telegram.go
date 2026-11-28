@@ -25,6 +25,7 @@ type API interface {
 	GetMe(opts *gotgbot.GetMeOpts) (*gotgbot.User, error)
 	GetUpdates(opts *gotgbot.GetUpdatesOpts) ([]gotgbot.Update, error)
 	SendMessage(chatID int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error)
+	SendPhoto(chatID int64, photo gotgbot.InputFileOrString, opts *gotgbot.SendPhotoOpts) (*gotgbot.Message, error)
 	SetWebhook(url string, opts *gotgbot.SetWebhookOpts) (bool, error)
 	DeleteWebhook(opts *gotgbot.DeleteWebhookOpts) (bool, error)
 	SetMyCommands(commands []gotgbot.BotCommand, opts *gotgbot.SetMyCommandsOpts) (bool, error)
@@ -75,7 +76,20 @@ type Bot struct {
 	username  string
 	botID     int64
 	log       *slog.Logger
+	// How long Send waits for Telegram: a photo upload of a few MB needs
+	// far more than gotgbot's default 5 s on a slow uplink.
+	sendTimeout, photoTimeout time.Duration
 }
+
+// Send timeouts.
+const (
+	SendTimeout  = 20 * time.Second
+	PhotoTimeout = 60 * time.Second
+	// AmbiguousRetry is how long the outbox waits before resending after a
+	// send timed out: Telegram may have posted it already, so a quick resend
+	// would likely duplicate it in the chat.
+	AmbiguousRetry = 15 * time.Minute
+)
 
 var _ domain.Messenger = (*Bot)(nil)
 
@@ -94,7 +108,7 @@ func NewWithLocales(api API, act Activator, chats domain.ChatEvents, sink GroupS
 		sink = NopSink{}
 	}
 	return &Bot{api: api, act: act, chats: chats, sink: sink, tr: tr, locales: locales, publicURL: strings.TrimRight(publicURL, "/"),
-		username: me.Username, botID: me.Id, log: log}, nil
+		username: me.Username, botID: me.Id, log: log, sendTimeout: SendTimeout, photoTimeout: PhotoTimeout}, nil
 }
 
 // Type returns "telegram".

@@ -109,6 +109,19 @@ func TestMissingAssetIs404(t *testing.T) {
 	}
 }
 
+func TestDottedAppRouteGetsTheApp(t *testing.T) {
+	s, _ := newTestServer(t, testStatic())
+	for _, p := range []string{"/admin/data/feed.posts", "/admin/data/house.address", "/admin/data/house.map",
+		"/admin/data/rules.txt", "/admin/data/config.json", "/my/feed/1.png"} {
+		if rec := get(t, s.Handler(), p); rec.Code != 200 || !strings.Contains(rec.Body.String(), indexHTML) {
+			t.Errorf("%s: got %d", p, rec.Code)
+		}
+	}
+	if rec := get(t, s.Handler(), "/robots.txt"); rec.Code != 404 {
+		t.Errorf("missing robots.txt: %d", rec.Code)
+	}
+}
+
 func TestAssetCached(t *testing.T) {
 	s, _ := newTestServer(t, testStatic())
 	rec := get(t, s.Handler(), "/assets/app.js")

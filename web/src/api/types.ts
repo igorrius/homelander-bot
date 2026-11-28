@@ -245,6 +245,10 @@ export interface DataItem {
   rowCount: number
   updatedAt: string
   updatedBy: { id: number; name: string } | null
+  /** Code of the module that writes this item ("feed"); null or absent for admins' own items. */
+  owner?: string | null
+  /** Whether the owning module is turned on; owned items of a module that is off are not served. */
+  ownerEnabled?: boolean
 }
 
 export interface DataRow {
@@ -282,4 +286,78 @@ export interface PageVersion {
   createdVia: string
   publishedAt: string | null
   publishedBy: { id: number; name: string } | null
+}
+
+/** A cabinet navigation entry of a module; icon is a name the front end maps to an icon. */
+export interface ModuleNavEntry {
+  key: string
+  path: string
+  labelKey: string
+  icon: string
+}
+
+/** A module that is turned on, as the signed-in user sees it. */
+export interface CabinetModule {
+  code: string
+  nav: ModuleNavEntry[]
+}
+
+/** A built-in module in the admin "Modules" section. */
+export interface AdminModule {
+  code: string
+  nameKey: string
+  descriptionKey: string
+  enabled: boolean
+  defaultEnabled: boolean
+  updatedAt: string | null
+  updatedBy: { id: number; name: string } | null
+}
+
+export interface FeedSettings {
+  defaultLabelIds: number[]
+}
+
+export type PostState = 'draft' | 'published'
+export type DeliveryState = 'pending' | 'sent' | 'failed'
+
+/** One Telegram copy of a published post (a chat or a forum topic). */
+export interface PostDelivery {
+  id: number
+  chatTitle: string
+  /** '' for the chat itself. */
+  topicTitle: string
+  labelId: number | null
+  state: DeliveryState
+  error: string
+  sentAt: string | null
+}
+
+/** A feed post as admins see it. */
+export interface AdminPost {
+  id: number
+  body: string
+  imageAssetId: number | null
+  imageUrl: string | null
+  state: PostState
+  publishedAt: string | null
+  labelIds: number[]
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: number; name: string } | null
+  updatedBy: { id: number; name: string } | null
+  delivery: { pending: number; sent: number; failed: number }
+  /** The outbox no longer keeps this post's delivery rows. */
+  deliveryExpired: boolean
+  /** Only in the answer for one post. */
+  deliveries?: PostDelivery[]
+}
+
+/** A published feed post in the cabinet. */
+export interface CabinetPost {
+  id: number
+  body: string
+  imageUrl: string | null
+  publishedAt: string
+  /** The author's first name. */
+  authorName: string
 }

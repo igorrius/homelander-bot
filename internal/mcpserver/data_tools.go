@@ -28,11 +28,13 @@ type itemOut struct {
 	Value       any                 `json:"value,omitempty"`
 	Columns     []domain.DataColumn `json:"columns,omitempty"`
 	RowCount    *int                `json:"row_count,omitempty"`
+	Owner       string              `json:"owner,omitempty" jsonschema:"module:<code> when a module writes the item: read-only except its visibility"`
 	UpdatedAt   time.Time           `json:"updated_at"`
 }
 
 func toItem(it domain.DataItem, withValue bool) itemOut {
-	o := itemOut{Key: it.Key, Kind: string(it.Kind), Description: it.Description, Visibility: string(it.Visibility), UpdatedAt: it.UpdatedAt}
+	o := itemOut{Key: it.Key, Kind: string(it.Kind), Description: it.Description, Visibility: string(it.Visibility),
+		Owner: it.Owner, UpdatedAt: it.UpdatedAt}
 	switch it.Kind {
 	case domain.DataValue:
 		o.ValueType = string(it.ValueType)

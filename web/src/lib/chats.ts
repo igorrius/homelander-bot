@@ -11,6 +11,13 @@ export function topicTitle(t: TFunction, tp: Topic): string {
   return tp.title || t('admin.chats.unnamedTopic', { id: tp.externalId })
 }
 
+/** Whether a label hangs on at least one place that receives messages. */
+export function reachesChat(l: Label, chats: Chat[]): boolean {
+  return l.targets.some((tg) =>
+    chats.some((c) => c.state === 'accepted' && (tg.type === 'chat' ? c.id === tg.id : c.topics.some((tp) => tp.id === tg.id && !tp.gone))),
+  )
+}
+
 /** Readable names of the places a label hangs on ("Our yard › News"). */
 export function labelPlaces(t: TFunction, l: Label, chats: Chat[]): string[] {
   return l.targets.map((tg) => {

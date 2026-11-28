@@ -153,3 +153,59 @@ func TestMigrationDataVisibility(t *testing.T) {
 		t.Error("CHECK accepted an unknown visibility")
 	}
 }
+
+func TestMigrationModulesFeedRenamesFeedKeys(t *testing.T) {
+	ctx := context.Background()
+	db := openTemp(t)
+	if err := Migrate(ctx, db, upTo(t, 8)); err != nil {
+		t.Fatal(err)
+	}
+	// custom.feed.x is taken already, so feed.x gets its id as a suffix.
+	for _, key := range []string{"custom.feed.x", "feed.x", "feed.y", "feedback.y", "house.feed"} {
+		if _, err := db.Exec(`INSERT INTO data_items (key, kind, value_type, value_json, created_at, updated_at)
+			VALUES (?, 'value', 'text', '"x"', '2026-11-28T00:00:00Z', '2026-11-28T00:00:00Z')`, key); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var xID int
+	_ = db.QueryRow(`SELECT id FROM data_items WHERE key = 'feed.x'`).Scan(&xID)
+	site := `{"communityName":{},"welcomeText":{},"defaultLocale":"uk","homeItems":[` +
+		`{"key":"feed.y","title":{"uk":"Y"}},{"key":"house.feed","title":{}},{"key":"feed.x","title":{}}]}`
+	if _, err := db.Exec(`INSERT INTO settings (key, value, updated_at) VALUES ('site', ?, '2026-11-28T00:00:00Z')`, site); err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, db, Migrations); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.Query(`SELECT key, owner IS NULL FROM data_items ORDER BY key`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var got []string
+	for rows.Next() {
+		var (
+			key     string
+			noOwner bool
+		)
+		if err := rows.Scan(&key, &noOwner); err != nil {
+			t.Fatal(err)
+		}
+		if !noOwner {
+			t.Errorf("%s has an owner", key)
+		}
+		got = append(got, key)
+	}
+	want := "custom.feed.x custom.feed.x_" + strconv.Itoa(xID) + " custom.feed.y feedback.y house.feed"
+	if strings.Join(got, " ") != want {
+		t.Errorf("keys = %v, want %s", got, want)
+	}
+	var home string
+	if err := db.QueryRow(`SELECT json_extract(value, '$.homeItems') FROM settings WHERE key = 'site'`).Scan(&home); err != nil {
+		t.Fatal(err)
+	}
+	wantHome := `[{"key":"custom.feed.y","title":{"uk":"Y"}},{"key":"house.feed","title":{}},{"key":"custom.feed.x_` + strconv.Itoa(xID) + `","title":{}}]`
+	if home != wantHome {
+		t.Errorf("home items = %s\nwant %s", home, wantHome)
+	}
+}

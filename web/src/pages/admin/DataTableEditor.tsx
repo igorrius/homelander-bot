@@ -7,6 +7,7 @@ import { columnTypes, type DataColumn, type DataItem, type DataRow, type DataTyp
 import { ConfirmButton } from '../../components/ConfirmButton'
 import { supportedLocales } from '../../i18n'
 import { useApiErrors } from '../../lib/errors'
+import { DataValueView } from './DataValueView'
 
 type DraftColumn = DataColumn & { isNew?: boolean }
 
@@ -50,8 +51,78 @@ function Cell({ type, label, value, onChange }: { type: DataType; label: string;
   }
 }
 
-/** Columns and rows of a table item; rows are saved together in one request. */
-export function DataTableEditor({ item, rows }: { item: DataItem; rows: DataRow[] }) {
+/** Columns and rows of a table that cannot be changed here, as plain text. */
+function TableView({ item, rows }: { item: DataItem; rows: DataRow[] }) {
+  const { t } = useTranslation()
+  const cols = item.columns ?? []
+  return (
+    <Stack>
+      <Card withBorder>
+        <Stack>
+          <Title order={4}>{t('admin.data.columns')}</Title>
+          <Table.ScrollContainer minWidth={360}>
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t('admin.data.columnName')}</Table.Th>
+                  <Table.Th>{t('admin.data.columnLabel')}</Table.Th>
+                  <Table.Th>{t('admin.data.columnType')}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {cols.map((c) => (
+                  <Table.Tr key={c.name}>
+                    <Table.Td ff="monospace">{c.name}</Table.Td>
+                    <Table.Td>{c.label}</Table.Td>
+                    <Table.Td>{t(`admin.data.type.${c.type}`)}</Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </Stack>
+      </Card>
+      <Card withBorder>
+        <Stack>
+          <Title order={4}>{t('admin.data.rowsTitle')}</Title>
+          {rows.length === 0 ? (
+            <Text c="dimmed">{t('admin.data.noRows')}</Text>
+          ) : (
+            <Table.ScrollContainer minWidth={400}>
+              <Table striped>
+                <Table.Thead>
+                  <Table.Tr>
+                    {cols.map((c) => (
+                      <Table.Th key={c.name}>{c.label || c.name}</Table.Th>
+                    ))}
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {rows.map((r, i) => (
+                    <Table.Tr key={r.id ?? i}>
+                      {cols.map((c) => (
+                        <Table.Td key={c.name} style={{ verticalAlign: 'top' }}>
+                          <DataValueView type={c.type} value={r.cells[c.name]} compact />
+                        </Table.Td>
+                      ))}
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          )}
+        </Stack>
+      </Card>
+    </Stack>
+  )
+}
+
+/** Columns and rows of a table item; rows are saved together in one request. readOnly only shows them. */
+export function DataTableEditor({ item, rows, readOnly }: { item: DataItem; rows: DataRow[]; readOnly?: boolean }) {
+  return readOnly ? <TableView item={item} rows={rows} /> : <TableForm item={item} rows={rows} />
+}
+
+function TableForm({ item, rows }: { item: DataItem; rows: DataRow[] }) {
   const { t } = useTranslation()
   const patch = usePatchDataItem(item.key)
   const put = usePutDataRows(item.key)

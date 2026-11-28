@@ -100,6 +100,14 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	catalog := &domain.CatalogService{R: repos, Now: now, Locales: config.SupportedLocales, DefaultLocale: cfg.DefaultLocale}
 	data := &domain.DataService{R: repos, Now: now, Limits: limits, Locales: config.SupportedLocales, Secret: cfg.AppSecret}
 	pages := &domain.PageService{R: repos, Now: now, Secret: cfg.AppSecret}
+	modules := &domain.ModuleService{R: repos, Now: now}
+	feed := &domain.FeedService{R: repos, Now: now, Modules: modules, Data: data, Notifier: notifier, I18n: tr,
+		DefaultLocale: siteLocale, PublicURL: cfg.PublicURL.String()}
+	modules.Defs = []domain.ModuleDef{feed.Def()}
+	data.Modules = modules
+	if err := modules.EnsureAll(ctx); err != nil {
+		return fmt.Errorf("module data: %w", err)
+	}
 	auth := &domain.AuthService{R: repos, Now: now, Limits: limits, Secret: cfg.AppSecret, Region: cfg.DefaultPhoneRegion,
 		I18n: tr, BootstrapPhone: cfg.BootstrapAdminPhone, CodeTTL: codeTTL, MaxAttempts: maxCodeAttempts,
 		IdleTTL: cfg.SessionIdleTTL, MaxTTL: cfg.SessionMaxTTL, Log: log,
@@ -128,7 +136,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	mcpAuth := &domain.McpAuthService{R: repos, Now: now, Allowed: domain.RedirectPolicy(cfg.MCPRedirectURIs),
 		Resource: strings.TrimRight(cfg.PublicURL.String(), "/") + httpapi.MCPPath}
 	api := httpapi.API{Users: users, Catalog: catalog, Data: data, Pages: pages, Auth: auth, Chats: chats, Labels: labels,
-		Notifier: notifier, Messenger: bot, Cfg: cfg, MCPAuth: mcpAuth, Limits: limits}
+		Notifier: notifier, Modules: modules, Feed: feed, Messenger: bot, Cfg: cfg, MCPAuth: mcpAuth, Limits: limits}
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
 	httpapi.RegisterOAuth(server, api)

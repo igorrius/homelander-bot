@@ -25,6 +25,7 @@ func RegisterCabinet(s *Server, api API) {
 	m.HandleFunc("POST /api/v1/auth/link", h.authLink)
 	m.Handle("GET /api/v1/me/home", RequireUser(http.HandlerFunc(h.myHome)))
 	s.Mount("/site.webmanifest", http.HandlerFunc(h.manifest))
+	registerFeedCabinet(h)
 }
 
 // authLink spends a login link from the bot and opens a session. Only this

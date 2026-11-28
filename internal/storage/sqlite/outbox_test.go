@@ -178,3 +178,21 @@ func TestRegTokenDeleteExpiredBefore(t *testing.T) {
 		t.Fatalf("live token deleted: %v", err)
 	}
 }
+
+func TestOutboxImageAndOrigin(t *testing.T) {
+	o := newOutbox(t)
+	for _, origin := range []string{"feed:1", "feed:2", "feed:1"} {
+		it := domain.OutboxItem{Messenger: "telegram", To: domain.Destination{ChatID: "-1"}, Msg: domain.OutMessage{Text: "x", ImageAssetID: 9},
+			Origin: origin, State: domain.OutboxPending, NextAttemptAt: t0, CreatedAt: t0}
+		if err := o.Add(ctx, &it); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := o.ListByOrigin(ctx, "feed:1")
+	if err != nil || len(got) != 2 || got[0].ID >= got[1].ID || got[0].Msg.ImageAssetID != 9 {
+		t.Fatalf("ListByOrigin = %+v, %v", got, err)
+	}
+	if none, err := o.ListByOrigin(ctx, "feed:3"); err != nil || len(none) != 0 {
+		t.Errorf("none = %+v, %v", none, err)
+	}
+}

@@ -1,15 +1,35 @@
-import { Alert, Anchor, Button, Loader, SegmentedControl, Stack, Table, Text } from '@mantine/core'
-import { IconDatabase, IconPlus } from '@tabler/icons-react'
+import { Alert, Anchor, Badge, Button, Group, Loader, SegmentedControl, Stack, Table, Text } from '@mantine/core'
+import { IconDatabase, IconPlus, IconPuzzle } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useDataItems } from '../../api/data'
-import { visibilities, type Visibility } from '../../api/types'
+import { useModuleName } from '../../api/modules'
+import { visibilities, type DataItem, type Visibility } from '../../api/types'
 import { PageHeader } from '../../components/PageHeader'
 import { errorText } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { DataCreateModal } from './DataCreateModal'
 import { VisibilityBadge } from './VisibilityControl'
+
+/** "Module: News feed", and "module off" while that module is turned off. */
+function OwnerBadges({ item }: { item: DataItem }) {
+  const { t } = useTranslation()
+  const name = useModuleName(item.owner ?? '')
+  if (!item.owner) return null
+  return (
+    <Group gap={4} mt={4}>
+      <Badge size="sm" variant="light" color="grape" leftSection={<IconPuzzle size={12} />}>
+        {t('admin.data.owner', { name })}
+      </Badge>
+      {item.ownerEnabled === false && (
+        <Badge size="sm" variant="outline" color="gray">
+          {t('admin.data.ownerOff')}
+        </Badge>
+      )}
+    </Group>
+  )
+}
 
 /** The data space: values and tables the site and, later, modules use. */
 export function DataPage() {
@@ -49,6 +69,7 @@ export function DataPage() {
                 <Table.Td>
                   <Anchor component={Link} to={`/admin/data/${it.key}`} ff="monospace">{it.key}</Anchor>
                   {it.description && <Text size="xs" c="dimmed">{it.description}</Text>}
+                  <OwnerBadges item={it} />
                 </Table.Td>
                 <Table.Td>
                   {t(`admin.data.kind.${it.kind}`)}

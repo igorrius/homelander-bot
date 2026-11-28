@@ -89,6 +89,15 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	defLocale := func(context.Context) string { return "uk" }
 	silent := slog.New(slog.NewTextHandler(io.Discard, nil))
 	notifier := &domain.Notifier{R: r, Now: clock, I18n: tr, DefaultLocale: defLocale}
+	data := &domain.DataService{R: r, Now: clock, Limits: limits, Locales: locs, Secret: secret}
+	modules := &domain.ModuleService{R: r, Now: clock}
+	feed := &domain.FeedService{R: r, Now: clock, Modules: modules, Data: data, Notifier: notifier, I18n: tr,
+		DefaultLocale: defLocale, PublicURL: "https://example.com"}
+	modules.Defs = []domain.ModuleDef{feed.Def()}
+	data.Modules = modules
+	if err := modules.EnsureAll(ctx); err != nil {
+		t.Fatal(err)
+	}
 	e.api = httpapi.API{
 		Users: &domain.UserService{R: r, Now: clock, Limits: limits, Region: "UA", PendingCap: 200, Locales: locs,
 			Secret: secret, Notifier: notifier, I18n: tr, PublicURL: "https://example.com", DefaultLocale: defLocale},
@@ -96,7 +105,9 @@ func newAPIEnv(t *testing.T) *apiEnv {
 		Labels:   &domain.LabelService{R: r, Now: clock},
 		Notifier: notifier,
 		Catalog:  &domain.CatalogService{R: r, Now: clock, Locales: locs},
-		Data:     &domain.DataService{R: r, Now: clock, Limits: limits, Locales: locs, Secret: secret},
+		Data:     data,
+		Modules:  modules,
+		Feed:     feed,
 		Pages:    &domain.PageService{R: r, Now: clock, Secret: secret},
 		Auth: &domain.AuthService{R: r, Now: clock, Limits: limits, Secret: secret,
 			Region: "UA", Messenger: e.msgr, I18n: tr, CodeTTL: 5 * time.Minute, MaxAttempts: 5,

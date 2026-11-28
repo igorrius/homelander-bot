@@ -112,7 +112,9 @@ func TestAdminDataCRUD(t *testing.T) {
 	}
 	var list []map[string]any
 	_ = jsonUnmarshal(e.do("GET", "/api/v1/admin/data", nil, tok, "").Body.Bytes(), &list)
-	if len(list) != 1 || list[0]["kind"] != "value" || list[0]["updatedBy"].(map[string]any)["name"] != "F L" {
+	// The feed module's own feed.posts sorts first.
+	if len(list) != 2 || list[0]["owner"] != "feed" || list[0]["ownerEnabled"] != true || list[1]["owner"] != nil ||
+		list[1]["kind"] != "value" || list[1]["updatedBy"].(map[string]any)["name"] != "F L" {
 		t.Fatalf("list = %v", list)
 	}
 	r = e.do("PATCH", "/api/v1/admin/data/house.address", map[string]any{"visibility": "residents", "valueType": "text", "value": "Main st 2"}, tok, "")
@@ -313,7 +315,7 @@ func TestMyData(t *testing.T) {
 	}
 	resident := e.login(e.mkUser("+380500000001"))
 	r := e.do("GET", "/api/v1/me/data", nil, resident, "")
-	if r.Code != 200 || keysOf(r.json()) != "contacts dues house.address" {
+	if r.Code != 200 || keysOf(r.json()) != "contacts dues feed.posts house.address" {
 		t.Fatalf("resident = %d %s", r.Code, r.Body)
 	}
 	if r.Header().Get("Cache-Control") != "private, no-store" || r.Header().Get("Access-Control-Allow-Origin") != "" {
@@ -328,7 +330,7 @@ func TestMyData(t *testing.T) {
 		t.Fatalf("public image = %v", row["pic"])
 	}
 	adminOnly := e.login(e.mkUser("+380500000002", admin, func(u *domain.User) { u.IsResident = false }))
-	if r := e.do("GET", "/api/v1/me/data", nil, adminOnly, ""); r.Code != 200 || keysOf(r.json()) != "contacts dues house.address" {
+	if r := e.do("GET", "/api/v1/me/data", nil, adminOnly, ""); r.Code != 200 || keysOf(r.json()) != "contacts dues feed.posts house.address" {
 		t.Fatalf("admin = %d %s", r.Code, r.Body)
 	}
 	neither := e.login(e.mkUser("+380500000003", func(u *domain.User) { u.IsResident = false }))

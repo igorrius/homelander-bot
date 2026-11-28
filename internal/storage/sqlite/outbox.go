@@ -31,6 +31,7 @@ const outboxColumns = `id, messenger, chat_id, thread_id, payload, origin, label
 type payloadJSON struct {
 	Text    string       `json:"text"`
 	Buttons []buttonJSON `json:"buttons,omitempty"`
+	Image   int64        `json:"image,omitempty"` // asset id of a photo
 }
 
 type buttonJSON struct {
@@ -39,7 +40,7 @@ type buttonJSON struct {
 }
 
 func encodePayload(m domain.OutMessage) (string, error) {
-	p := payloadJSON{Text: m.Text}
+	p := payloadJSON{Text: m.Text, Image: m.ImageAssetID}
 	for _, b := range m.Buttons {
 		p.Buttons = append(p.Buttons, buttonJSON(b))
 	}
@@ -62,7 +63,7 @@ func scanOutbox(s scanner) (domain.OutboxItem, error) {
 	if err := json.Unmarshal([]byte(payload), &p); err != nil {
 		return domain.OutboxItem{}, err
 	}
-	it.Msg.Text = p.Text
+	it.Msg.Text, it.Msg.ImageAssetID = p.Text, p.Image
 	for _, b := range p.Buttons {
 		it.Msg.Buttons = append(it.Msg.Buttons, domain.LinkButton(b))
 	}
@@ -107,6 +108,24 @@ func (r Outbox) Due(ctx context.Context, now time.Time, limit int) ([]domain.Out
 	}
 	defer func() { _ = rows.Close() }()
 	var out []domain.OutboxItem
+	for rows.Next() {
+		it, err := scanOutbox(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+// ListByOrigin returns the rows of one origin by id.
+func (r Outbox) ListByOrigin(ctx context.Context, origin string) ([]domain.OutboxItem, error) {
+	rows, err := r.DB.Q(ctx).QueryContext(ctx, `SELECT `+outboxColumns+` FROM outbox WHERE origin = ? ORDER BY id`, origin)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := []domain.OutboxItem{}
 	for rows.Next() {
 		it, err := scanOutbox(rows)
 		if err != nil {

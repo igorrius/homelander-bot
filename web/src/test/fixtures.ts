@@ -1,4 +1,4 @@
-import type { AdminUser, Chat, DataItem, DataRow, House, Label, Me, MyHome, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
+import type { AdminModule, AdminPost, AdminUser, CabinetModule, CabinetPost, Chat, DataItem, DataRow, House, Label, Me, MyHome, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
 
 // Synthetic data only: no real names, phones or addresses.
 export const site: Site = {
@@ -66,14 +66,29 @@ export const myHome: MyHome = {
   homes: [{ id: 11, houseName: 'House A', address: '1 Test Street', floors: 9, apartment: 12, statusNames: statuses[0].names }],
 }
 
-/** Routes for a resident session in the cabinet. */
+/** The feed as GET /modules lists it when it is on. */
+export const feedCabinetModule: CabinetModule = {
+  code: 'feed',
+  nav: [{ key: 'feed', path: '/my/feed', labelKey: 'cabinet.nav.feed', icon: 'news' }],
+}
+
+/** The feed module in the admin "Modules" section. */
+export function feedModule(over: Partial<AdminModule> = {}): AdminModule {
+  return {
+    code: 'feed', nameKey: 'modules.feed.name', descriptionKey: 'modules.feed.description', enabled: true, defaultEnabled: true,
+    updatedAt: null, updatedBy: null, ...over,
+  }
+}
+
+/** Routes for a resident session in the cabinet (no module turned on). */
 export const residentRoutes = {
   ...publicRoutes,
   'GET /me': { body: resident },
   'GET /me/home': { body: myHome },
+  'GET /modules': { body: [] },
 }
 
-/** Routes for an admin session with an empty queue. */
+/** Routes for an admin session with an empty queue; the feed module is on. */
 export const adminRoutes = {
   ...publicRoutes,
   'GET /me': { body: admin },
@@ -81,6 +96,21 @@ export const adminRoutes = {
   'GET /admin/users': { body: { items: [], total: 0 } },
   'GET /admin/houses': { body: houses },
   'GET /admin/statuses': { body: statuses },
+  'GET /admin/modules': { body: [feedModule()] },
+}
+
+/** A feed post as admins see it: a draft by default. */
+export function adminPost(over: Partial<AdminPost> = {}): AdminPost {
+  return {
+    id: 1, body: 'Water is off on Friday', imageAssetId: null, imageUrl: null, state: 'draft', publishedAt: null, labelIds: [],
+    createdAt: '2026-11-27T10:00:00Z', updatedAt: '2026-11-27T10:00:00Z', createdBy: { id: 1, name: 'Adam Admin' }, updatedBy: null,
+    delivery: { pending: 0, sent: 0, failed: 0 }, deliveryExpired: false, ...over,
+  }
+}
+
+/** A published post in the cabinet. */
+export function cabinetPost(over: Partial<CabinetPost> = {}): CabinetPost {
+  return { id: 1, body: 'Water is off on Friday', imageUrl: null, publishedAt: '2026-11-27T10:00:00Z', authorName: 'Adam', ...over }
 }
 
 /** A chat the bot is in that nobody accepted yet. */

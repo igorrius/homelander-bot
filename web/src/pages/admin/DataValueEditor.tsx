@@ -1,10 +1,11 @@
-import { Alert, Button, FileInput, Group, Image, NumberInput, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core'
+import { Alert, Box, Button, FileInput, Group, Image, Input, NumberInput, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { adminAssetUrl, usePatchDataItem, useUploadDataImage } from '../../api/data'
 import type { DataItem, LocalizedText } from '../../api/types'
 import { LocalizedTextInputs } from '../../components/LocalizedTextInputs'
 import { useApiErrors } from '../../lib/errors'
+import { DataValueView } from './DataValueView'
 
 function initialDraft(item: DataItem): unknown {
   const v = item.value ?? null
@@ -26,8 +27,22 @@ function initialDraft(item: DataItem): unknown {
   }
 }
 
-/** Editor of one value item; images are saved as soon as they are uploaded. */
-export function DataValueEditor({ item }: { item: DataItem }) {
+/** Editor of one value item; images are saved as soon as they are uploaded. readOnly only shows the value. */
+export function DataValueEditor({ item, readOnly }: { item: DataItem; readOnly?: boolean }) {
+  const { t } = useTranslation()
+  if (readOnly) {
+    return (
+      <Input.Wrapper label={t('admin.data.value')}>
+        <Box mt={4}>
+          <DataValueView type={item.valueType} value={item.value} />
+        </Box>
+      </Input.Wrapper>
+    )
+  }
+  return <ValueForm item={item} />
+}
+
+function ValueForm({ item }: { item: DataItem }) {
   const { t } = useTranslation()
   const patch = usePatchDataItem(item.key)
   const upload = useUploadDataImage()

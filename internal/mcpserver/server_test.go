@@ -491,3 +491,34 @@ func TestMCPSeveralPages(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPModuleOwnedItem(t *testing.T) {
+	e := newEnv(t)
+	e.deps.Data.Modules = &domain.ModuleService{R: e.r, Now: e.deps.Now, Defs: []domain.ModuleDef{{Code: "feed", DefaultEnabled: true}}}
+	cols := []domain.DataColumn{{Name: "text", Label: "Text", Type: domain.DataText}}
+	if _, err := e.deps.Data.EnsureOwnedTable(ctx, "module:feed", "feed.posts", "Posts", cols, domain.VisResidents); err != nil {
+		t.Fatal(err)
+	}
+	s := e.session(e.access)
+	out := ok(t, s, "data_get", map[string]any{"key": "feed.posts"})
+	if it := out["item"].(map[string]any); it["owner"] != "module:feed" || it["visibility"] != "residents" {
+		t.Errorf("item = %v", it)
+	}
+	for name, args := range map[string]map[string]any{
+		"data_rows_upsert":          {"key": "feed.posts", "rows": []any{map[string]any{"cells": map[string]any{"text": "x"}}}},
+		"data_update_table_columns": {"key": "feed.posts", "columns": []any{}},
+		"data_delete":               {"key": "feed.posts"},
+	} {
+		res := call(t, s, name, args)
+		if !res.IsError || !strings.Contains(text(res), "read-only except its visibility") {
+			t.Errorf("%s = %v %q", name, res.IsError, text(res))
+		}
+	}
+	if out := ok(t, s, "data_set_visibility", map[string]any{"key": "feed.posts", "visibility": "public"}); out["visibility"] != "public" {
+		t.Errorf("visibility = %v", out)
+	}
+	res := call(t, s, "data_set_value", map[string]any{"key": "feed.mine", "value_type": "text", "value": "x"})
+	if !res.IsError || !strings.Contains(text(res), "key: key_reserved") || !strings.Contains(text(res), "belong to that module") {
+		t.Errorf("reserved = %v %q", res.IsError, text(res))
+	}
+}

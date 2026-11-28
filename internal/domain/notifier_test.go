@@ -168,3 +168,25 @@ func TestNotifierCleanKeepsPending(t *testing.T) {
 		t.Fatalf("Clean = %d, %v", n, err)
 	}
 }
+
+func TestSendToLabelsOnceEachPlace(t *testing.T) {
+	c := newChatEnv(t)
+	n := c.notifier()
+	ch, topic := c.acceptedForum(superGroup, "9")
+	residents, journal, news := c.mkLabel("residents"), c.mkLabel("journal"), c.mkLabel("news")
+	chat := domain.LabelTarget{Type: domain.TargetChat, ID: ch.ID}
+	c.bind(residents, chat)
+	c.bind(journal, chat)
+	c.bind(news, domain.LabelTarget{Type: domain.TargetTopic, ID: topic.ID})
+	ids, err := n.SendToLabels(ctx, []int64{residents.ID, journal.ID, news.ID}, domain.OutMessage{Text: "hi", ImageAssetID: 5}, "feed:1")
+	if err != nil || len(ids) != 2 {
+		t.Fatalf("SendToLabels = %v, %v", ids, err)
+	}
+	rows := c.pending()
+	if len(rows) != 2 || rows[0].To.ThreadID != "" || rows[1].To.ThreadID != "9" {
+		t.Fatalf("rows = %+v", rows)
+	}
+	if *rows[0].LabelID != residents.ID || *rows[1].LabelID != news.ID || rows[0].Msg.ImageAssetID != 5 || rows[1].Origin != "feed:1" {
+		t.Errorf("row fields = %+v / %+v", rows[0], rows[1])
+	}
+}

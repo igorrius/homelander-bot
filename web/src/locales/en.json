@@ -70,7 +70,9 @@
       "overview": "Overview",
       "chats": "Chats",
       "notifications": "Notifications",
-      "data": "Data"
+      "data": "Data",
+      "modules": "Modules",
+      "feed": "Feed"
     },
     "applications": {
       "title": "Applications",
@@ -453,7 +455,11 @@
       "noRows": "No rows yet.",
       "noColumns": "Add and save columns first.",
       "deleteItem": "Delete data",
-      "deleteItemConfirm": "Delete “{{key}}” with all its rows? The site and modules that read it will no longer see it."
+      "deleteItemConfirm": "Delete “{{key}}” with all its rows? The site and modules that read it will no longer see it.",
+      "owner": "Module: {{name}}",
+      "ownerOff": "module off",
+      "ownedAlert": "Managed by module \"{{name}}\": only who can see it can be changed here.",
+      "ownedOffAlert": "The module is off, so this data reaches neither the site nor residents now."
     },
     "pages": {
       "title": "Site page",
@@ -500,7 +506,96 @@
       "viaMcp": "MCP"
     },
     "openSite": "Open site",
-    "residentCabinet": "My cabinet"
+    "residentCabinet": "My cabinet",
+    "modules": {
+      "title": "Modules",
+      "description": "Built-in features you can turn on or off for the whole community.",
+      "toggle": "On",
+      "on": "On",
+      "off": "Off",
+      "open": "Open",
+      "defaultOn": "On by default",
+      "defaultOff": "Off by default",
+      "changed": "Changed {{date}} · {{name}}",
+      "changedAt": "Changed {{date}}",
+      "empty": "No modules yet."
+    },
+    "moduleOff": {
+      "title": "The module is turned off",
+      "text": "While the module is off, residents don't see its section in the cabinet and its data doesn't reach the site. Everything saved stays: turn the module on and it is back."
+    },
+    "feed": {
+      "title": "News feed",
+      "description": "Announcements for residents in the cabinet and, if you like, in Telegram chats.",
+      "tabs": {
+        "posts": "Posts",
+        "settings": "Settings"
+      },
+      "newPost": "New post",
+      "empty": "No posts yet",
+      "emptyHint": "Write the first announcement: residents see it in the cabinet, and chats with the chosen labels get a copy.",
+      "noText": "(no text)",
+      "state": {
+        "draft": "Draft",
+        "published": "Published"
+      },
+      "publishedAt": "Published {{date}}",
+      "createdAt": "Created {{date}}",
+      "delivery": {
+        "sent": "Sent: {{count}}",
+        "pending": "Queued: {{count}}",
+        "failed": "Failed: {{count}}",
+        "cabinetOnly": "Cabinet only"
+      },
+      "settings": {
+        "defaultLabels": "Labels for new posts",
+        "defaultLabelsHint": "They fill \"Also post to\" of every new post. Only labels on accepted chats are listed.",
+        "noLabels": "No label is on an accepted chat yet, so posts go to the cabinet only."
+      },
+      "editor": {
+        "titleNew": "New post",
+        "titleDraft": "Draft",
+        "titlePublished": "Published post",
+        "back": "Back to the feed",
+        "body": "Text",
+        "bodyHint": "Plain text; links become clickable in the cabinet.",
+        "counter": "{{count}} / {{max}}",
+        "tooLongWithImage": "With an image the text must be at most {{max}} characters (Telegram's caption limit).",
+        "tooLong": "The text must be at most {{max}} characters.",
+        "image": "Image",
+        "uploadImage": "Add an image",
+        "replaceImage": "Replace",
+        "removeImage": "Remove",
+        "labels": "Also post to",
+        "labelsHint": "Chats and topics with these labels get one copy each. Empty means the cabinet only.",
+        "labelsPlaceholder": "Cabinet only",
+        "labelsFixed": "Labels can't change after publishing.",
+        "preview": "How it reads",
+        "previewEmpty": "Start writing and the post appears here.",
+        "saveDraft": "Save draft",
+        "saveChanges": "Save changes",
+        "publish": "Publish",
+        "publishConfirm": "Publish the post? Residents see it in the cabinet, and chats with the labels \"{{labels}}\" get a copy. Once sent, a copy can't be recalled or changed.",
+        "publishConfirmCabinetOnly": "Publish the post? Residents see it in the cabinet. Nothing goes to Telegram.",
+        "publishedNote": "Edits change the cabinet and the site only: copies already sent to Telegram are not changed.",
+        "delete": "Delete post",
+        "deleteConfirm": "Delete the post? It disappears from the cabinet and the site.",
+        "deleteConfirmPublished": "Delete the post? It disappears from the cabinet and the site. Copies already sent to Telegram stay.",
+        "saved": "Saved",
+        "author": "By {{name}}"
+      },
+      "deliveries": {
+        "title": "Delivery to Telegram",
+        "expired": "Delivery details are no longer kept.",
+        "cabinetOnly": "The post was published to the cabinet only.",
+        "waiting": "Preparing to send…",
+        "state": {
+          "pending": "Queued",
+          "sent": "Sent",
+          "failed": "Failed"
+        }
+      }
+    }
   },
   "notFound": {
     "title": "Page not found",
@@ -539,6 +634,8 @@
     "unknown": "Something went wrong. Please try again.",
     "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
     "token_invalid": "This link has expired or was already used.",
+    "module_disabled": "This module is turned off.",
+    "module_owned": "A module manages this data: only who can see it can be changed.",
     "link_other_user": "You are signed in to another account."
   },
   "validation": {
@@ -554,7 +651,9 @@
     "too_many": "Too many rows: 1000 at most",
     "type_change_not_empty": "A column type can be changed only in an empty table",
     "index_required": "index.html is required",
-    "too_large": "Too large"
+    "too_large": "Too large",
+    "key_reserved": "Keys with this prefix belong to a module",
+    "published": "A published post can't be sent anywhere else"
   },
   "qr": {
     "title": "QR code"
@@ -649,6 +748,17 @@
       "mcp": {
         "client_authorized": "AI agent connected",
         "client_revoked": "AI agent disconnected"
+      },
+      "module": {
+        "enabled": "Module turned on",
+        "disabled": "Module turned off",
+        "settings_saved": "Module settings changed"
+      },
+      "feed": {
+        "post_created": "Post created",
+        "post_published": "Post published",
+        "post_updated": "Post changed",
+        "post_deleted": "Post deleted"
       }
     }
   },
@@ -671,7 +781,8 @@
     "nav": {
       "label": "Cabinet sections",
       "home": "My home",
-      "site": "Site"
+      "site": "Site",
+      "feed": "News"
     },
     "home": {
       "greeting": "Hello, {{name}}!",
@@ -702,6 +813,24 @@
       "button": "Install",
       "later": "Not now",
       "iosText": "Tap Share at the bottom of the screen, then “Add to Home Screen”."
+    },
+    "feed": {
+      "title": "News",
+      "subtitle": "Announcements from the community's admins.",
+      "latest": "Latest news",
+      "allPosts": "All posts",
+      "showMore": "Show more",
+      "empty": "No news yet.",
+      "back": "Back to all news",
+      "image": "Image of the post",
+      "byline": "{{date}} · {{name}}",
+      "open": "Open the post"
+    }
+  },
+  "modules": {
+    "feed": {
+      "name": "News feed",
+      "description": "Admins' announcements in the residents' cabinet. Each post can also go to Telegram chats by label, and the site can show the latest posts."
     }
   }
 }

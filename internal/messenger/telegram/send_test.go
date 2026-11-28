@@ -1,7 +1,14 @@
 package telegram
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,5 +120,87 @@ func TestLeaveChatAlreadyGoneIsNil(t *testing.T) {
 	r.api.leaveErr = tgErr(500, "Internal Server Error", nil)
 	if err := r.bot.LeaveChat(ctx, "-1"); err == nil {
 		t.Error("LeaveChat must report a server error")
+	}
+}
+
+func TestSendPhotoWithCaptionAndButton(t *testing.T) {
+	r := newRig(t)
+	m := domain.OutMessage{Text: "caption <b>plain</b>", Buttons: []domain.LinkButton{{Text: "Open", URL: "https://example.com/my/feed/1"}},
+		ImageAssetID: 3, Image: &domain.OutImage{Data: []byte{1, 2}, ContentType: "image/png"}}
+	if err := r.bot.Send(ctx, domain.Destination{ChatID: "-1001000000001", ThreadID: "7"}, m); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.api.messages()) != 0 {
+		t.Fatalf("sendMessage used: %+v", r.api.messages())
+	}
+	r.api.mu.Lock()
+	defer r.api.mu.Unlock()
+	if len(r.api.photos) != 1 {
+		t.Fatalf("photos = %+v", r.api.photos)
+	}
+	p := r.api.photos[0]
+	if p.opts.RequestOpts == nil || p.opts.RequestOpts.Timeout != PhotoTimeout {
+		t.Errorf("photo request opts = %+v", p.opts.RequestOpts)
+	}
+	if p.chatID != -1001000000001 || p.name != "photo.png" || string(p.data) != "\x01\x02" || p.opts.Caption != m.Text ||
+		p.opts.ParseMode != "" || p.opts.MessageThreadId != 7 {
+		t.Errorf("photo = %+v", p)
+	}
+	kb, ok := p.opts.ReplyMarkup.(gotgbot.InlineKeyboardMarkup)
+	if !ok || kb.InlineKeyboard[0][0].Url != "https://example.com/my/feed/1" {
+		t.Errorf("markup = %#v", p.opts.ReplyMarkup)
+	}
+}
+
+func TestSendTextHasTimeout(t *testing.T) {
+	r := newRig(t)
+	if err := r.bot.Send(ctx, domain.Destination{ChatID: "1000001"}, domain.OutMessage{Text: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if o := r.api.messages()[0].opts; o.RequestOpts == nil || o.RequestOpts.Timeout != SendTimeout {
+		t.Errorf("request opts = %+v", o.RequestOpts)
+	}
+}
+
+// TestSlowPhotoUploadIsNotResentSoon sends a photo through the real Bot API
+// client to a Telegram stand-in that answers after the timeout, as a slow
+// uplink would: the outbox must wait long before trying again, because
+// Telegram may have posted the photo already.
+func TestSlowPhotoUploadIsNotResentSoon(t *testing.T) {
+	var photos atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/getMe") {
+			_, _ = io.WriteString(w, `{"ok":true,"result":{"id":1,"is_bot":true,"first_name":"Bot","username":"test_bot"}}`)
+			return
+		}
+		_, _ = io.Copy(io.Discard, r.Body)
+		photos.Add(1)
+		select { // posted, but the answer comes too late
+		case <-time.After(2 * time.Second):
+		case <-r.Context().Done():
+		}
+		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":1,"date":0,"chat":{"id":-1,"type":"group"}}}`)
+	}))
+	defer srv.Close()
+	api, err := gotgbot.NewBot("1:test", &gotgbot.BotOpts{BotClient: &gotgbot.BaseBotClient{Client: http.Client{},
+		DefaultRequestOpts: &gotgbot.RequestOpts{APIURL: srv.URL}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := newRig(t)
+	bot, err := New(api, r.act, r.chats, r.sink, r.tr, "https://example.com", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bot.photoTimeout = 100 * time.Millisecond
+	err = bot.Send(ctx, domain.Destination{ChatID: "-1001000000001"}, domain.OutMessage{Text: "caption",
+		Image: &domain.OutImage{Data: bytes.Repeat([]byte{1}, 64<<10), ContentType: "image/jpeg"}})
+	var se *domain.SendError
+	if !errors.As(err, &se) || se.Kind != domain.SendRetry || se.RetryAfter != AmbiguousRetry || !strings.Contains(err.Error(), "may have posted") {
+		t.Fatalf("err = %v", err)
+	}
+	if photos.Load() != 1 {
+		t.Errorf("uploads = %d", photos.Load())
 	}
 }

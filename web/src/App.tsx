@@ -10,6 +10,8 @@ import { RegisterPage } from './pages/RegisterPage'
 import { SitePageRoute } from './pages/SitePageRoute'
 import { CabinetHome } from './pages/cabinet/CabinetHome'
 import { CabinetLayout } from './pages/cabinet/CabinetLayout'
+import { FeedPage } from './pages/cabinet/FeedPage'
+import { FeedPostPage } from './pages/cabinet/FeedPostPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
@@ -17,6 +19,9 @@ import { ChatsPage } from './pages/admin/ChatsPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
 import { LabelsPage } from './pages/admin/LabelsPage'
+import { FeedAdminPage } from './pages/admin/FeedAdminPage'
+import { FeedPostEditor } from './pages/admin/FeedPostEditor'
+import { ModulesPage } from './pages/admin/ModulesPage'
 import { NotificationsPage } from './pages/admin/NotificationsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SiteSection } from './pages/admin/SiteSection'
@@ -40,6 +45,8 @@ export default function App() {
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route path="/my" element={<CabinetLayout />}>
           <Route index element={<CabinetHome />} />
+          <Route path="feed" element={<FeedPage />} />
+          <Route path="feed/:id" element={<FeedPostPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
@@ -57,6 +64,10 @@ export default function App() {
           <Route path="data/:key" element={<DataItemPage />} />
           <Route path="pages" element={<Navigate to="/admin/site?tab=pages" replace />} />
           <Route path="pages/:id" element={<PagePreviewPage />} />
+          <Route path="modules" element={<ModulesPage />} />
+          <Route path="modules/feed" element={<FeedAdminPage />} />
+          <Route path="modules/feed/posts/new" element={<FeedPostEditor />} />
+          <Route path="modules/feed/posts/:id" element={<FeedPostEditor />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />

@@ -15,7 +15,7 @@ type Data struct{ DB DB }
 var _ domain.DataRepo = Data{}
 
 const dataColumns = `i.id, i.key, i.kind, i.description, i.visibility, i.value_type, i.value_json, i.columns_json,
-	i.created_by, i.updated_by, i.created_at, i.updated_at,
+	i.owner, i.created_by, i.updated_by, i.created_at, i.updated_at,
 	(SELECT count(*) FROM data_rows r WHERE r.item_id = i.id)`
 
 func scanDataItem(s scanner) (domain.DataItem, error) {
@@ -23,15 +23,16 @@ func scanDataItem(s scanner) (domain.DataItem, error) {
 		it                   domain.DataItem
 		kind, vis            string
 		vtype, value, cols   sql.NullString
+		owner                sql.NullString
 		createdBy, updatedBy sql.NullInt64
 		created, updated     string
 	)
 	if err := s.Scan(&it.ID, &it.Key, &kind, &it.Description, &vis, &vtype, &value, &cols,
-		&createdBy, &updatedBy, &created, &updated, &it.RowCount); err != nil {
+		&owner, &createdBy, &updatedBy, &created, &updated, &it.RowCount); err != nil {
 		return domain.DataItem{}, mapErr(err)
 	}
 	it.Kind, it.Visibility = domain.DataKind(kind), domain.Visibility(vis)
-	it.ValueType = domain.DataType(vtype.String)
+	it.ValueType, it.Owner = domain.DataType(vtype.String), owner.String
 	if value.Valid {
 		it.Value = json.RawMessage(value.String)
 	}
@@ -69,8 +70,8 @@ func (r Data) Create(ctx context.Context, it *domain.DataItem) error {
 		return err
 	}
 	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO data_items (key, kind, description, visibility, value_type,
-		value_json, columns_json, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		it.Key, string(it.Kind), it.Description, visArg(it.Visibility), vtype, value, cols,
+		value_json, columns_json, owner, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		it.Key, string(it.Kind), it.Description, visArg(it.Visibility), vtype, value, cols, nullStr(it.Owner),
 		nullInt(it.CreatedBy), nullInt(it.UpdatedBy), fmtTime(it.CreatedAt), fmtTime(it.UpdatedAt))
 	if err != nil {
 		return mapErr(err)
@@ -233,6 +234,36 @@ func (r Data) SetAssetRefs(ctx context.Context, itemID int64, assetIDs []int64) 
 		}
 	}
 	return nil
+}
+
+// AssetRefs returns the visibility and owner of every item that refers to the asset.
+func (r Data) AssetRefs(ctx context.Context, assetID int64) ([]domain.AssetRef, error) {
+	rows, err := r.DB.Q(ctx).QueryContext(ctx, `SELECT i.visibility, coalesce(i.owner, '') FROM data_asset_refs a
+		JOIN data_items i ON i.id = a.item_id WHERE a.asset_id = ?`, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []domain.AssetRef
+	for rows.Next() {
+		var (
+			ref domain.AssetRef
+			vis string
+		)
+		if err := rows.Scan(&vis, &ref.Owner); err != nil {
+			return nil, err
+		}
+		ref.Visibility = domain.Visibility(vis)
+		out = append(out, ref)
+	}
+	return out, rows.Err()
+}
+
+func nullStr(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
 }
 
 // AssetIsPublic reports whether a public item refers to this asset.

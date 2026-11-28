@@ -3,16 +3,9 @@ import { IconBell } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChats, useLabels, useNotifications, useSaveNotifications } from '../../api/chats'
-import type { Chat, Label } from '../../api/types'
 import { PageHeader } from '../../components/PageHeader'
+import { reachesChat } from '../../lib/chats'
 import { errorText, useApiErrors } from '../../lib/errors'
-
-/** Whether a label hangs on at least one place that receives messages. */
-function reachesChat(l: Label, chats: Chat[]): boolean {
-  return l.targets.some((tg) =>
-    chats.some((c) => c.state === 'accepted' && (tg.type === 'chat' ? c.id === tg.id : c.topics.some((tp) => tp.id === tg.id && !tp.gone))),
-  )
-}
 
 /** Where the system's own notices go. */
 export function NotificationsPage() {
