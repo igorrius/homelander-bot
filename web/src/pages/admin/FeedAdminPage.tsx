@@ -139,12 +139,13 @@ function SettingsTab() {
   // The admin's unsaved choice; undefined shows the saved one.
   const [draft, setDraft] = useState<string[] | undefined>(undefined)
   const { message, fields } = useApiErrors(save.error)
-  if (settings.isPending || labels.isPending || chats.isPending) return <Loader />
   const error = settings.error ?? labels.error ?? chats.error
   if (error) return <Alert color="red">{errorText(t, error)}</Alert>
+  if (!settings.data || !labels.data || !chats.data) return <Loader />
   const value = draft ?? settings.data.defaultLabelIds.map(String)
+  const allChats = chats.data
   // Labels that reach a chat, and any saved one that no longer does (so it can be removed).
-  const offered = labels.data.filter((l) => reachesChat(l, chats.data) || value.includes(String(l.id)))
+  const offered = labels.data.filter((l) => reachesChat(l, allChats) || value.includes(String(l.id)))
   return (
     <Card withBorder padding="md" maw={560}>
       <Stack>
