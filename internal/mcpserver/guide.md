@@ -162,6 +162,45 @@ The keys in the example are made up; read `data_catalog` for the real ones. Anyt
 a logged-in resident is visible to every logged-in resident, so keep personal data (phones of people,
 debts of one family) `admins` unless the community agreed to share it.
 
+### Module data: `feed.posts` and other items modules keep
+
+Built-in modules (the information feed first; more later) publish their own data into the data space
+under their code: the feed owns every key starting with `feed.`. Such an item has `owner` set (for
+example `module:feed`) in `data_catalog` and `data_get`. It is **read-only** for you: you may change
+only its visibility (`data_set_visibility`), and you cannot create new keys under a module's prefix
+(`key: key_reserved`). When an admin turns a module off, its items are not served to the site at all,
+so a page must cope with the key being missing.
+
+`feed.posts` is a table of the latest 20 published feed posts, newest first; it is `residents` unless
+an admin changed that, so it arrives in the `homelander:data` message, not from `/public/data`:
+
+| Column | Type | Content |
+|---|---|---|
+| `id` | number | post id |
+| `date` | text | when it was published, ISO 8601 UTC (`2026-11-28T09:30:00Z`) |
+| `text` | text | the post, plain text with line breaks |
+| `image` | image | the post's image URL, or missing |
+| `url` | url | the post in the resident cabinet; link to it with `target="_top"` |
+
+```js
+function renderNews(items) {
+  const posts = items && items['feed.posts']
+  const list = document.getElementById('news')
+  list.replaceChildren()
+  if (!posts || posts.kind !== 'table') return
+  for (const row of posts.rows.slice(0, 3)) {
+    const a = document.createElement('a')
+    a.href = row.url
+    a.target = '_top'
+    a.textContent = new Date(row.date).toLocaleDateString() + ' — ' + row.text.split('\n')[0]
+    list.append(a)
+  }
+}
+```
+
+Pages only read. Anything a resident does (reading the whole post included) happens in the cabinet,
+so link there rather than rebuilding it.
+
 ## 4. Height: tell the header how tall the page is
 
 The frame does not grow by itself. Post your height to the parent on load and whenever it changes:

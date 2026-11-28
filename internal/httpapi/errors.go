@@ -60,6 +60,10 @@ func writeDomainError(w http.ResponseWriter, log *slog.Logger, err error) {
 		WriteError(w, http.StatusUnprocessableEntity, "token_invalid")
 	case errors.Is(err, domain.ErrChatNotAccepted):
 		WriteError(w, http.StatusConflict, "chat_not_accepted")
+	case errors.Is(err, domain.ErrModuleOff):
+		WriteError(w, http.StatusNotFound, "module_disabled")
+	case errors.Is(err, domain.ErrOwned):
+		WriteError(w, http.StatusConflict, "module_owned")
 	case errors.Is(err, domain.ErrUnauthorized):
 		WriteError(w, http.StatusUnauthorized, "unauthorized")
 	default:

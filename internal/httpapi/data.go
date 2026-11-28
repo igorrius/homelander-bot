@@ -42,6 +42,9 @@ type dataItemDTO struct {
 	RowCount    int                 `json:"rowCount"`
 	UpdatedAt   time.Time           `json:"updatedAt"`
 	UpdatedBy   *userRef            `json:"updatedBy"`
+	// Owner is the code of the module that writes the item, or null.
+	Owner        *string `json:"owner"`
+	OwnerEnabled bool    `json:"ownerEnabled"`
 }
 
 type dataRowDTO struct {
@@ -58,6 +61,12 @@ func (h handlerCtx) toDataItem(r *http.Request, n *namer, it domain.DataItem) da
 	}
 	if it.UpdatedBy != nil && n != nil {
 		d.UpdatedBy = &userRef{ID: *it.UpdatedBy, Name: n.userName(r.Context(), *it.UpdatedBy)}
+	}
+	if code := domain.ModuleOf(it.Owner); code != "" {
+		d.Owner = &code
+		if h.api.Modules != nil {
+			d.OwnerEnabled, _ = h.api.Modules.Enabled(r.Context(), code)
+		}
 	}
 	return d
 }

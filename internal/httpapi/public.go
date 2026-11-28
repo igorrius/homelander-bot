@@ -19,6 +19,8 @@ type API struct {
 	Chats     *domain.ChatService
 	Labels    *domain.LabelService
 	Notifier  *domain.Notifier
+	Modules   *domain.ModuleService
+	Feed      *domain.FeedService
 	MCPAuth   *domain.McpAuthService
 	Limits    *ratelimit.Limiter // nil disables the OAuth endpoint limits
 	Messenger domain.Messenger

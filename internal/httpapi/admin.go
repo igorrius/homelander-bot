@@ -52,6 +52,7 @@ func RegisterAdmin(s *Server, api API) {
 	registerChats(h, routes)
 	registerData(h, routes)
 	registerPages(h, routes)
+	registerModules(h, routes)
 	for pattern, fn := range routes {
 		s.API().Handle(pattern, RequireAdmin(fn))
 	}

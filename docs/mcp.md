@@ -100,6 +100,12 @@ Every data item has a **visibility**:
   as signed links that work for about an hour.
 - `admins` — only admins, in the panel and through MCP; never served to the site.
 
+Built-in modules keep their own items: the information feed owns every key starting with `feed.`
+and publishes the latest 20 posts as the table `feed.posts` (`residents` by default). Such items
+carry an `owner` (`module:feed`) and are read-only for the agent except their visibility; new keys
+under a module's prefix are refused (`key_reserved`). Items of a module that is turned off stay in
+the database but are not served to the site.
+
 New items are `admins` unless the agent or the admin sets another visibility. A published page can
 show `residents` data to any logged-in resident (and its script could pass it on, for example in a
 link it opens), so publish only pages you have looked at.
