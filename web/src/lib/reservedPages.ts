@@ -3,6 +3,6 @@
  * Keep in sync with ReservedPageNames in internal/domain/page.go (a test checks both).
  */
 export const reservedPages: readonly string[] = [
-  'admin', 'login', 'register', 'oauth', 'site', 'api', 'mcp', 'healthz',
+  'admin', 'login', 'register', 'oauth', 'site', 'api', 'mcp', 'healthz', 'my',
   'assets', 'telegram', 'favicon', 'robots', 'sitemap',
 ]

@@ -2,11 +2,14 @@ import { Navigate, Route, Routes } from 'react-router'
 import { SessionWatcher } from './components/SessionWatcher'
 import { SiteLocale } from './components/SiteLocale'
 import { HomePage } from './pages/HomePage'
+import { LoginLinkPage } from './pages/LoginLinkPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OAuthAuthorizePage } from './pages/OAuthAuthorizePage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SitePageRoute } from './pages/SitePageRoute'
+import { CabinetHome } from './pages/cabinet/CabinetHome'
+import { CabinetLayout } from './pages/cabinet/CabinetLayout'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
@@ -33,7 +36,12 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/login/link" element={<LoginLinkPage />} />
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
+        <Route path="/my" element={<CabinetLayout />}>
+          <Route index element={<CabinetHome />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<OverviewPage />} />
           <Route path="applications" element={<ApplicationsPage />} />

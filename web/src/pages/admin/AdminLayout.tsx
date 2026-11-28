@@ -17,6 +17,7 @@ import {
   IconMoon,
   IconSun,
   IconTags,
+  IconUserCircle,
   IconUsers,
   IconWorld,
   type Icon,
@@ -140,6 +141,9 @@ function UserMenu({ me }: { me: Me }) {
       <Menu.Dropdown>
         <Menu.Item component={Link} to="/" leftSection={<IconHome size={16} />}>
           {t('admin.residentPage')}
+        </Menu.Item>
+        <Menu.Item component={Link} to="/my" leftSection={<IconUserCircle size={16} />}>
+          {t('admin.residentCabinet')}
         </Menu.Item>
         <Menu.Divider />
         <Menu.Label>{t('admin.theme.title')}</Menu.Label>

@@ -35,6 +35,10 @@ describe('SiteHeader', () => {
     expect(screen.getByText('House A, кв. 13')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: uk.home.admin })).toHaveAttribute('href', '/admin')
     expect(screen.getByRole('menuitem', { name: uk.home.logout })).toBeInTheDocument()
+    // "My cabinet" comes right above "Admin panel".
+    const items = screen.getAllByRole('menuitem').map((el) => el.textContent)
+    expect(items.indexOf(uk.home.cabinet)).toBe(items.indexOf(uk.home.admin) - 1)
+    expect(screen.getByRole('menuitem', { name: uk.home.cabinet })).toHaveAttribute('href', '/my')
   })
 
   it('offers log in and register to a guest', async () => {
@@ -50,6 +54,7 @@ describe('SiteHeader', () => {
     await user.click(await screen.findByRole('button', { name: 'Olena Test' }))
     expect(screen.getByText('House A, кв. 12')).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: uk.home.admin })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: uk.home.cabinet })).toHaveAttribute('href', '/my')
     await user.click(screen.getByRole('menuitem', { name: uk.home.logout }))
     expect(await screen.findByRole('link', { name: uk.home.login })).toBeInTheDocument()
     expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1)

@@ -75,6 +75,11 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
               </Table.Td>
               <Table.Td>
                 {e.actorUserId ? <Target target={`user:${e.actorUserId}`} name={e.actorName} /> : null}
+                {e.details?.via === 'bot_link' && (
+                  <Text span size="xs" c="dimmed" ml={4}>
+                    {` · ${t('admin.audit.viaBotLink')}`}
+                  </Text>
+                )}
                 {e.details?.via === 'mcp' && (
                   <Text span size="xs" c="grape" ml={4}>
                     {` · ${t('admin.audit.viaMcp', { client: String(e.details.client ?? '') })}`}

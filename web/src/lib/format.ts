@@ -10,6 +10,13 @@ export function fullName(u: { firstName: string; lastName: string; phone: string
   return `${u.firstName} ${u.lastName}`.trim() || u.phone
 }
 
+/** A phone with every digit but the last four hidden: "+380500000002" → "+••••••••0002". */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '').length
+  let seen = 0
+  return phone.replace(/\d/g, (d) => (++seen <= digits - 4 ? '•' : d))
+}
+
 /** A byte count as KB or MB. */
 export function formatSize(n: number): string {
   if (n < 1024) return `${n} B`

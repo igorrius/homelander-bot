@@ -35,6 +35,7 @@ export function useLogout() {
     onSuccess: () => {
       qc.setQueryData(qk.me, null)
       qc.removeQueries({ queryKey: ['admin'] })
+      qc.removeQueries({ queryKey: ['cabinet'] })
     },
   })
 }

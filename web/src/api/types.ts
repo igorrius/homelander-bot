@@ -26,6 +26,21 @@ export interface Me {
   residencies: Residency[]
 }
 
+/** One apartment of the signed-in user, with its house: the cabinet's "My home". */
+export interface Home {
+  id: number
+  houseName: string
+  address: string
+  floors: number | null
+  apartment: number
+  statusNames: LocalizedText
+}
+
+export interface MyHome {
+  homes: Home[]
+  telegramLinked: boolean
+}
+
 export interface AdminUser extends Me {
   status: UserStatus
   source: 'application' | 'admin' | 'bootstrap'

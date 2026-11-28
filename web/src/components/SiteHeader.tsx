@@ -1,5 +1,5 @@
 import { Avatar, Box, Button, Container, Group, Image, Loader, Menu, Text, UnstyledButton, useMantineColorScheme, type MantineColorScheme } from '@mantine/core'
-import { IconCheck, IconChevronDown, IconDeviceDesktop, IconHome2, IconLayoutDashboard, IconLogout, IconMoon, IconSun, type Icon } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconDeviceDesktop, IconHome2, IconLayoutDashboard, IconLogout, IconMoon, IconSun, IconUserCircle, type Icon } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useLogout, useMe } from '../api/public'
@@ -52,13 +52,14 @@ function AccountMenu({ me }: { me: Me }) {
             </Group>
           ))}
         </Box>
+        <Menu.Divider />
+        <Menu.Item component={Link} to="/my" leftSection={<IconUserCircle size={16} />}>
+          {t('home.cabinet')}
+        </Menu.Item>
         {me.isAdmin && (
-          <>
-            <Menu.Divider />
-            <Menu.Item component={Link} to="/admin" leftSection={<IconLayoutDashboard size={16} />}>
-              {t('home.admin')}
-            </Menu.Item>
-          </>
+          <Menu.Item component={Link} to="/admin" leftSection={<IconLayoutDashboard size={16} />}>
+            {t('home.admin')}
+          </Menu.Item>
         )}
         <Menu.Divider />
         <Menu.Label>{t('admin.theme.title')}</Menu.Label>
@@ -77,7 +78,8 @@ function AccountMenu({ me }: { me: Me }) {
   )
 }
 
-function Account() {
+/** The account control: log in and register for a guest, the account menu when signed in. */
+export function Account() {
   const { t } = useTranslation()
   const me = useMe()
   if (me.isPending) return <Loader size="sm" />
@@ -97,6 +99,26 @@ function Account() {
 }
 
 export const SITE_HEADER_HEIGHT = 60
+
+/** The community icon and name (one line, ellipsis), linking to `to`. */
+export function Brand({ title, to, testId }: { title: string; to: string; testId: string }) {
+  return (
+    <UnstyledButton component={Link} to={to} style={{ minWidth: 0, flex: '1 1 auto' }}>
+      <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
+        <Image src="/favicon.svg" alt="" w={28} h={28} style={{ flex: 'none' }} />
+        <Text
+          data-testid={testId}
+          title={title}
+          fw={650}
+          size="md"
+          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+        >
+          {title}
+        </Text>
+      </Group>
+    </UnstyledButton>
+  )
+}
 
 /**
  * The one-line header over the built-in page and published pages: the community name (one line,
@@ -118,20 +140,7 @@ export function SiteHeader({ title }: { title: string }) {
     >
       <Container size="lg" h="100%">
         <Group h="100%" justify="space-between" wrap="nowrap" gap="md">
-          <UnstyledButton component={Link} to="/" style={{ minWidth: 0, flex: '1 1 auto' }}>
-            <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
-              <Image src="/favicon.svg" alt="" w={28} h={28} style={{ flex: 'none' }} />
-              <Text
-                data-testid="site-header-name"
-                title={title}
-                fw={650}
-                size="md"
-                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
-              >
-                {title}
-              </Text>
-            </Group>
-          </UnstyledButton>
+          <Brand title={title} to="/" testId="site-header-name" />
           <Group gap="sm" wrap="nowrap" style={{ flex: 'none' }}>
             <Account />
             <LanguageSwitcher />

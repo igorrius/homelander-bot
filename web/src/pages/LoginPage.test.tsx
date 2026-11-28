@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../i18n'
 import uk from '../locales/uk.json'
 import { callsTo, mockApi } from '../test/api'
-import { admin, publicRoutes, resident } from '../test/fixtures'
+import { admin, publicRoutes, resident, residentRoutes } from '../test/fixtures'
 import { currentLocation, renderApp } from '../test/render'
 
 const codeOk = { status: 202, body: { status: 'sent_if_allowed' } }
@@ -17,6 +17,20 @@ async function enterCode(user: ReturnType<typeof renderApp>['user'], code: strin
   const inputs = await screen.findAllByLabelText(uk.login.code)
   await user.click(inputs[0])
   await user.keyboard(code)
+}
+
+/** A resident who is a guest until the code is verified. */
+function residentLogin() {
+  let signedIn = false
+  return {
+    ...residentRoutes,
+    'GET /me': () => (signedIn ? { body: resident } : publicRoutes['GET /me']),
+    'POST /auth/code': codeOk,
+    'POST /auth/verify': () => {
+      signedIn = true
+      return { body: { user: resident } }
+    },
+  }
 }
 
 describe('LoginPage', () => {
@@ -36,13 +50,29 @@ describe('LoginPage', () => {
     expect(callsTo(calls, 'POST /auth/verify').map((c) => c.body)).toEqual([{ phone: '+380500000001', code: '123456' }])
   })
 
-  it('sends a resident to /', async () => {
-    mockApi({ ...publicRoutes, 'POST /auth/code': codeOk, 'POST /auth/verify': { body: { user: resident } } })
+  it('sends a resident to the cabinet', async () => {
+    mockApi(residentLogin())
     const { user } = renderApp('/login')
     await enterPhone(user)
     await enterCode(user, '123456')
     await user.click(screen.getByRole('button', { name: uk.login.submit }))
-    expect(await screen.findByRole('heading', { name: 'Тестова громада' })).toBeInTheDocument()
+    await waitFor(() => expect(currentLocation()).toBe('/my'))
+    expect(await screen.findByRole('heading', { name: uk.cabinet.myHome.title })).toBeInTheDocument()
+  })
+
+  it('sends a resident to the cabinet page they came for', async () => {
+    mockApi(residentLogin())
+    const { user } = renderApp('/login?next=' + encodeURIComponent('/my?tab=home'))
+    await enterPhone(user)
+    await enterCode(user, '123456')
+    await user.click(screen.getByRole('button', { name: uk.login.submit }))
+    await waitFor(() => expect(currentLocation()).toBe('/my?tab=home'))
+  })
+
+  it('redirects a signed-in resident away from login to the cabinet', async () => {
+    mockApi(residentRoutes)
+    renderApp('/login')
+    await waitFor(() => expect(currentLocation()).toBe('/my'))
   })
 
   it('shows invalid code and clears the input', async () => {
