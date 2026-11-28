@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -37,9 +38,11 @@ func (b *Bot) Send(_ context.Context, to domain.Destination, m domain.OutMessage
 	if m.Image != nil {
 		// The text is a plain caption, like a plain message: no parse mode.
 		photo := gotgbot.InputFileByReader(photoName(m.Image.ContentType), bytes.NewReader(m.Image.Data))
-		_, err = b.api.SendPhoto(chatID, photo, &gotgbot.SendPhotoOpts{Caption: m.Text, MessageThreadId: thread, ReplyMarkup: markup})
+		_, err = b.api.SendPhoto(chatID, photo, &gotgbot.SendPhotoOpts{Caption: m.Text, MessageThreadId: thread, ReplyMarkup: markup,
+			RequestOpts: &gotgbot.RequestOpts{Timeout: b.photoTimeout}})
 	} else {
-		_, err = b.api.SendMessage(chatID, m.Text, &gotgbot.SendMessageOpts{MessageThreadId: thread, ReplyMarkup: markup})
+		_, err = b.api.SendMessage(chatID, m.Text, &gotgbot.SendMessageOpts{MessageThreadId: thread, ReplyMarkup: markup,
+			RequestOpts: &gotgbot.RequestOpts{Timeout: b.sendTimeout}})
 	}
 	if err != nil {
 		return classify(err)
@@ -76,10 +79,22 @@ func (b *Bot) LeaveChat(_ context.Context, chatID string) error {
 	return nil
 }
 
+// timedOut reports whether a request was cut off by its timeout.
+func timedOut(err error) bool {
+	var ne net.Error
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
+}
+
 // classify sorts a Bot API failure into what the outbox should do.
 func classify(err error) *domain.SendError {
 	var te *gotgbot.TelegramError
 	if !errors.As(err, &te) {
+		if timedOut(err) {
+			// The request may have reached Telegram before we stopped
+			// waiting: no quick resend that would post it twice.
+			return &domain.SendError{Kind: domain.SendRetry, RetryAfter: AmbiguousRetry,
+				Err: fmt.Errorf("timed out, Telegram may have posted it already: %w", err)}
+		}
 		return &domain.SendError{Kind: domain.SendRetry, Err: err}
 	}
 	desc := strings.ToLower(te.Description)
