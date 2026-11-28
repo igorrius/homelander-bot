@@ -17,6 +17,7 @@ import { ChatsPage } from './pages/admin/ChatsPage'
 import { HousePage } from './pages/admin/HousePage'
 import { HousesPage } from './pages/admin/HousesPage'
 import { LabelsPage } from './pages/admin/LabelsPage'
+import { ModulesPage } from './pages/admin/ModulesPage'
 import { NotificationsPage } from './pages/admin/NotificationsPage'
 import { OverviewPage } from './pages/admin/OverviewPage'
 import { SiteSection } from './pages/admin/SiteSection'
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="data/:key" element={<DataItemPage />} />
           <Route path="pages" element={<Navigate to="/admin/site?tab=pages" replace />} />
           <Route path="pages/:id" element={<PagePreviewPage />} />
+          <Route path="modules" element={<ModulesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="*" element={<NotFoundPage />} />
