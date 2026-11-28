@@ -28,6 +28,9 @@ type DataService struct {
 	Locales []string
 	// Secret signs the expiring asset URLs of residents-level images.
 	Secret []byte
+	// Modules reserves module key prefixes and hides the data of modules
+	// that are off; nil when there are no modules.
+	Modules *ModuleService
 }
 
 // DataInput creates an item or, in Patch, changes it; nil fields stay as they
@@ -100,6 +103,8 @@ func (s *DataService) Create(ctx context.Context, in DataInput, a Actor) (DataIt
 	v := validation{}
 	if len(in.Key) > maxDataKey || !dataKeyRe.MatchString(in.Key) {
 		v.add("key", "invalid")
+	} else if s.Modules.Reserved(in.Key) {
+		v.add("key", "key_reserved")
 	}
 	now := s.Now()
 	it := DataItem{Key: in.Key, Kind: in.Kind, Visibility: VisAdmins, CreatedBy: a.UserID, UpdatedBy: a.UserID, CreatedAt: now, UpdatedAt: now}
@@ -307,6 +312,9 @@ func (s *DataService) Patch(ctx context.Context, key string, in DataInput, a Act
 		if it, err = s.R.Data.GetByKey(ctx, key); err != nil {
 			return err
 		}
+		if it.Owner != "" && (in.Description != nil || in.ValueType != nil || in.Value != nil || in.Columns != nil) {
+			return ErrOwned
+		}
 		v := validation{}
 		var changed []string
 		if in.Description != nil {
@@ -424,6 +432,9 @@ func (s *DataService) Delete(ctx context.Context, key string, a Actor) error {
 		if err != nil {
 			return err
 		}
+		if it.Owner != "" {
+			return ErrOwned
+		}
 		if err := s.R.Data.Delete(ctx, it.ID); err != nil {
 			return err
 		}
@@ -435,6 +446,9 @@ func (s *DataService) table(ctx context.Context, key string) (DataItem, error) {
 	it, err := s.R.Data.GetByKey(ctx, key)
 	if err == nil && it.Kind != DataTable {
 		err = ErrNotFound
+	}
+	if err == nil && it.Owner != "" {
+		err = ErrOwned
 	}
 	return it, err
 }
@@ -614,8 +628,15 @@ func (s *DataService) views(ctx context.Context, only ...Visibility) ([]DataView
 	if err != nil {
 		return nil, err
 	}
+	off, err := s.Modules.DisabledOwners(ctx)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]DataView, 0, len(items))
 	for _, it := range items {
+		if off[it.Owner] {
+			continue // a module that is off: its data is kept but not served
+		}
 		v, err := s.view(ctx, it)
 		if err != nil {
 			return nil, err
@@ -637,12 +658,122 @@ func (s *DataService) PublicOne(ctx context.Context, key, ip string) (DataView, 
 	if it.Visibility != VisPublic {
 		return DataView{}, ErrNotFound
 	}
+	if it.Owner != "" {
+		off, err := s.Modules.DisabledOwners(ctx)
+		if err != nil {
+			return DataView{}, err
+		}
+		if off[it.Owner] {
+			return DataView{}, ErrNotFound
+		}
+	}
 	return s.view(ctx, it)
 }
 
 // AssetIsPublic reports whether anyone may download the asset.
 func (s *DataService) AssetIsPublic(ctx context.Context, assetID int64) (bool, error) {
-	return s.R.Data.AssetIsPublic(ctx, assetID)
+	public, _, err := s.AssetAccess(ctx, assetID)
+	return public, err
+}
+
+// AssetAccess says how the asset may be served outside the admin panel:
+// public when a public item of a module that is on (or of no module) refers
+// to it; blocked when items refer to it and all of them belong to modules
+// that are off, so not even a signed URL serves it.
+func (s *DataService) AssetAccess(ctx context.Context, assetID int64) (public, blocked bool, err error) {
+	refs, err := s.R.Data.AssetRefs(ctx, assetID)
+	if err != nil || len(refs) == 0 {
+		return false, false, err
+	}
+	off, err := s.Modules.DisabledOwners(ctx)
+	if err != nil {
+		return false, false, err
+	}
+	blocked = true
+	for _, r := range refs {
+		if off[r.Owner] {
+			continue
+		}
+		blocked = false
+		public = public || r.Visibility == VisPublic
+	}
+	return public, blocked, nil
+}
+
+// systemActor is who a module's own writes are recorded as.
+var systemActor = Actor{}
+
+// EnsureOwnedTable creates a module's table item when it is missing, with the
+// given visibility, or brings the description and columns of an existing
+// one up to date (its visibility is the admins' choice and stays).
+func (s *DataService) EnsureOwnedTable(ctx context.Context, owner, key, description string, cols []DataColumn, vis Visibility) (DataItem, error) {
+	var it DataItem
+	err := s.R.Tx.InTx(ctx, func(ctx context.Context) error {
+		var err error
+		it, err = s.R.Data.GetByKey(ctx, key)
+		switch {
+		case errors.Is(err, ErrNotFound):
+			now := s.Now()
+			it = DataItem{Key: key, Kind: DataTable, Description: description, Visibility: vis, Columns: cols, Owner: owner,
+				CreatedAt: now, UpdatedAt: now}
+			if err := s.R.Data.Create(ctx, &it); err != nil {
+				return err
+			}
+			return s.audit(ctx, systemActor, ActDataCreated, key, map[string]any{"kind": string(DataTable),
+				"visibility": string(vis), "owner": owner})
+		case err != nil:
+			return err
+		case it.Owner != owner || it.Kind != DataTable:
+			return ErrOwned
+		}
+		if it.Description == description && slices.Equal(it.Columns, cols) {
+			return nil
+		}
+		old := it.Columns
+		it.Description, it.Columns, it.UpdatedAt = description, cols, s.Now()
+		if err := s.applyColumns(ctx, it, old); err != nil {
+			return err
+		}
+		return s.R.Data.Update(ctx, &it)
+	})
+	return it, err
+}
+
+// ReplaceOwnedRows replaces every row of a module's table. Module code is
+// trusted: the cells are not checked like an admin's.
+func (s *DataService) ReplaceOwnedRows(ctx context.Context, owner, key string, rows []DataRow) error {
+	return s.R.Tx.InTx(ctx, func(ctx context.Context) error {
+		it, err := s.R.Data.GetByKey(ctx, key)
+		if err != nil {
+			return err
+		}
+		if it.Owner != owner || it.Kind != DataTable {
+			return ErrOwned
+		}
+		old, err := s.R.Data.Rows(ctx, it.ID)
+		if err != nil {
+			return err
+		}
+		ids := make([]int64, 0, len(old))
+		for _, r := range old {
+			ids = append(ids, r.ID)
+		}
+		if err := s.R.Data.DeleteRows(ctx, it.ID, ids); err != nil {
+			return err
+		}
+		fresh := make([]DataRow, len(rows))
+		for i, r := range rows {
+			fresh[i] = DataRow{Position: i, Cells: r.Cells}
+		}
+		if err := s.R.Data.PutRows(ctx, it.ID, fresh); err != nil {
+			return err
+		}
+		it.UpdatedBy, it.UpdatedAt = nil, s.Now()
+		if err := s.R.Data.Update(ctx, &it); err != nil {
+			return err
+		}
+		return s.R.Data.SetAssetRefs(ctx, it.ID, imageRefs(it, fresh))
+	})
 }
 
 // AssetURLTTL is about how long a signed asset URL works: it expires at the

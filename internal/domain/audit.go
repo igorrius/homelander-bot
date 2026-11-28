@@ -90,9 +90,9 @@ const SiteTarget = "site"
 
 // Data space audit actions.
 const (
-	ActDataCreated     = "data.created"
-	ActDataUpdated     = "data.updated"
-	ActDataDeleted     = "data.deleted"
+	ActDataCreated       = "data.created"
+	ActDataUpdated       = "data.updated"
+	ActDataDeleted       = "data.deleted"
 	ActDataVisibilitySet = "data.visibility_set"
 	ActDataRowsChanged   = "data.rows_changed"
 	// The public flag became a visibility; this stays for older audit entries.

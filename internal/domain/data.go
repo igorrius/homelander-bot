@@ -62,10 +62,13 @@ type DataItem struct {
 	Value       json.RawMessage // value items; "null" when empty
 	Columns     []DataColumn    // table items
 	RowCount    int             // table items, filled on read
-	CreatedBy   *int64
-	UpdatedBy   *int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Owner is the module that writes the item ("module:feed"); "" for items
+	// admins keep. An owned item is read-only except its visibility.
+	Owner     string
+	CreatedBy *int64
+	UpdatedBy *int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // DataRow is one row of a table item; Cells maps column names to JSON values.
@@ -89,4 +92,11 @@ type DataRepo interface {
 	DeleteRows(ctx context.Context, itemID int64, ids []int64) error
 	SetAssetRefs(ctx context.Context, itemID int64, assetIDs []int64) error
 	AssetIsPublic(ctx context.Context, assetID int64) (bool, error)
+	AssetRefs(ctx context.Context, assetID int64) ([]AssetRef, error)
+}
+
+// AssetRef is an item that refers to an asset, as far as serving it matters.
+type AssetRef struct {
+	Visibility Visibility
+	Owner      string
 }
