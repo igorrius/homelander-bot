@@ -10,6 +10,8 @@ import { RegisterPage } from './pages/RegisterPage'
 import { SitePageRoute } from './pages/SitePageRoute'
 import { CabinetHome } from './pages/cabinet/CabinetHome'
 import { CabinetLayout } from './pages/cabinet/CabinetLayout'
+import { FeedPage } from './pages/cabinet/FeedPage'
+import { FeedPostPage } from './pages/cabinet/FeedPostPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { ApplicationsPage } from './pages/admin/ApplicationsPage'
 import { AuditPage } from './pages/admin/AuditPage'
@@ -43,6 +45,8 @@ export default function App() {
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route path="/my" element={<CabinetLayout />}>
           <Route index element={<CabinetHome />} />
+          <Route path="feed" element={<FeedPage />} />
+          <Route path="feed/:id" element={<FeedPostPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>

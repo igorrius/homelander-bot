@@ -103,8 +103,9 @@ export function useDeletePost() {
 }
 
 /** The cabinet feed, 20 posts a page; the next page comes by the cursor of the last one. */
-export function useCabinetFeed() {
+export function useCabinetFeed(enabled = true) {
   return useInfiniteQuery({
+    enabled,
     queryKey: qkf.cabinetList,
     queryFn: ({ pageParam }) => api<{ items: CabinetPost[]; nextCursor: string | null }>(`/feed/posts${pageParam ? `?cursor=${encodeURIComponent(pageParam)}` : ''}`),
     initialPageParam: '',
@@ -118,6 +119,7 @@ export function useCabinetPost(id: number) {
   return useQuery({
     queryKey: qkf.cabinetPost(id),
     queryFn: () => api<CabinetPost>(`/feed/posts/${id}`),
+    enabled: id > 0,
     retry: retryUnless404,
   })
 }
