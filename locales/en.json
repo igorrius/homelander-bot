@@ -60,5 +60,8 @@
       "bot": "bot",
       "site": "site"
     }
+  },
+  "feed": {
+    "openInCabinet": "📰 Open in the cabinet"
   }
 }
