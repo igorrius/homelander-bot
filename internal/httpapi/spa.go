@@ -52,9 +52,11 @@ func newSPA(static fs.FS) http.Handler {
 
 				return
 			}
-			// A missing file is 404; other dotted paths are app routes, such
-			// as /admin/data/feed.posts.
-			if fileExts[strings.ToLower(path.Ext(name))] || strings.HasPrefix(name, "assets/") {
+			// A missing file is 404. Dotted paths of the admin panel and the
+			// cabinet are app routes whatever they end with (a data key such
+			// as /admin/data/rules.txt); elsewhere only file-like ones are 404.
+			appRoute := strings.HasPrefix(name, "admin/") || strings.HasPrefix(name, "my/")
+			if !appRoute && (fileExts[strings.ToLower(path.Ext(name))] || strings.HasPrefix(name, "assets/")) {
 				http.NotFound(w, r)
 				return
 			}
