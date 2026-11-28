@@ -24,9 +24,28 @@ type Notifier struct {
 type destination struct {
 	messenger string
 	to        Destination
+	user      int64 // the user a private message goes to; 0 for chats and topics
 }
 
-// resolve returns the accepted places a label hangs on, without duplicates.
+// userChannel returns the messenger account a label's message reaches a user
+// on: only an active user with a linked account receives anything.
+func userChannel(ctx context.Context, r Repos, userID int64) (Channel, bool, error) {
+	u, err := r.Users.Get(ctx, userID)
+	if errors.Is(err, ErrNotFound) {
+		return Channel{}, false, nil
+	}
+	if err != nil || u.Status != StatusActive {
+		return Channel{}, false, err
+	}
+	chans, err := r.Channels.ListByUser(ctx, userID)
+	if err != nil || len(chans) == 0 {
+		return Channel{}, false, err
+	}
+	return chans[0], true, nil
+}
+
+// resolve returns the accepted places and reachable users a label hangs on,
+// without duplicates.
 func (n *Notifier) resolve(ctx context.Context, labelID int64) ([]destination, error) {
 	targets, err := n.R.Labels.Targets(ctx, labelID)
 	if err != nil {
@@ -47,8 +66,15 @@ func (n *Notifier) resolve(ctx context.Context, labelID int64) ([]destination, e
 	return out, nil
 }
 
-// target resolves one chat or topic; ok is false when it receives nothing.
+// target resolves one chat, topic or user; ok is false when it receives nothing.
 func (n *Notifier) target(ctx context.Context, t LabelTarget) (destination, bool, error) {
+	if t.Type == TargetUser {
+		c, ok, err := userChannel(ctx, n.R, t.ID)
+		if !ok {
+			return destination{}, false, err
+		}
+		return destination{c.Type, Destination{ChatID: c.ChatID}, t.ID}, true, nil
+	}
 	var thread string
 	chatID := t.ID
 	if t.Type == TargetTopic {
@@ -68,7 +94,7 @@ func (n *Notifier) target(ctx context.Context, t LabelTarget) (destination, bool
 	if ch.State != ChatAccepted {
 		return destination{}, false, nil
 	}
-	return destination{ch.Messenger, Destination{ChatID: ch.ExternalID, ThreadID: thread}}, true, nil
+	return destination{ch.Messenger, Destination{ChatID: ch.ExternalID, ThreadID: thread}, 0}, true, nil
 }
 
 func (n *Notifier) add(ctx context.Context, d destination, m OutMessage, origin string, labelID, userID *int64) (int64, error) {
@@ -84,8 +110,8 @@ func (n *Notifier) add(ctx context.Context, d destination, m OutMessage, origin 
 	return it.ID, nil
 }
 
-// SendToLabel queues m for every accepted place carrying the label and
-// returns how many rows it queued.
+// SendToLabel queues m for every accepted place and reachable user carrying
+// the label and returns how many rows it queued.
 func (n *Notifier) SendToLabel(ctx context.Context, labelID int64, m OutMessage, origin string) (int, error) {
 	ids, err := n.sendToLabel(ctx, labelID, m, origin)
 	return len(ids), err
@@ -95,8 +121,9 @@ func (n *Notifier) sendToLabel(ctx context.Context, labelID int64, m OutMessage,
 	return n.SendToLabels(ctx, []int64{labelID}, m, origin)
 }
 
-// SendToLabels queues m once for every accepted place carrying any of the
-// labels: a chat or topic with two of them gets one message. Each row records
+// SendToLabels queues m once for every accepted place or reachable user
+// carrying any of the labels: a chat, topic or user with two of them gets one
+// message (a user who is also in a labelled chat gets both). Each row records
 // the first of the labels that reaches its place. It returns the queued ids.
 func (n *Notifier) SendToLabels(ctx context.Context, labelIDs []int64, m OutMessage, origin string) ([]int64, error) {
 	var ids []int64
@@ -111,7 +138,11 @@ func (n *Notifier) SendToLabels(ctx context.Context, labelIDs []int64, m OutMess
 				continue
 			}
 			seen[d] = true
-			id, err := n.add(ctx, d, m, origin, &labelID, nil)
+			var userID *int64
+			if d.user != 0 {
+				userID = &d.user
+			}
+			id, err := n.add(ctx, d, m, origin, &labelID, userID)
 			if err != nil {
 				return nil, err
 			}
@@ -128,7 +159,7 @@ func (n *Notifier) SendToUser(ctx context.Context, userID int64, m OutMessage, o
 		return false, err
 	}
 	c := chans[0]
-	_, err = n.add(ctx, destination{c.Type, Destination{ChatID: c.ChatID}}, m, origin, nil, &userID)
+	_, err = n.add(ctx, destination{c.Type, Destination{ChatID: c.ChatID}, userID}, m, origin, nil, &userID)
 	return err == nil, err
 }
 

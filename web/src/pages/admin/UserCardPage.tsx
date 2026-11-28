@@ -15,7 +15,10 @@ import { supportedLocales } from '../../i18n'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { formatDateTime, fullName } from '../../lib/format'
 import { useLocalized } from '../../lib/localized'
+import { useLabels } from '../../api/chats'
 import { AuditTable } from './AuditTable'
+import { LabelBadges } from './LabelBadges'
+import { LabelsModal } from './LabelsModal'
 import { ResidencyEditor } from './ResidencyEditor'
 import { Copy, UserSummary } from './UserSummary'
 
@@ -65,6 +68,28 @@ function Details({ user }: { user: AdminUser }) {
           </Group>
         </Stack>
       </form>
+    </Card>
+  )
+}
+
+function Labels({ card }: { card: UserCard }) {
+  const { t } = useTranslation()
+  const labels = useLabels()
+  const [editing, setEditing] = useState(false)
+  return (
+    <Card withBorder>
+      <Stack gap="sm">
+        <Group justify="space-between">
+          <Title order={3} size="h4">{t('admin.user.labels')}</Title>
+          <Button size="xs" variant="default" onClick={() => setEditing(true)}>{t('admin.user.editLabels')}</Button>
+        </Group>
+        <LabelBadges ids={card.labelIds} labels={labels.data ?? []} empty={t('admin.user.noLabels')} />
+        <Text size="xs" c="dimmed">{t('admin.user.labelsHint')}</Text>
+      </Stack>
+      {editing && (
+        <LabelsModal target={{ type: 'user', id: card.user.id }} current={card.labelIds} title={t('admin.user.editLabels')}
+          onClose={() => setEditing(false)} />
+      )}
     </Card>
   )
 }
@@ -327,7 +352,10 @@ export function UserCardPage() {
               </Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="details">
-              <Details key={detailsKey} user={user} />
+              <Stack>
+                <Details key={detailsKey} user={user} />
+                <Labels card={card.data} />
+              </Stack>
             </Tabs.Panel>
             <Tabs.Panel value="apartments">
               <Residencies card={card.data} />

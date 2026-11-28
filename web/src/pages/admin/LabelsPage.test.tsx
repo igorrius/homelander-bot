@@ -25,6 +25,14 @@ describe('LabelsPage', () => {
     expect(within(row).getByText(uk.admin.labels.usedByApplications)).toBeInTheDocument()
   })
 
+  it('lists the people a label hangs on', async () => {
+    mockApi({ ...routes, 'GET /admin/labels': { body: [{ id: 4, name: 'testers', description: '', targets: [{ type: 'user', id: 7 }],
+      users: [{ id: 7, name: 'Ann Lee', reachable: true }], usedByApplications: false }] } })
+    renderApp('/admin/chats/labels')
+    const row = (await screen.findByText('testers')).closest('tr') as HTMLElement
+    expect(within(row).getByText('Ann Lee')).toBeInTheDocument()
+  })
+
   it('creates, renames and refuses a taken name', async () => {
     const { calls } = mockApi({
       ...routes,

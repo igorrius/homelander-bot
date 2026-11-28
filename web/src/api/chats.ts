@@ -36,13 +36,17 @@ export function useChatAction() {
   })
 }
 
-const targetPath = (type: LabelTargetType, id: number) => (type === 'chat' ? `/admin/chats/${id}` : `/admin/topics/${id}`)
+const targetPath = (type: LabelTargetType, id: number) =>
+  type === 'chat' ? `/admin/chats/${id}` : type === 'user' ? `/admin/users/${id}` : `/admin/topics/${id}`
 
 export function useSetLabels() {
   const qc = useQueryClient()
   return useMutation<null, ApiError, { type: LabelTargetType; id: number; labelIds: number[] }>({
     mutationFn: ({ type, id, labelIds }) => api<null>(`${targetPath(type, id)}/labels`, json('PUT', { labelIds })),
-    onSuccess: () => chatsChanged(qc),
+    onSuccess: (_, { type, id }) => {
+      chatsChanged(qc)
+      if (type === 'user') void qc.invalidateQueries({ queryKey: qka.user(id) })
+    },
   })
 }
 

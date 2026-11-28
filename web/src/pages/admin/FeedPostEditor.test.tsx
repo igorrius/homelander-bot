@@ -7,7 +7,7 @@ import { callsTo, mockApi } from '../../test/api'
 import { adminPost, adminRoutes, chat, feedModule, labels, yard } from '../../test/fixtures'
 import { currentLocation, renderApp } from '../../test/render'
 
-const unused = { id: 3, name: 'unused', description: '', targets: [{ type: 'chat' as const, id: 1 }], usedByApplications: false }
+const unused = { id: 3, name: 'unused', description: '', targets: [{ type: 'chat' as const, id: 1 }], users: [], usedByApplications: false }
 const routes = {
   ...adminRoutes,
   'GET /admin/chats': { body: [chat(), yard] },
@@ -48,6 +48,16 @@ describe('FeedPostEditor', () => {
     await user.click(field)
     expect(await screen.findByRole('option', { name: 'journal' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'unused' })).not.toBeInTheDocument()
+  })
+
+  it('offers a label that reaches only people', async () => {
+    const person = (id: number, name: string, reachable: boolean) => ({ id, name, description: '', targets: [{ type: 'user' as const, id }],
+      users: [{ id, name: 'Ann Lee', reachable }], usedByApplications: false })
+    mockApi({ ...routes, 'GET /admin/labels': { body: [...labels, person(8, 'testers', true), person(9, 'gone', false)] } })
+    const { user } = renderApp('/admin/modules/feed/posts/new')
+    await user.click(await labelsField())
+    expect(await screen.findByRole('option', { name: 'testers' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'gone' })).not.toBeInTheDocument()
   })
 
   it('saves a draft and opens it', async () => {

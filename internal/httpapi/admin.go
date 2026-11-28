@@ -285,6 +285,7 @@ func (h handlerCtx) writeCard(w http.ResponseWriter, r *http.Request, id int64, 
 		"user":        n.toAdminUser(card.User, card.Residencies, hasType(card.Channels, h.api.Messenger.Type())),
 		"channels":    chans,
 		"residencies": n.residencies(card.Residencies),
+		"labelIds":    ids(card.LabelIDs),
 		"audit":       toAudit(r.Context(), n, card.Audit),
 		"mcpGrants":   grants,
 	})

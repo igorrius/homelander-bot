@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChats, useLabels, useNotifications, useSaveNotifications } from '../../api/chats'
 import { PageHeader } from '../../components/PageHeader'
-import { reachesChat } from '../../lib/chats'
+import { reachesSomeone } from '../../lib/chats'
 import { errorText, useApiErrors } from '../../lib/errors'
 
 /** Where the system's own notices go. */
@@ -38,7 +38,7 @@ export function NotificationsPage() {
                 {t('admin.notifications.off')}
               </Button>
             </Group>
-            {chosen && chats.data && !reachesChat(chosen, chats.data) && <Alert color="orange" p="xs">{t('admin.notifications.noChat')}</Alert>}
+            {chosen && chats.data && !reachesSomeone(chosen, chats.data) && <Alert color="orange" p="xs">{t('admin.notifications.noChat')}</Alert>}
             {message && <Alert color="red">{message}</Alert>}
             {save.isSuccess && <Text size="sm" c="teal">{t('common.saved')}</Text>}
             <Group justify="flex-end">

@@ -214,3 +214,23 @@ func TestOwnedDataItemHTTP(t *testing.T) {
 		t.Fatalf("reserved = %d %s", r.Code, r.Body)
 	}
 }
+
+func TestFeedDeliveryToPersonIsNamed(t *testing.T) {
+	e, tok := adminEnv(t)
+	u := e.mkUser("+380500000020", func(u *domain.User) { u.FirstName, u.LastName = "Ann", "Lee" })
+	if err := e.r.Channels.Create(ctx, &domain.Channel{UserID: u.ID, Type: "telegram", ExternalID: "333", ChatID: "333"}); err != nil {
+		t.Fatal(err)
+	}
+	r := e.do("POST", "/api/v1/admin/labels", map[string]any{"name": "testers"}, tok, "")
+	l := int64(r.json()["id"].(float64))
+	if r := e.do("PUT", fmt.Sprintf("/api/v1/admin/users/%d/labels", u.ID), map[string]any{"labelIds": []int64{l}}, tok, ""); r.Code != 204 {
+		t.Fatalf("user labels = %d %s", r.Code, r.Body)
+	}
+	r = e.do("POST", "/api/v1/admin/feed/posts", map[string]any{"body": "Try this", "imageAssetId": nil, "labelIds": []int64{l}}, tok, "")
+	id := int64(r.json()["id"].(float64))
+	r = e.do("POST", fmt.Sprintf("/api/v1/admin/feed/posts/%d/publish", id), map[string]any{"labelIds": []int64{l}}, tok, "")
+	ds, _ := r.json()["deliveries"].([]any)
+	if r.Code != 200 || len(ds) != 1 || ds[0].(map[string]any)["chatTitle"] != "Ann Lee" {
+		t.Fatalf("publish = %d deliveries %v", r.Code, ds)
+	}
+}

@@ -9,7 +9,7 @@ import { useModuleEnabled } from '../../api/modules'
 import type { AdminPost } from '../../api/types'
 import { EmptyState } from '../../components/EmptyState'
 import { PageHeader } from '../../components/PageHeader'
-import { reachesChat } from '../../lib/chats'
+import { reachesSomeone } from '../../lib/chats'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { ModuleGate } from './ModuleOff'
@@ -145,7 +145,7 @@ function SettingsTab() {
   const value = draft ?? settings.data.defaultLabelIds.map(String)
   const allChats = chats.data
   // Labels that reach a chat, and any saved one that no longer does (so it can be removed).
-  const offered = labels.data.filter((l) => reachesChat(l, allChats) || value.includes(String(l.id)))
+  const offered = labels.data.filter((l) => reachesSomeone(l, allChats) || value.includes(String(l.id)))
   return (
     <Card withBorder padding="md" maw={560}>
       <Stack>

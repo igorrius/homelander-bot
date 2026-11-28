@@ -312,6 +312,10 @@ func TestAuditNamesForChatsTopicsLabels(t *testing.T) {
 	if err := e.r.Labels.Create(ctx, &label); err != nil {
 		t.Fatal(err)
 	}
+	person := e.mkUser("+380500000005", func(u *domain.User) { u.FirstName, u.LastName = "Ann", "Lee" })
+	if err := e.r.Audit.Add(ctx, domain.AuditEntry{At: e.now, Action: domain.ActLabelBound, Target: domain.UserTarget(person.ID), Details: map[string]any{"labelId": label.ID}}); err != nil {
+		t.Fatal(err)
+	}
 	for _, target := range []string{domain.ChatTarget(chat.ID), domain.TopicTarget(topic.ID), domain.LabelAuditTarget(label.ID), domain.LabelAuditTarget(999)} {
 		if err := e.r.Audit.Add(ctx, domain.AuditEntry{At: e.now, Action: "x", Target: target}); err != nil {
 			t.Fatal(err)
@@ -328,6 +332,7 @@ func TestAuditNamesForChatsTopicsLabels(t *testing.T) {
 		domain.TopicTarget(topic.ID):      "Test chat › Parking",
 		domain.LabelAuditTarget(label.ID): "news",
 		domain.LabelAuditTarget(999):      "",
+		domain.UserTarget(person.ID):      "Ann Lee",
 	}
 	for target, name := range want {
 		if got[target] != name {

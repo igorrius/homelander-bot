@@ -55,7 +55,7 @@ describe('ChatsPage', () => {
   })
 
   it('edits labels and creates a label', async () => {
-    const created = { id: 3, name: 'gate', description: '', targets: [], usedByApplications: false }
+    const created = { id: 3, name: 'gate', description: '', targets: [], users: [], usedByApplications: false }
     const { calls } = mockApi({ ...routes(), 'PUT /admin/chats/1/labels': { status: 204 }, 'POST /admin/labels': { status: 201, body: created } })
     const { user } = renderApp('/admin/chats')
     await user.click(within(await card('log')).getByRole('button', { name: uk.admin.chats.editLabels }))

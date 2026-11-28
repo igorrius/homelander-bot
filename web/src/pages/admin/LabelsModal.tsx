@@ -5,7 +5,7 @@ import { useCreateLabel, useLabels, useSetLabels } from '../../api/chats'
 import type { LabelTargetType } from '../../api/types'
 import { useApiErrors } from '../../lib/errors'
 
-/** Picks the labels of a chat or topic; a new label can be created on the spot. */
+/** Picks the labels of a chat, topic or person; a new label can be created on the spot. */
 export function LabelsModal({ target, current, title, onClose }: {
   target: { type: LabelTargetType; id: number }
   current: number[]

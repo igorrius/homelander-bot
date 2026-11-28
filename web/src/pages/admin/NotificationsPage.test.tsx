@@ -10,7 +10,7 @@ import { choose } from '../../test/select'
 const routes = (applicationsLabelId: number | null) => ({
   ...adminRoutes,
   'GET /admin/chats': { body: [chat(), yard] },
-  'GET /admin/labels': { body: [...labels, { id: 3, name: 'unused', description: '', targets: [{ type: 'chat', id: 1 }], usedByApplications: false }] },
+  'GET /admin/labels': { body: [...labels, { id: 3, name: 'unused', description: '', targets: [{ type: 'chat', id: 1 }], users: [], usedByApplications: false }] },
   'GET /admin/settings/notifications': { body: { applicationsLabelId } },
 })
 

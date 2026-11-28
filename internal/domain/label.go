@@ -6,7 +6,7 @@ import (
 )
 
 // Label is an admin-defined tag; whoever sends writes to a label, and the
-// system delivers to every accepted place carrying it.
+// system delivers to every accepted place and active user carrying it.
 type Label struct {
 	ID                   int64
 	Name, Description    string
@@ -17,6 +17,7 @@ type Label struct {
 const (
 	TargetChat  = "chat"
 	TargetTopic = "chat_topic"
+	TargetUser  = "user" // the user's own messenger account, see Notifier.target
 )
 
 // LabelTarget is something a label hangs on.

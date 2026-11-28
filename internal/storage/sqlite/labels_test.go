@@ -125,3 +125,24 @@ func TestLabelDeleteCascadesBindings(t *testing.T) {
 		t.Fatalf("bindings left after label delete: %v", got)
 	}
 }
+
+func TestLabelBindingsOnUser(t *testing.T) {
+	r := newChatRepos(t)
+	a, b := r.label(t, "a"), r.label(t, "b")
+	user := domain.LabelTarget{Type: domain.TargetUser, ID: 7}
+	if err := r.labels.SetLabelsOf(ctx, user, []int64{a.ID, b.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := r.labels.LabelsOf(ctx, user); err != nil || !reflect.DeepEqual(got, []int64{a.ID, b.ID}) {
+		t.Fatalf("LabelsOf = %v, %v", got, err)
+	}
+	if got, _ := r.labels.Targets(ctx, a.ID); !reflect.DeepEqual(ids(got), []domain.LabelTarget{user}) {
+		t.Fatalf("Targets = %v", got)
+	}
+	if err := r.labels.Delete(ctx, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := r.labels.LabelsOf(ctx, user); !reflect.DeepEqual(got, []int64{b.ID}) {
+		t.Fatalf("after label delete user has %v", got)
+	}
+}

@@ -148,6 +148,7 @@ export interface UserCard {
   residencies: Residency[]
   audit: AuditEntry[]
   mcpGrants?: McpGrant[]
+  labelIds: number[]
 }
 
 export interface Page<T> {
@@ -168,7 +169,7 @@ export interface Summary {
 
 export type ChatState = 'new' | 'accepted' | 'left'
 export type BotStatus = 'member' | 'administrator' | 'restricted' | 'unknown'
-export type LabelTargetType = 'chat' | 'chat_topic'
+export type LabelTargetType = 'chat' | 'chat_topic' | 'user'
 
 /** A forum topic; the General topic is the chat itself. */
 export interface Topic {
@@ -206,6 +207,8 @@ export interface Label {
   name: string
   description: string
   targets: { type: LabelTargetType; id: number }[]
+  /** The people among the targets; reachable when messages to the label reach them now. */
+  users: { id: number; name: string; reachable: boolean }[]
   usedByApplications: boolean
 }
 

@@ -36,7 +36,7 @@ func TestChatsEndpointsAdminOnly(t *testing.T) {
 	resident := e.login(e.mkUser("+380500000001"))
 	routes := [][2]string{
 		{"GET", "/api/v1/admin/chats"}, {"POST", "/api/v1/admin/chats/1/accept"}, {"POST", "/api/v1/admin/chats/1/leave"},
-		{"PUT", "/api/v1/admin/chats/1/labels"}, {"PUT", "/api/v1/admin/topics/1/labels"}, {"PATCH", "/api/v1/admin/topics/1"},
+		{"PUT", "/api/v1/admin/chats/1/labels"}, {"PUT", "/api/v1/admin/topics/1/labels"}, {"PUT", "/api/v1/admin/users/1/labels"}, {"PATCH", "/api/v1/admin/topics/1"},
 		{"POST", "/api/v1/admin/chats/1/test"}, {"POST", "/api/v1/admin/topics/1/test"}, {"POST", "/api/v1/admin/labels/1/test"},
 		{"GET", "/api/v1/admin/outbox/1"}, {"GET", "/api/v1/admin/labels"}, {"POST", "/api/v1/admin/labels"},
 		{"PATCH", "/api/v1/admin/labels/1"}, {"DELETE", "/api/v1/admin/labels/1"},
@@ -239,5 +239,37 @@ func TestRegisterWithToken(t *testing.T) {
 	}
 	if r := e.do("POST", "/api/v1/register", body, "", ""); r.Code != 422 || r.errCode() != "token_invalid" {
 		t.Fatalf("reuse %d %s", r.Code, r.Body)
+	}
+}
+
+func TestSetUserLabels(t *testing.T) {
+	e := newAPIEnv(t)
+	_, tok := e.adminToken()
+	u := e.mkUser("+380500000002", func(u *domain.User) { u.FirstName, u.LastName = "Ann", "Lee" })
+	if err := e.r.Channels.Create(ctx, &domain.Channel{UserID: u.ID, Type: "telegram", ExternalID: "222", ChatID: "222"}); err != nil {
+		t.Fatal(err)
+	}
+	r := e.do("POST", "/api/v1/admin/labels", map[string]string{"name": "testers"}, tok, "")
+	id := int64(r.json()["id"].(float64))
+	path := fmt.Sprintf("/api/v1/admin/users/%d/labels", u.ID)
+	if r := e.do("PUT", path, map[string]any{"labelIds": []int64{id}}, tok, ""); r.Code != 204 {
+		t.Fatalf("set labels %d %s", r.Code, r.Body)
+	}
+	if r := e.do("GET", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), nil, tok, ""); !strings.Contains(r.Body.String(), fmt.Sprintf(`"labelIds":[%d]`, id)) {
+		t.Fatalf("card %d %s", r.Code, r.Body)
+	}
+	want := fmt.Sprintf(`"targets":[{"type":"user","id":%d}],"users":[{"id":%d,"name":"Ann Lee","reachable":true}]`, u.ID, u.ID)
+	if r := e.do("GET", "/api/v1/admin/labels", nil, tok, ""); !strings.Contains(r.Body.String(), want) {
+		t.Fatalf("labels %s; want %s", r.Body, want)
+	}
+	if r := e.do("PUT", "/api/v1/admin/users/9999/labels", map[string]any{"labelIds": []int64{id}}, tok, ""); r.Code != 404 {
+		t.Fatalf("unknown user %d %s", r.Code, r.Body)
+	}
+	resident := e.login(e.mkUser("+380500000003"))
+	if r := e.do("PUT", path, map[string]any{"labelIds": []int64{}}, resident, ""); r.Code != 403 {
+		t.Fatalf("resident %d", r.Code)
+	}
+	if r := e.do("GET", fmt.Sprintf("/api/v1/admin/users/%d", e.mkUser("+380500000004").ID), nil, tok, ""); !strings.Contains(r.Body.String(), `"labelIds":[]`) {
+		t.Fatalf("card without labels %s", r.Body)
 	}
 }

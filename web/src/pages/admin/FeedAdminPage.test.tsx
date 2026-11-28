@@ -8,7 +8,7 @@ import { currentLocation, renderApp } from '../../test/render'
 
 const off = { status: 404, body: { error: { code: 'module_disabled' } } }
 // A label on a chat nobody accepted reaches no one: it is not offered.
-const unused = { id: 3, name: 'unused', description: '', targets: [{ type: 'chat' as const, id: 1 }], usedByApplications: false }
+const unused = { id: 3, name: 'unused', description: '', targets: [{ type: 'chat' as const, id: 1 }], users: [], usedByApplications: false }
 const routes = {
   ...adminRoutes,
   'GET /admin/chats': { body: [chat(), yard] },

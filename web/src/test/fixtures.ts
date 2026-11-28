@@ -49,6 +49,7 @@ export function userCard(over: Partial<AdminUser> = {}): UserCard {
     user: adminUser(over),
     channels: [{ id: 9, type: 'telegram', username: 'olena_test', linkedAt: '2026-11-21T10:00:00Z' }],
     residencies: resident.residencies,
+    labelIds: [],
     audit: [{ id: 1, at: '2026-11-21T09:00:00Z', action: 'user.approved', target: 'user:5', targetName: 'Olena Test', targetNames: null, actorUserId: 1, actorName: 'Adam Admin', details: null, ip: '127.0.0.1' }],
   }
 }
@@ -131,8 +132,8 @@ export const yard: Chat = chat({
 })
 
 export const labels: Label[] = [
-  { id: 1, name: 'residents', description: '', targets: [{ type: 'chat', id: 2 }], usedByApplications: false },
-  { id: 2, name: 'journal', description: 'admins', targets: [{ type: 'chat_topic', id: 21 }], usedByApplications: true },
+  { id: 1, name: 'residents', description: '', targets: [{ type: 'chat', id: 2 }], users: [], usedByApplications: false },
+  { id: 2, name: 'journal', description: 'admins', targets: [{ type: 'chat_topic', id: 21 }], users: [], usedByApplications: true },
 ]
 
 export const dataItems: DataItem[] = [

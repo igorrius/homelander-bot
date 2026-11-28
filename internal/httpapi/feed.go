@@ -148,6 +148,9 @@ func (h handlerCtx) toAdminPost(r *http.Request, n *namer, p domain.FeedPost, ro
 			if it.To.ThreadID != "" {
 				dd.TopicTitle = names.topics[key+"/"+it.To.ThreadID]
 			}
+			if it.UserID != nil { // a private message to a person carrying the label
+				dd.ChatTitle = n.userName(r.Context(), *it.UserID)
+			}
 			d.Deliveries = append(d.Deliveries, dd)
 		}
 	}

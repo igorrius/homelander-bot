@@ -154,6 +154,38 @@ func TestMigrationDataVisibility(t *testing.T) {
 	}
 }
 
+func TestMigrationUserLabelsKeepsBindings(t *testing.T) {
+	ctx := context.Background()
+	db := openTemp(t)
+	if err := Migrate(ctx, db, upTo(t, 9)); err != nil {
+		t.Fatal(err)
+	}
+	const at = "2026-11-28T00:00:00Z"
+	if _, err := db.Exec(`INSERT INTO labels (id, name, name_key, description, created_at, updated_at) VALUES (1, 'l', 'l', '', ?, ?)`, at, at); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO label_bindings (label_id, target_type, target_id, created_at) VALUES (1, 'chat', 1, ?), (1, 'chat_topic', 2, ?)`, at, at); err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, db, Migrations); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM label_bindings WHERE label_id = 1 AND created_at = ?
+		AND ((target_type = 'chat' AND target_id = 1) OR (target_type = 'chat_topic' AND target_id = 2))`, at).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("kept bindings = %d, %v; want 2", n, err)
+	}
+	if _, err := db.Exec(`INSERT INTO label_bindings (label_id, target_type, target_id, created_at) VALUES (1, 'user', 7, ?)`, at); err != nil {
+		t.Fatalf("user binding refused: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO label_bindings (label_id, target_type, target_id, created_at) VALUES (1, 'house', 7, ?)`, at); err == nil {
+		t.Error("CHECK accepted an unknown target type")
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'label_bindings_target'`).Scan(&n); err != nil || n != 1 {
+		t.Errorf("index label_bindings_target: n=%d, err=%v", n, err)
+	}
+}
+
 func TestMigrationModulesFeedRenamesFeedKeys(t *testing.T) {
 	ctx := context.Background()
 	db := openTemp(t)
