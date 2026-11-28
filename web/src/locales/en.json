@@ -388,7 +388,7 @@
     },
     "notifications": {
       "title": "Notifications",
-      "description": "Where the system posts its own notices. Pick a label; every chat carrying it gets the notice.",
+      "description": "Where the system posts its own notices. Pick a label; every chat and every person with the bot carrying it gets the notice.",
       "applications": "New applications",
       "applicationsHint": "A short notice about each new application, without the phone number.",
       "off": "Turn off",
@@ -537,7 +537,7 @@
       },
       "newPost": "New post",
       "empty": "No posts yet",
-      "emptyHint": "Write the first announcement: residents see it in the cabinet, and chats with the chosen labels get a copy.",
+      "emptyHint": "Write the first announcement: residents see it in the cabinet, and chats and people with the chosen labels get a copy.",
       "noText": "(no text)",
       "state": {
         "draft": "Draft",
@@ -553,7 +553,7 @@
       },
       "settings": {
         "defaultLabels": "Labels for new posts",
-        "defaultLabelsHint": "They fill \"Also post to\" of every new post. Only labels on accepted chats are listed.",
+        "defaultLabelsHint": "They fill \"Also post to\" of every new post. Only labels that reach an accepted chat or a person with the bot are listed.",
         "noLabels": "No label is on an accepted chat yet, so posts go to the cabinet only."
       },
       "editor": {
@@ -571,7 +571,7 @@
         "replaceImage": "Replace",
         "removeImage": "Remove",
         "labels": "Also post to",
-        "labelsHint": "Chats and topics with these labels get one copy each. Empty means the cabinet only.",
+        "labelsHint": "Chats, topics and people with these labels get one copy each (people in a private bot message). Empty means the cabinet only.",
         "labelsPlaceholder": "Cabinet only",
         "labelsFixed": "Labels can't change after publishing.",
         "preview": "How it reads",
@@ -579,7 +579,7 @@
         "saveDraft": "Save draft",
         "saveChanges": "Save changes",
         "publish": "Publish",
-        "publishConfirm": "Publish the post? Residents see it in the cabinet, and chats with the labels \"{{labels}}\" get a copy. Once sent, a copy can't be recalled or changed.",
+        "publishConfirm": "Publish the post? Residents see it in the cabinet, and chats and people with the labels \"{{labels}}\" get a copy. Once sent, a copy can't be recalled or changed.",
         "publishConfirmCabinetOnly": "Publish the post? Residents see it in the cabinet. Nothing goes to Telegram.",
         "publishedNote": "Edits change the cabinet and the site only: copies already sent to Telegram are not changed.",
         "delete": "Delete post",
