@@ -33,8 +33,13 @@ function nonce() {
   return new URL(frame().getAttribute('src') ?? '', 'http://localhost').searchParams.get('hl')
 }
 
-/** The page's bridge saying it is ready, with the current nonce and a fresh port. */
-function ready(over: { nonce?: string | null } = {}) {
+/**
+ * A document finished loading in the frame and its bridge says ready, with the current nonce and a fresh
+ * port. The bridge posts ready a task after its load event, so it comes after the frame's load (load: false
+ * sends a ready alone, for the other order).
+ */
+function ready(over: { nonce?: string | null; load?: boolean } = {}) {
+  if (over.load !== false) fireEvent.load(frame())
   const port = fakePort()
   send(frame().contentWindow, { type: 'homelander:ready', nonce: 'nonce' in over ? over.nonce : nonce() }, [port])
   return port
@@ -154,12 +159,11 @@ describe('PageFrame data', () => {
     mockApi({ ...publicRoutes, 'GET /me': { body: resident }, 'GET /me/data': { body: items } })
     const { rerender } = renderWithProviders(<PageFrame src="/site/index.html" lang="uk" title="Page" />)
     await settle()
-    const first = ready()
+    const first = ready() // load, then ready: the order the bridge keeps
     await waitFor(() => expect(first.postMessage).toHaveBeenCalledTimes(1))
-    fireEvent.load(frame()) // the page finished loading
     rerender(<PageFrame src="/site/index.html" lang="en" title="Page" />)
     expect(first.postMessage).toHaveBeenCalledTimes(2)
-    fireEvent.load(frame()) // a second load: the frame went to another document
+    fireEvent.load(frame()) // another load: the frame went to another document
     expect(first.close).toHaveBeenCalled()
     rerender(<PageFrame src="/site/index.html" lang="uk" title="Page" />)
     expect(first.postMessage).toHaveBeenCalledTimes(2)
@@ -167,13 +171,32 @@ describe('PageFrame data', () => {
     const foreign = ready({ nonce: null })
     rerender(<PageFrame src="/site/index.html" lang="en" title="Page" />)
     expect(foreign.postMessage).not.toHaveBeenCalled()
-    // Our page loaded again (a reload) says ready with the nonce before its load event.
+    // Our page loaded again (a reload) answers after its load and gets data again.
     const again = ready()
-    fireEvent.load(frame())
     expect(again.postMessage).toHaveBeenCalledTimes(1)
     rerender(<PageFrame src="/site/index.html" lang="uk" title="Page" />)
     expect(again.postMessage).toHaveBeenCalledTimes(2)
     expect(first.postMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('takes no ready that comes before the frame loads, and one ready per load', async () => {
+    mockApi({ ...publicRoutes, 'GET /me': { body: resident }, 'GET /me/data': { body: items } })
+    const { rerender } = renderWithProviders(<PageFrame src="/site/index.html" lang="uk" title="Page" />)
+    await settle()
+    // Ready first, load after: the load may be another document, so that ready is not taken.
+    const early = ready({ load: false })
+    fireEvent.load(frame())
+    rerender(<PageFrame src="/site/index.html" lang="en" title="Page" />)
+    await settle()
+    expect(early.postMessage).not.toHaveBeenCalled()
+    // A ready after the latest load is taken.
+    const late = ready({ load: false })
+    await waitFor(() => expect(late.postMessage).toHaveBeenCalledTimes(1))
+    // A second ready without a new load is not.
+    const extra = ready({ load: false })
+    rerender(<PageFrame src="/site/index.html" lang="uk" title="Page" />)
+    expect(extra.postMessage).not.toHaveBeenCalled()
+    expect(late.postMessage).toHaveBeenCalledTimes(2)
   })
 
   it('tells an admin preview who is looking', async () => {
