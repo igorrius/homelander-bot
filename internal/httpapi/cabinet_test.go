@@ -122,7 +122,7 @@ func TestMyHomeEmpty(t *testing.T) {
 	e := newAPIEnv(t)
 	u := e.mkUser("+380500000001", admin, func(u *domain.User) { u.IsResident = false })
 	r := e.do("GET", "/api/v1/me/home", nil, e.login(u), "")
-	if r.Code != 200 || string(r.Body.Bytes()) != `{"homes":[],"telegramLinked":true}`+"\n" {
+	if r.Code != 200 || r.Body.String() != `{"homes":[],"telegramLinked":true}`+"\n" {
 		t.Errorf("home = %d %s", r.Code, r.Body)
 	}
 }

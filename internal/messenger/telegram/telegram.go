@@ -33,9 +33,12 @@ type API interface {
 	GetChatMember(chatId int64, userId int64, opts *gotgbot.GetChatMemberOpts) (gotgbot.ChatMember, error)
 }
 
-// Activator links a Telegram account to the user with the verified phone.
+// Activator links a Telegram account to the user with the verified phone and
+// hands a linked, active user a one-time login link to the cabinet.
 type Activator interface {
 	ActivateChannel(ctx context.Context, typ, externalID, chatID, username, verifiedPhone string) (domain.Activation, error)
+	// CabinetLink gives domain.ErrNotFound when the account is not linked to an active user.
+	CabinetLink(ctx context.Context, typ, externalID string) (domain.User, string, error)
 }
 
 // GroupMessage is a messenger-neutral copy of a message seen in a group.
@@ -155,14 +158,50 @@ func (b *Bot) handlePrivate(ctx context.Context, m *gotgbot.Message) {
 	case m.Contact != nil:
 		b.handleContact(ctx, m, lang)
 	case m.Text == "/start" || strings.HasPrefix(m.Text, "/start "):
-		b.reply(m.Chat.Id, b.tr.T(lang, "bot.start.prompt", nil, nil), gotgbot.ReplyKeyboardMarkup{
-			Keyboard:        [][]gotgbot.KeyboardButton{{{Text: b.tr.T(lang, "bot.start.button", nil, nil), RequestContact: true}}},
-			ResizeKeyboard:  true,
-			OneTimeKeyboard: true,
-		})
+		b.askContact(m.Chat.Id, lang)
+	case b.isCommand(m.Text, "cabinet"):
+		b.handleCabinet(ctx, m, lang)
 	default:
 		b.reply(m.Chat.Id, b.tr.T(lang, "bot.help", nil, nil), nil)
 	}
+}
+
+// isCommand reports whether text is /name, /name@<this bot> or either
+// followed by arguments.
+func (b *Bot) isCommand(text, name string) bool {
+	word, _, _ := strings.Cut(text, " ")
+	return word == "/"+name || strings.EqualFold(word, "/"+name+"@"+b.username)
+}
+
+// askContact asks for the phone number with the contact button (the /start answer).
+func (b *Bot) askContact(chatID int64, lang string) {
+	b.reply(chatID, b.tr.T(lang, "bot.start.prompt", nil, nil), gotgbot.ReplyKeyboardMarkup{
+		Keyboard:        [][]gotgbot.KeyboardButton{{{Text: b.tr.T(lang, "bot.start.button", nil, nil), RequestContact: true}}},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	})
+}
+
+// handleCabinet answers /cabinet with a one-time login link for a linked,
+// active user; anyone else is asked to connect their account as on /start.
+func (b *Bot) handleCabinet(ctx context.Context, m *gotgbot.Message, lang string) {
+	user, url, err := b.act.CabinetLink(ctx, Type, strconv.FormatInt(m.From.Id, 10))
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		b.askContact(m.Chat.Id, lang)
+		return
+	case errors.Is(err, domain.ErrRateLimited):
+		b.reply(m.Chat.Id, b.tr.T(lang, "bot.rateLimited", nil, nil), nil)
+		return
+	case err != nil:
+		b.log.Error("telegram cabinet link failed", "err", err)
+		b.reply(m.Chat.Id, b.tr.T(lang, "common.error.internal", nil, nil), nil)
+		return
+	}
+	if user.Locale != "" {
+		lang = b.tr.Pick(user.Locale)
+	}
+	b.offerLink(m.Chat.Id, b.tr.T(lang, "bot.cabinet.offer", nil, nil), b.tr.T(lang, "bot.cabinet.button", nil, nil), url, nil)
 }
 
 func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string) {
@@ -209,14 +248,19 @@ func (b *Bot) handleContact(ctx context.Context, m *gotgbot.Message, lang string
 // when it is not https (Telegram refuses such buttons). The contact keyboard
 // was one-time, so it is already hidden.
 func (b *Bot) offerApplication(chatID int64, lang, url string) {
-	text := b.tr.T(lang, "bot.apply.offer", nil, nil)
+	b.offerLink(chatID, b.tr.T(lang, "bot.apply.offer", nil, nil), b.tr.T(lang, "bot.apply.button", nil, nil), url,
+		gotgbot.ReplyKeyboardRemove{RemoveKeyboard: true})
+}
+
+// offerLink sends text with url as an inline button, or url in the text when
+// it is not https (Telegram refuses such buttons); plain is the markup of the
+// text-only message.
+func (b *Bot) offerLink(chatID int64, text, button, url string, plain gotgbot.ReplyMarkup) {
 	if !strings.HasPrefix(url, "https://") {
-		b.reply(chatID, text+"\n"+url, gotgbot.ReplyKeyboardRemove{RemoveKeyboard: true})
+		b.reply(chatID, text+"\n"+url, plain)
 		return
 	}
-	b.reply(chatID, text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{
-		{{Text: b.tr.T(lang, "bot.apply.button", nil, nil), Url: url}},
-	}})
+	b.reply(chatID, text, gotgbot.InlineKeyboardMarkup{InlineKeyboard: [][]gotgbot.InlineKeyboardButton{{{Text: button, Url: url}}}})
 }
 
 // legacyMenuLocales are languages an earlier program may have set a default
@@ -233,7 +277,10 @@ func (b *Bot) SetCommands(_ context.Context) error {
 		}
 	}
 	menu := func(lang string) []gotgbot.BotCommand {
-		return []gotgbot.BotCommand{{Command: "start", Description: b.tr.T(lang, "bot.commands.start", nil, nil)}}
+		return []gotgbot.BotCommand{
+			{Command: "start", Description: b.tr.T(lang, "bot.commands.start", nil, nil)},
+			{Command: "cabinet", Description: b.tr.T(lang, "bot.commands.cabinet", nil, nil)},
+		}
 	}
 	if _, err := b.api.SetMyCommands(menu(b.tr.Default()), &gotgbot.SetMyCommandsOpts{Scope: gotgbot.BotCommandScopeAllPrivateChats{}}); err != nil {
 		return fmt.Errorf("telegram setMyCommands: %w", err)

@@ -150,6 +150,10 @@ type fakeActivator struct {
 	user   domain.User
 	url    string
 	err    error
+
+	cabinetCalls []string
+	cabinetURL   string
+	cabinetErr   error
 }
 
 func (f *fakeActivator) ActivateChannel(_ context.Context, typ, ext, chat, username, phone string) (domain.Activation, error) {
@@ -157,6 +161,13 @@ func (f *fakeActivator) ActivateChannel(_ context.Context, typ, ext, chat, usern
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, activation{typ, ext, chat, username, phone})
 	return domain.Activation{Result: f.result, User: f.user, RegistrationURL: f.url}, f.err
+}
+
+func (f *fakeActivator) CabinetLink(_ context.Context, typ, ext string) (domain.User, string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cabinetCalls = append(f.cabinetCalls, typ+":"+ext)
+	return f.user, f.cabinetURL, f.cabinetErr
 }
 
 type fakeSink struct {
@@ -430,7 +441,8 @@ func TestSetCommands(t *testing.T) {
 	}
 	for key, lang := range map[string]string{"private/": "uk", "private/uk": "uk", "private/en": "en"} {
 		cmds := r.api.commands[key]
-		if len(cmds) != 1 || cmds[0].Command != "start" || cmds[0].Description != r.tr.T(lang, "bot.commands.start", nil, nil) {
+		if len(cmds) != 2 || cmds[0].Command != "start" || cmds[0].Description != r.tr.T(lang, "bot.commands.start", nil, nil) ||
+			cmds[1].Command != "cabinet" || cmds[1].Description != r.tr.T(lang, "bot.commands.cabinet", nil, nil) {
 			t.Errorf("%s = %+v", key, cmds)
 		}
 	}
