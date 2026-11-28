@@ -29,6 +29,21 @@ describe('UsersPage', () => {
     expect(row.textContent).not.toContain('✓')
   })
 
+  it('marks an effective MCP agent, but not a stored flag without admin or on an inactive user', async () => {
+    const items = [
+      adminUser({ id: 1, firstName: 'Agent', lastName: 'One', isAdmin: true, isMcp: true }),
+      adminUser({ id: 2, firstName: 'Plain', lastName: 'Two', isAdmin: false, isMcp: true }),
+      adminUser({ id: 3, firstName: 'Off', lastName: 'Three', isAdmin: true, isMcp: true, status: 'disabled' }),
+    ]
+    mockApi({ ...routes, 'GET /admin/users': { body: { items, total: 3 } } })
+    renderApp('/admin/users')
+    const badge = uk.admin.user.isMcp
+    const rowOf = async (name: string) => (await screen.findByRole('link', { name })).closest('tr')!
+    expect(within(await rowOf('Agent One')).getByText(badge)).toBeInTheDocument()
+    expect(within(await rowOf('Plain Two')).queryByText(badge)).toBeNull()
+    expect(within(await rowOf('Off Three')).queryByText(badge)).toBeNull()
+  })
+
   it('searches by text', async () => {
     const { calls } = mockApi(routes)
     const { user } = renderApp('/admin/users')

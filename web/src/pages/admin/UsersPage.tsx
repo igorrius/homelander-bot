@@ -127,6 +127,7 @@ export function UsersPage() {
                     <Group gap={4}>
                       {u.isResident && <Badge variant="light">{t('admin.user.isResident')}</Badge>}
                       {u.isAdmin && <Badge variant="light" color="grape">{t('admin.user.isAdmin')}</Badge>}
+                      {u.isAdmin && u.isMcp && u.status === 'active' && <Badge variant="light" color="teal">{t('admin.user.isMcp')}</Badge>}
                     </Group>
                   </Table.Td>
                   <Table.Td>
