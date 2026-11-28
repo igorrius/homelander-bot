@@ -69,7 +69,7 @@ func TestSiteServesPublished(t *testing.T) {
 		}
 	}
 	r := e.get("/site/index.html")
-	if r.Body.String() != "<p>hi</p>" {
+	if !strings.HasPrefix(r.Body.String(), "<p>hi</p><script>") {
 		t.Fatalf("body = %q", r.Body)
 	}
 	tag := r.Header().Get("ETag")
@@ -253,7 +253,7 @@ func TestAdminPagesFlow(t *testing.T) {
 	if r := e.do("POST", "/api/v1/admin/pages/"+first+"/publish", nil, tok, ""); r.Code != 204 {
 		t.Fatalf("publish = %d %s", r.Code, r.Body)
 	}
-	if r := e.get("/site/index.html"); r.Code != 200 || r.Body.String() != "<p>one</p>" {
+	if r := e.get("/site/index.html"); r.Code != 200 || !strings.HasPrefix(r.Body.String(), "<p>one</p><script>") {
 		t.Fatalf("published = %d", r.Code)
 	}
 	second := idOf(e.uploadPage(tok, zipOf(t, map[string]string{"index.html": "two"}), ""))
@@ -366,8 +366,10 @@ func TestPreviewInjectsNav(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := e.get("/site/index.html")
-	if p.Body.String() != stored || strings.Contains(p.Body.String(), "homelander:navigate") {
-		t.Fatalf("published = %q", p.Body)
+	pub := p.Body.String()
+	if strings.Contains(pub, "homelander:navigate") || !strings.HasPrefix(pub, "<html><body><p>hi</p><script>") ||
+		!strings.HasSuffix(pub, "</script></body></html>") || !strings.Contains(pub, "homelander:ready") {
+		t.Fatalf("published = %q (stored %q)", pub, stored)
 	}
 	var sum string
 	for _, f := range v.Files {
@@ -375,8 +377,37 @@ func TestPreviewInjectsNav(t *testing.T) {
 			sum = f.SHA256
 		}
 	}
-	if tag := p.Header().Get("ETag"); sum == "" || tag != `"`+sum+`"` {
+	// The tag covers the injected script too, so a new bridge is not served from a cache.
+	if tag := p.Header().Get("ETag"); sum == "" || !strings.HasPrefix(tag, `"`+sum+`-`) {
 		t.Fatalf("ETag = %q", tag)
+	}
+}
+
+func TestSiteInjectsFrameBridge(t *testing.T) {
+	e := newAPIEnv(t)
+	v := e.draft(map[string]string{"index.html": "<p>hi</p>", "app.js": "var x = 1", "app.css": "p{}"})
+	tok := e.api.Pages.PreviewToken(v.ID)
+	for _, path := range []string{"/site/preview/" + tok + "/index.html"} {
+		body := e.get(path).Body.String()
+		if !strings.Contains(body, "homelander:ready") || !strings.Contains(body, "MessageChannel") || !strings.Contains(body, "'hl'") {
+			t.Fatalf("%s lacks the bridge: %q", path, body)
+		}
+	}
+	if err := e.api.Pages.Publish(ctx, v.ID, domain.Actor{}); err != nil {
+		t.Fatal(err)
+	}
+	r := e.get("/site/index.html")
+	if !strings.Contains(r.Body.String(), "homelander:ready") {
+		t.Fatalf("published page lacks the bridge: %q", r.Body)
+	}
+	// The nonce in the frame URL must not leave with a link to another site.
+	if r.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatalf("Referrer-Policy = %q", r.Header().Get("Referrer-Policy"))
+	}
+	for _, p := range []string{"/site/app.js", "/site/app.css"} {
+		if body := e.get(p).Body.String(); strings.Contains(body, "homelander:ready") {
+			t.Fatalf("%s got the bridge: %q", p, body)
+		}
 	}
 }
 

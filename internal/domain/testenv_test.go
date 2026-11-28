@@ -42,7 +42,7 @@ func newEnv(t *testing.T) *env {
 	e := &env{t: t, db: db, r: r, clock: c}
 	e.users = &domain.UserService{R: r, Now: c.Now, Limits: ratelimit.New(c.Now), Region: "UA", PendingCap: 200}
 	e.catalog = &domain.CatalogService{R: r, Now: c.Now, Locales: []string{"uk", "en"}}
-	e.data = &domain.DataService{R: r, Now: c.Now, Limits: ratelimit.New(c.Now), Locales: []string{"uk", "en"}}
+	e.data = &domain.DataService{R: r, Now: c.Now, Limits: ratelimit.New(c.Now), Locales: []string{"uk", "en"}, Secret: []byte("test-secret")}
 	e.pages = &domain.PageService{R: r, Now: c.Now, Secret: []byte("test-secret")}
 	sts, _ := r.Statuses.List(ctx, false)
 	e.owner = sts[0]

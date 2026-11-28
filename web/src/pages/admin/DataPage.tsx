@@ -1,19 +1,23 @@
-import { Alert, Anchor, Badge, Button, Loader, Stack, Table, Text } from '@mantine/core'
+import { Alert, Anchor, Button, Loader, SegmentedControl, Stack, Table, Text } from '@mantine/core'
 import { IconDatabase, IconPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useDataItems } from '../../api/data'
+import { visibilities, type Visibility } from '../../api/types'
 import { PageHeader } from '../../components/PageHeader'
 import { errorText } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { DataCreateModal } from './DataCreateModal'
+import { VisibilityBadge } from './VisibilityControl'
 
 /** The data space: values and tables the site and, later, modules use. */
 export function DataPage() {
   const { t, i18n } = useTranslation()
   const items = useDataItems()
   const [creating, setCreating] = useState(false)
+  const [filter, setFilter] = useState<Visibility | 'all'>('all')
+  const shown = items.data?.filter((it) => filter === 'all' || it.visibility === filter) ?? []
   return (
     <Stack>
       <PageHeader icon={IconDatabase} title={t('admin.data.title')} description={t('admin.data.description')}
@@ -25,6 +29,10 @@ export function DataPage() {
       ) : items.data.length === 0 ? (
         <Text c="dimmed">{t('admin.data.empty')}</Text>
       ) : (
+        <>
+        <SegmentedControl aria-label={t('admin.data.filterLabel')} size="xs" style={{ alignSelf: 'flex-start' }} value={filter}
+          onChange={(v) => setFilter(v as Visibility | 'all')}
+          data={[{ value: 'all', label: t('admin.data.filterAll') }, ...visibilities.map((v) => ({ value: v, label: t(`admin.data.visibility.${v}`) }))]} />
         <Table striped>
           <Table.Thead>
             <Table.Tr>
@@ -36,7 +44,7 @@ export function DataPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {items.data.map((it) => (
+            {shown.map((it) => (
               <Table.Tr key={it.key}>
                 <Table.Td>
                   <Anchor component={Link} to={`/admin/data/${it.key}`} ff="monospace">{it.key}</Anchor>
@@ -47,7 +55,7 @@ export function DataPage() {
                   {it.valueType && <Text size="xs" c="dimmed">{t(`admin.data.type.${it.valueType}`)}</Text>}
                 </Table.Td>
                 <Table.Td>
-                  <Badge variant="light" color={it.public ? 'green' : 'gray'}>{it.public ? t('admin.data.public') : t('admin.data.private')}</Badge>
+                  <VisibilityBadge value={it.visibility} />
                 </Table.Td>
                 <Table.Td>{it.kind === 'table' ? it.rowCount : ''}</Table.Td>
                 <Table.Td>
@@ -58,6 +66,7 @@ export function DataPage() {
             ))}
           </Table.Tbody>
         </Table>
+        </>
       )}
       <DataCreateModal opened={creating} onClose={() => setCreating(false)} />
     </Stack>

@@ -4,6 +4,7 @@ import { i18n } from '../i18n'
 import uk from '../locales/uk.json'
 import { mockApi } from '../test/api'
 import { publicRoutes, site } from '../test/fixtures'
+import { framedPage } from '../test/frame'
 import { renderApp } from '../test/render'
 
 const published = { ...site, pageUrl: '/site/index.html', pages: ['/', '/contacts'] }
@@ -17,7 +18,7 @@ describe('SitePageRoute', () => {
     mockApi({ ...publicRoutes, 'GET /site': { body: published } })
     renderApp('/contacts')
     const frame = (await screen.findAllByTitle('Тестова громада')).find((el) => el.tagName === 'IFRAME')
-    expect(frame).toHaveAttribute('src', '/site/contacts.html?lang=uk')
+    expect(framedPage(frame as HTMLIFrameElement)).toBe('/site/contacts.html?lang=uk')
     expect(screen.getByTestId('site-header-name')).toHaveTextContent('Тестова громада')
   })
 

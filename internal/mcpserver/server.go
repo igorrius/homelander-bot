@@ -41,7 +41,7 @@ const (
 )
 
 const instructions = `Homelander is the website and bot of one resident community. Through these tools you act as the admin who connected you.
-- The data space holds named values and tables (keys like "house.address"); public items are readable by the site pages.
+- The data space holds named values and tables (keys like "house.address"). Each item has a visibility: public (anyone), residents (signed-in residents and admins) or admins (only admins). Site pages read public items themselves and get residents items from the header when a resident is logged in.
 - Before writing or changing the site (index.html is the home page, every other root *.html is a page at /<name>), call page_guide (also the resource homelander://guide/page): the page runs in a sandbox with strict rules.
 - You can only write drafts. An admin previews and publishes them in the admin panel; give them the admin_url you get back.
 - Everything you change is recorded in the audit log as the admin, via MCP.`

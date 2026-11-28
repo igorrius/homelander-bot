@@ -229,12 +229,16 @@ export interface DataColumn {
   type: DataType
 }
 
+/** Who reads an item outside the admin panel: everyone, signed-in residents (and admins), or admins only. */
+export type Visibility = 'public' | 'residents' | 'admins'
+export const visibilities: Visibility[] = ['public', 'residents', 'admins']
+
 /** A value or a table of the data space; value is JSON (image values are asset ids). */
 export interface DataItem {
   key: string
   kind: DataKind
   description: string
-  public: boolean
+  visibility: Visibility
   valueType?: DataType
   value?: unknown
   columns?: DataColumn[]

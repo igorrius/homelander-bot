@@ -1,10 +1,11 @@
-import { Alert, Button, Group, Modal, Radio, Select, Stack, Switch, TextInput, Textarea } from '@mantine/core'
+import { Alert, Button, Group, Modal, Radio, Select, Stack, TextInput, Textarea } from '@mantine/core'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { useCreateDataItem, type DataInput } from '../../api/data'
-import { valueTypes, type DataKind, type DataType } from '../../api/types'
+import { valueTypes, type DataKind, type DataType, type Visibility } from '../../api/types'
 import { useApiErrors } from '../../lib/errors'
+import { VisibilityControl } from './VisibilityControl'
 
 /** Dialog that creates a value or a table and opens it. */
 export function DataCreateModal({ opened, onClose }: { opened: boolean; onClose(): void }) {
@@ -15,14 +16,14 @@ export function DataCreateModal({ opened, onClose }: { opened: boolean; onClose(
   const [kind, setKind] = useState<DataKind>('value')
   const [valueType, setValueType] = useState<DataType>('text')
   const [description, setDescription] = useState('')
-  const [isPublic, setPublic] = useState(false)
+  const [visibility, setVisibility] = useState<Visibility>('admins')
   const { message, fields } = useApiErrors(create.error)
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     const body: DataInput =
       kind === 'value'
-        ? { key: key.trim(), kind, valueType, description: description.trim(), public: isPublic }
-        : { key: key.trim(), kind, columns: [{ name: 'name', label: t('admin.data.firstColumn'), type: 'text' }], description: description.trim(), public: isPublic }
+        ? { key: key.trim(), kind, valueType, description: description.trim(), visibility }
+        : { key: key.trim(), kind, columns: [{ name: 'name', label: t('admin.data.firstColumn'), type: 'text' }], description: description.trim(), visibility }
     create.mutate(body, { onSuccess: (item) => navigate(`/admin/data/${item.key}`) })
   }
   return (
@@ -43,7 +44,7 @@ export function DataCreateModal({ opened, onClose }: { opened: boolean; onClose(
           )}
           <Textarea label={t('admin.data.descriptionField')} description={t('admin.data.descriptionHint')} value={description}
             onChange={(e) => setDescription(e.currentTarget.value)} error={fields.description} autosize minRows={2} />
-          <Switch label={t('admin.data.publicSwitch')} checked={isPublic} onChange={(e) => setPublic(e.currentTarget.checked)} />
+          <VisibilityControl value={visibility} onChange={setVisibility} />
           {message && <Alert color="red">{message}</Alert>}
           <Group justify="flex-end">
             <Button type="submit" loading={create.isPending}>{t('admin.data.create')}</Button>

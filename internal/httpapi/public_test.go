@@ -184,9 +184,9 @@ func TestAssetServed(t *testing.T) {
 		t.Errorf("unreferenced asset = %d", r.Code)
 	}
 	logo := domain.DataImage
-	public := true
+	public := domain.VisPublic
 	if _, err := e.api.Data.Create(ctx, domain.DataInput{Key: "logo", Kind: domain.DataValue, ValueType: &logo,
-		Value: []byte(itoa(a.ID)), Public: &public}, domain.Actor{UserID: &adm.ID}); err != nil {
+		Value: []byte(itoa(a.ID)), Visibility: &public}, domain.Actor{UserID: &adm.ID}); err != nil {
 		t.Fatal(err)
 	}
 	r := e.do("GET", "/api/v1/assets/"+itoa(a.ID), nil, "", "")

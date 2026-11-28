@@ -212,10 +212,13 @@ func TestMCPToolsList(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"data_catalog", "data_get", "data_set_value", "data_create_table", "data_update_table_columns",
-		"data_rows_upsert", "data_rows_delete", "data_set_public", "data_delete", "asset_upload"} {
+		"data_rows_upsert", "data_rows_delete", "data_set_visibility", "data_delete", "asset_upload"} {
 		if !slices.Contains(names, want) {
 			t.Errorf("tools/list lacks %s (has %v)", want, names)
 		}
+	}
+	if slices.Contains(names, "data_set_public") {
+		t.Error("data_set_public is still listed")
 	}
 	if init := s.InitializeResult(); init == nil || !strings.Contains(init.Instructions, "page_guide") {
 		t.Errorf("instructions = %+v", init)
@@ -226,8 +229,8 @@ func TestMCPSetValue(t *testing.T) {
 	e := newEnv(t)
 	s := e.session(e.access)
 	out := ok(t, s, "data_set_value", map[string]any{"key": "house.address", "value_type": "text", "value": "1 Example Street",
-		"description": "Postal address", "public": true})
-	if out["key"] != "house.address" || out["value"] != "1 Example Street" || out["public"] != true {
+		"description": "Postal address", "visibility": "public"})
+	if out["key"] != "house.address" || out["value"] != "1 Example Street" || out["visibility"] != "public" {
 		t.Errorf("created = %v", out)
 	}
 	var details string
@@ -248,6 +251,9 @@ func TestMCPSetValue(t *testing.T) {
 	res = call(t, s, "data_set_value", map[string]any{"key": "new.one", "value": "x"})
 	if !res.IsError || !strings.Contains(text(res), "value_type") {
 		t.Errorf("missing type = %v %q", res.IsError, text(res))
+	}
+	if out := ok(t, s, "data_set_value", map[string]any{"key": "plain", "value_type": "text", "value": "x"}); out["visibility"] != "admins" {
+		t.Errorf("default visibility = %v", out["visibility"])
 	}
 	res = call(t, s, "data_get", map[string]any{"key": "nope"})
 	if !res.IsError || !strings.Contains(text(res), "not found") {
@@ -275,21 +281,27 @@ func TestMCPTables(t *testing.T) {
 	ok(t, s, "data_rows_delete", map[string]any{"key": "contacts", "ids": []any{first["id"]}})
 	ok(t, s, "data_update_table_columns", map[string]any{"key": "contacts", "columns": []map[string]any{
 		{"name": "name", "label": "Name", "type": "text"}}})
-	ok(t, s, "data_set_public", map[string]any{"key": "contacts", "public": true})
+	if out := ok(t, s, "data_set_visibility", map[string]any{"key": "contacts", "visibility": "residents"}); out["visibility"] != "residents" {
+		t.Errorf("set visibility = %v", out)
+	}
+	res := call(t, s, "data_set_visibility", map[string]any{"key": "contacts", "visibility": "everyone"})
+	if !res.IsError || !strings.Contains(text(res), "visibility: invalid") {
+		t.Errorf("bad visibility = %v %q", res.IsError, text(res))
+	}
 	cat := ok(t, s, "data_catalog", nil)
 	items, _ := cat["items"].([]any)
 	if len(items) != 1 {
 		t.Fatalf("catalog = %v", cat)
 	}
 	it := items[0].(map[string]any)
-	if it["key"] != "contacts" || it["row_count"] != float64(1) || it["public"] != true || len(it["columns"].([]any)) != 1 {
+	if it["key"] != "contacts" || it["row_count"] != float64(1) || it["visibility"] != "residents" || len(it["columns"].([]any)) != 1 {
 		t.Errorf("catalog item = %v", it)
 	}
 	ok(t, s, "data_delete", map[string]any{"key": "contacts"})
 	if cat := ok(t, s, "data_catalog", nil); len(cat["items"].([]any)) != 0 {
 		t.Errorf("after delete = %v", cat)
 	}
-	res := call(t, s, "data_get", map[string]any{"key": "contacts", "limit": 500})
+	res = call(t, s, "data_get", map[string]any{"key": "contacts", "limit": 500})
 	if !res.IsError {
 		t.Errorf("limit 500 accepted")
 	}
@@ -359,7 +371,8 @@ func TestMCPPageGuide(t *testing.T) {
 	e := newEnv(t)
 	s := e.session(e.access)
 	g := text(call(t, s, "page_guide", nil))
-	for _, want := range []string{"/api/v1/public/data", "homelander:height", "homelander:lang", "index.html", `target="_top"`, "connect-src 'self'"} {
+	for _, want := range []string{"/api/v1/public/data", "homelander:height", "homelander:lang", "index.html", `target="_top"`, "connect-src 'self'",
+		"homelander:ready", "homelander:data", "signedIn", "residents", "data_set_visibility"} {
 		if !strings.Contains(g, want) {
 			t.Errorf("guide lacks %q", want)
 		}
