@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ApiError } from '../api/client'
-import { qk } from '../api/public'
+import { qk, setSessionUser } from '../api/public'
 
 const isUnauthorized = (err: unknown) => err instanceof ApiError && err.status === 401
 
@@ -13,7 +13,7 @@ export function SessionWatcher() {
   const qc = useQueryClient()
   useEffect(() => {
     const signOut = () => {
-      if (qc.getQueryData(qk.me)) qc.setQueryData(qk.me, null)
+      if (qc.getQueryData(qk.me)) setSessionUser(qc, null)
     }
     const unQ = qc.getQueryCache().subscribe((e) => {
       if (e.type === 'updated' && e.action.type === 'error' && isUnauthorized(e.action.error)) signOut()

@@ -1,10 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client'
 import { myDataKey } from './publicData'
 import type { Me, RegisterOptions, Site } from './types'
 
 /** Query keys of the public API. Admin keys all start with 'admin' (see api/admin.ts). */
 export const qk = { site: ['site'], me: ['me'], registerOptions: ['registerOptions'] } as const
+
+/**
+ * Records who is signed in now (null: nobody) and drops everything the
+ * previous account loaded, so one person never sees another's cached data.
+ * Every login, logout and session expiry goes through here.
+ */
+export function setSessionUser(qc: QueryClient, user: Me | null) {
+  qc.removeQueries({ queryKey: ['admin'] })
+  qc.removeQueries({ queryKey: ['cabinet'] })
+  qc.removeQueries({ queryKey: myDataKey })
+  qc.setQueryData(qk.me, user)
+}
 
 export function useSite() {
   return useQuery({ queryKey: qk.site, queryFn: () => api<Site>('/site'), staleTime: 60_000 })
@@ -33,12 +45,7 @@ export function useLogout() {
   const qc = useQueryClient()
   return useMutation<void, ApiError, void>({
     mutationFn: () => api<void>('/auth/logout', { method: 'POST' }),
-    onSuccess: () => {
-      qc.setQueryData(qk.me, null)
-      qc.removeQueries({ queryKey: ['admin'] })
-      qc.removeQueries({ queryKey: ['cabinet'] })
-      qc.removeQueries({ queryKey: myDataKey })
-    },
+    onSuccess: () => setSessionUser(qc, null),
   })
 }
 
@@ -52,7 +59,7 @@ export function useVerifyCode() {
   const qc = useQueryClient()
   return useMutation<{ user: Me }, ApiError, { phone: string; code: string }>({
     mutationFn: (body) => api<{ user: Me }>('/auth/verify', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: ({ user }) => qc.setQueryData(qk.me, user),
+    onSuccess: ({ user }) => setSessionUser(qc, user),
   })
 }
 

@@ -24,6 +24,9 @@ var (
 	ErrModuleOff = errors.New("module_disabled")
 	// ErrOwned: a module writes this data item; only its visibility can change.
 	ErrOwned = errors.New("module_owned")
+	// ErrLinkOtherUser: a login link was opened in a browser signed in as
+	// someone else; the link is still unspent.
+	ErrLinkOtherUser = errors.New("link_other_user")
 )
 
 // ValidationError maps field names to reason codes such as "required",

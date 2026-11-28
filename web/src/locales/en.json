@@ -51,7 +51,10 @@
     "resend": "Send again",
     "linkExpired": "This login link has expired or was already used.",
     "linkHint": "Send /cabinet to the bot for a new link, or log in with your phone number below.",
-    "linkOpening": "Logging you in…"
+    "linkOpening": "Logging you in…",
+    "linkOtherUser": "You are signed in as {{name}}. Sign in with this link instead, as the account it belongs to?",
+    "linkContinue": "Continue",
+    "linkStay": "Stay"
   },
   "admin": {
     "title": "Admin panel",
@@ -632,7 +635,8 @@
     "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
     "token_invalid": "This link has expired or was already used.",
     "module_disabled": "This module is turned off.",
-    "module_owned": "A module manages this data: only who can see it can be changed."
+    "module_owned": "A module manages this data: only who can see it can be changed.",
+    "link_other_user": "You are signed in to another account."
   },
   "validation": {
     "required": "Required",
