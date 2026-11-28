@@ -1,4 +1,4 @@
-import type { AdminUser, Chat, DataItem, DataRow, House, Label, Me, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
+import type { AdminUser, Chat, DataItem, DataRow, House, Label, Me, MyHome, RegisterOptions, ResidencyStatus, Site, UserCard } from '../api/types'
 
 // Synthetic data only: no real names, phones or addresses.
 export const site: Site = {
@@ -58,6 +58,19 @@ export const publicRoutes = {
   'GET /site': { body: site },
   'GET /register/options': { body: registerOptions },
   'GET /me': { status: 401, body: { error: { code: 'unauthorized' } } },
+}
+
+/** The resident's "My home" in the cabinet. */
+export const myHome: MyHome = {
+  telegramLinked: true,
+  homes: [{ id: 11, houseName: 'House A', address: '1 Test Street', floors: 9, apartment: 12, statusNames: statuses[0].names }],
+}
+
+/** Routes for a resident session in the cabinet. */
+export const residentRoutes = {
+  ...publicRoutes,
+  'GET /me': { body: resident },
+  'GET /me/home': { body: myHome },
 }
 
 /** Routes for an admin session with an empty queue. */

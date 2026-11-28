@@ -26,19 +26,24 @@
     },
     "activated": "Done, {{.Name}}! Your account is connected. Your house page: {{.URL}}",
     "bootstrap": "You are the system's first administrator. Log in to the admin panel and fill in your name: {{.URL}}",
-    "alreadyConnected": "Your account is already connected.",
+    "alreadyConnected": "Your account is already connected. Send /cabinet to open your resident cabinet.",
     "pending": "An administrator is still reviewing your application. Share your number again once it is approved.",
     "notRegistered": "This number is not registered in the system. Please contact an administrator.",
     "rateLimited": "Too many attempts. Please try again later.",
-    "help": "To connect your account or apply for registration, send /start and share your phone number.",
+    "help": "To connect your account or apply for registration, send /start and share your phone number. To open your resident cabinet, send /cabinet.",
     "commands": {
-      "start": "Connect your account"
+      "start": "Connect your account",
+      "cabinet": "Open my cabinet"
     },
     "apply": {
       "offer": "You are not registered yet. Fill in the application — your number is already in it. The link works for 1 hour.",
       "button": "📝 Fill in the application"
     },
-    "pendingLinked": "Your application is waiting for an administrator. I will write to you as soon as it is decided."
+    "pendingLinked": "Your application is waiting for an administrator. I will write to you as soon as it is decided.",
+    "cabinet": {
+      "offer": "Your resident cabinet is one tap away. The link logs you in, works once and only for 5 minutes — do not forward it.",
+      "button": "🏠 Open cabinet"
+    }
   },
   "notify": {
     "test": "✅ Test message. Messages for this place will arrive here.",

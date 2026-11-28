@@ -70,7 +70,7 @@ type SitePage struct {
 // ReservedPageNames are page names that would take over an app or server
 // route. Keep in sync with web/src/lib/reservedPages.ts.
 var ReservedPageNames = []string{
-	"admin", "login", "register", "oauth", "site", "api", "mcp", "healthz",
+	"admin", "login", "register", "oauth", "site", "api", "mcp", "healthz", "my",
 	"assets", "telegram", "favicon", "robots", "sitemap",
 }
 

@@ -34,6 +34,7 @@ type Repos struct {
 	RegTokens     RegTokenRepo
 	Notifications NotificationRepo
 	MCP           MCPRepo
+	LoginLinks    LoginLinkRepo
 }
 
 // Actor is who makes a change: a signed-in user, or nobody (the public, the bot).

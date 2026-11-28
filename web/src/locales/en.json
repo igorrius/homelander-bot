@@ -16,7 +16,8 @@
     "register": "Register",
     "logout": "Log out",
     "admin": "Admin panel",
-    "apartment": "{{house}}, apt {{n}}"
+    "apartment": "{{house}}, apt {{n}}",
+    "cabinet": "My cabinet"
   },
   "register": {
     "title": "Registration application",
@@ -47,7 +48,13 @@
     "code": "Login code",
     "submit": "Log in",
     "changePhone": "Change number",
-    "resend": "Send again"
+    "resend": "Send again",
+    "linkExpired": "This login link has expired or was already used.",
+    "linkHint": "Send /cabinet to the bot for a new link, or log in with your phone number below.",
+    "linkOpening": "Logging you in…",
+    "linkOtherUser": "You are signed in as {{name}}. Sign in with this link instead, as the account it belongs to?",
+    "linkContinue": "Continue",
+    "linkStay": "Stay"
   },
   "admin": {
     "title": "Admin panel",
@@ -184,7 +191,8 @@
       "ip": "IP",
       "title": "Audit log",
       "clearFilter": "Show all entries",
-      "viaMcp": "via MCP ({{client}})"
+      "viaMcp": "via MCP ({{client}})",
+      "viaBotLink": "with a link from the bot"
     },
     "houses": {
       "title": "Houses",
@@ -491,7 +499,8 @@
       },
       "viaMcp": "MCP"
     },
-    "openSite": "Open site"
+    "openSite": "Open site",
+    "residentCabinet": "My cabinet"
   },
   "notFound": {
     "title": "Page not found",
@@ -529,7 +538,8 @@
     "internal": "Something went wrong on the server. Please try again.",
     "unknown": "Something went wrong. Please try again.",
     "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
-    "token_invalid": "This link has expired or was already used."
+    "token_invalid": "This link has expired or was already used.",
+    "link_other_user": "You are signed in to another account."
   },
   "validation": {
     "required": "Required",
@@ -654,6 +664,44 @@
     "reason": {
       "not_admin": "Only an admin can connect an AI agent.",
       "mcp_off": "MCP is off for your account. Another admin (or you) can turn it on on your user card in the admin panel."
+    }
+  },
+  "cabinet": {
+    "title": "My cabinet",
+    "nav": {
+      "label": "Cabinet sections",
+      "home": "My home",
+      "site": "Site"
+    },
+    "home": {
+      "greeting": "Hello, {{name}}!",
+      "greetingNoName": "Hello!",
+      "subtitle": "Your home in the community, in one place."
+    },
+    "myHome": {
+      "title": "My home",
+      "apartment": "Apartment",
+      "floors": "Floors",
+      "status": "Status",
+      "empty": "No apartment is linked to your account yet.",
+      "emptyHint": "If you live in the community, ask an administrator to add your apartment."
+    },
+    "profile": {
+      "title": "Profile",
+      "name": "Name",
+      "phone": "Phone",
+      "telegram": "Telegram",
+      "linked": "Linked",
+      "notLinked": "Not linked",
+      "language": "Language",
+      "hint": "To change these details, ask an administrator."
+    },
+    "install": {
+      "title": "Install the app",
+      "text": "Add the cabinet to your home screen: it opens in one tap, like any other app.",
+      "button": "Install",
+      "later": "Not now",
+      "iosText": "Tap Share at the bottom of the screen, then “Add to Home Screen”."
     }
   }
 }

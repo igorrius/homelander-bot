@@ -132,6 +132,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	httpapi.RegisterPublic(server, api)
 	httpapi.RegisterAdmin(server, api)
 	httpapi.RegisterOAuth(server, api)
+	httpapi.RegisterCabinet(server, api)
 	server.Mount(httpapi.MCPPath, mcpserver.New(mcpserver.Deps{Auth: mcpAuth, Data: data, Pages: pages, Catalog: catalog,
 		Limits: limits, PublicURL: cfg.PublicURL.String(), Now: now, Log: log}))
 	server.MountPrefix("/site/", httpapi.SiteHandler(api))
@@ -184,7 +185,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 	return nil
 }
 
-// cleanup deletes expired sessions, expired registration links and old outbox rows every hour.
+// cleanup deletes expired sessions, registration and login links, and old outbox rows every hour.
 func cleanup(ctx context.Context, auth *domain.AuthService, users *domain.UserService, notifier *domain.Notifier, log *slog.Logger) {
 	t := time.NewTicker(cleanupEvery)
 	defer t.Stop()
@@ -200,6 +201,9 @@ func cleanup(ctx context.Context, auth *domain.AuthService, users *domain.UserSe
 			}
 			if _, err := users.CleanRegistrationTokens(ctx); err != nil {
 				log.Warn("registration link cleanup failed", "err", err)
+			}
+			if _, err := auth.CleanLoginLinks(ctx); err != nil {
+				log.Warn("login link cleanup failed", "err", err)
 			}
 			if n, err := notifier.Clean(ctx); err != nil {
 				log.Warn("outbox cleanup failed", "err", err)

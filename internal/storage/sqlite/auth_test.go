@@ -132,3 +132,35 @@ func TestDeleteSessionsByUserAndExpired(t *testing.T) {
 		t.Errorf("sessions left = %d, want 1", left)
 	}
 }
+
+func TestLoginLinkLifecycle(t *testing.T) {
+	db := sqlitetest.New(t)
+	u := mkUser(t, sqlite.Users{DB: db}, "+380500000001", "A", "A")
+	links := sqlite.LoginLinks{DB: db}
+	l := domain.LoginLink{UserID: u.ID, TokenHash: []byte("h"), Next: "/my/feed/3", ExpiresAt: t0.Add(5 * time.Minute), CreatedAt: t0}
+	if err := links.Create(ctx, &l); err != nil || l.ID == 0 {
+		t.Fatalf("Create = %+v, %v", l, err)
+	}
+	got, err := links.GetByHash(ctx, []byte("h"))
+	if err != nil || got.UserID != u.ID || got.Next != "/my/feed/3" || !got.ExpiresAt.Equal(l.ExpiresAt) || got.UsedAt != nil {
+		t.Fatalf("GetByHash = %+v, %v", got, err)
+	}
+	if ok, err := links.MarkUsed(ctx, l.ID, t0); !ok || err != nil {
+		t.Fatalf("first MarkUsed = %v, %v", ok, err)
+	}
+	if ok, _ := links.MarkUsed(ctx, l.ID, t0); ok {
+		t.Error("second MarkUsed succeeded")
+	}
+	if got, _ := links.GetByHash(ctx, []byte("h")); got.UsedAt == nil {
+		t.Error("UsedAt not stored")
+	}
+	if n, err := links.DeleteExpiredBefore(ctx, t0.Add(time.Minute)); n != 0 || err != nil {
+		t.Errorf("deleted a live link: %d, %v", n, err)
+	}
+	if n, err := links.DeleteExpiredBefore(ctx, t0.Add(6*time.Minute)); n != 1 || err != nil {
+		t.Errorf("DeleteExpiredBefore = %d, %v", n, err)
+	}
+	if _, err := links.GetByHash(ctx, []byte("h")); !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("after delete err = %v", err)
+	}
+}

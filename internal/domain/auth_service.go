@@ -415,20 +415,39 @@ func (s *AuthService) VerifyCode(ctx context.Context, rawPhone, code, userAgent 
 	} else if !ok {
 		return User{}, "", ErrInvalidCode
 	}
-	raw := make([]byte, tokenBytes)
-	if _, err := io.ReadFull(s.rand(), raw); err != nil {
-		return User{}, "", err
-	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
-	sess := Session{UserID: u.ID, TokenHash: HashSecret(s.Secret, token), CreatedAt: now, LastSeenAt: now,
-		ExpiresAt: now.Add(s.MaxTTL), IP: actor.IP, UserAgent: truncate(userAgent, 300)}
-	if err := s.R.Sessions.Create(ctx, &sess); err != nil {
-		return User{}, "", err
-	}
-	if err := s.audit(ctx, Actor{UserID: &u.ID, IP: actor.IP}, ActAuthLogin, UserTarget(u.ID), nil); err != nil {
+	token, err := s.openSession(ctx, u, userAgent, actor, nil)
+	if err != nil {
 		return User{}, "", err
 	}
 	return u, token, nil
+}
+
+// newToken returns a random URL-safe token.
+func (s *AuthService) newToken() (string, error) {
+	raw := make([]byte, tokenBytes)
+	if _, err := io.ReadFull(s.rand(), raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+// openSession starts a session for u and records the login (details say how,
+// nil for the phone and code); it returns the raw session token.
+func (s *AuthService) openSession(ctx context.Context, u User, userAgent string, actor Actor, details map[string]any) (string, error) {
+	token, err := s.newToken()
+	if err != nil {
+		return "", err
+	}
+	now := s.Now()
+	sess := Session{UserID: u.ID, TokenHash: HashSecret(s.Secret, token), CreatedAt: now, LastSeenAt: now,
+		ExpiresAt: now.Add(s.MaxTTL), IP: actor.IP, UserAgent: truncate(userAgent, 300)}
+	if err := s.R.Sessions.Create(ctx, &sess); err != nil {
+		return "", err
+	}
+	if err := s.audit(ctx, Actor{UserID: &u.ID, IP: actor.IP}, ActAuthLogin, UserTarget(u.ID), details); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func truncate(s string, n int) string {
