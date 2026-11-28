@@ -160,11 +160,19 @@ func TestMigrationModulesFeedRenamesFeedKeys(t *testing.T) {
 	if err := Migrate(ctx, db, upTo(t, 8)); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"feed.x", "feedback.y", "house.feed"} {
+	// custom.feed.x is taken already, so feed.x gets its id as a suffix.
+	for _, key := range []string{"custom.feed.x", "feed.x", "feed.y", "feedback.y", "house.feed"} {
 		if _, err := db.Exec(`INSERT INTO data_items (key, kind, value_type, value_json, created_at, updated_at)
 			VALUES (?, 'value', 'text', '"x"', '2026-11-28T00:00:00Z', '2026-11-28T00:00:00Z')`, key); err != nil {
 			t.Fatal(err)
 		}
+	}
+	var xID int
+	_ = db.QueryRow(`SELECT id FROM data_items WHERE key = 'feed.x'`).Scan(&xID)
+	site := `{"communityName":{},"welcomeText":{},"defaultLocale":"uk","homeItems":[` +
+		`{"key":"feed.y","title":{"uk":"Y"}},{"key":"house.feed","title":{}},{"key":"feed.x","title":{}}]}`
+	if _, err := db.Exec(`INSERT INTO settings (key, value, updated_at) VALUES ('site', ?, '2026-11-28T00:00:00Z')`, site); err != nil {
+		t.Fatal(err)
 	}
 	if err := Migrate(ctx, db, Migrations); err != nil {
 		t.Fatal(err)
@@ -188,7 +196,16 @@ func TestMigrationModulesFeedRenamesFeedKeys(t *testing.T) {
 		}
 		got = append(got, key)
 	}
-	if want := "custom.feed.x feedback.y house.feed"; strings.Join(got, " ") != want {
+	want := "custom.feed.x custom.feed.x_" + strconv.Itoa(xID) + " custom.feed.y feedback.y house.feed"
+	if strings.Join(got, " ") != want {
 		t.Errorf("keys = %v, want %s", got, want)
+	}
+	var home string
+	if err := db.QueryRow(`SELECT json_extract(value, '$.homeItems') FROM settings WHERE key = 'site'`).Scan(&home); err != nil {
+		t.Fatal(err)
+	}
+	wantHome := `[{"key":"custom.feed.y","title":{"uk":"Y"}},{"key":"house.feed","title":{}},{"key":"custom.feed.x_` + strconv.Itoa(xID) + `","title":{}}]`
+	if home != wantHome {
+		t.Errorf("home items = %s\nwant %s", home, wantHome)
 	}
 }

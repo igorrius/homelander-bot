@@ -1,8 +1,28 @@
 -- Base modules and the information feed (resident cabinet design, part 3).
 
 -- A module owns every key under its code ("feed."); keys an admin made there
--- before move aside under "custom.", so nothing is lost or taken over silently.
-UPDATE data_items SET key = 'custom.' || key WHERE key LIKE 'feed.%';
+-- before move aside under "custom.", so nothing is lost or taken over
+-- silently: feed.x becomes custom.feed.x, or custom.feed.x_<id> when that
+-- key is taken already.
+CREATE TEMP TABLE feed_key_moves AS
+SELECT i.key AS old_key,
+       CASE WHEN EXISTS (SELECT 1 FROM data_items d WHERE d.key = 'custom.' || i.key)
+            THEN 'custom.' || i.key || '_' || i.id
+            ELSE 'custom.' || i.key END AS new_key
+FROM data_items i WHERE i.key LIKE 'feed.%';
+
+UPDATE data_items SET key = (SELECT m.new_key FROM feed_key_moves m WHERE m.old_key = data_items.key)
+WHERE key IN (SELECT old_key FROM feed_key_moves);
+
+-- The built-in home page lists data keys in the site settings: follow the moves.
+UPDATE settings SET value = json_set(value, '$.homeItems', (
+    SELECT json_group_array(CASE WHEN m.new_key IS NULL THEN json(h.value)
+                                 ELSE json_set(h.value, '$.key', m.new_key) END ORDER BY h.key)
+    FROM json_each(settings.value, '$.homeItems') h
+    LEFT JOIN feed_key_moves m ON m.old_key = json_extract(h.value, '$.key')))
+WHERE key = 'site' AND json_type(value, '$.homeItems') = 'array' AND EXISTS (SELECT 1 FROM feed_key_moves);
+
+DROP TABLE feed_key_moves;
 
 -- Which module writes an item ("module:feed"); NULL for items admins keep.
 ALTER TABLE data_items ADD COLUMN owner TEXT;
