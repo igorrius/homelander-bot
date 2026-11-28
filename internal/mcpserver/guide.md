@@ -33,7 +33,8 @@ img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-anc
 What that means:
 
 - The page has an opaque origin: **no cookies, no localStorage of the site, no session**. It cannot
-  call the admin API or see who is logged in. Our header above the frame does login and language.
+  call the admin API or the visitor's own API. Our header above the frame does login and language,
+  and tells the page whether a resident is logged in (section 3).
 - **No external resources**: no CDNs, web fonts, analytics or images from other sites. Upload any
   library or font as a file of the version. Inline `<script>` and `<style>` are fine.
 - `fetch` may reach only this site (`connect-src 'self'`) — that is how you read public data.
@@ -43,9 +44,21 @@ What that means:
 
 ## 3. Reading data
 
-The page reads **public** data items at view time, so when an admin changes a value the page shows
-it without a new version. Use `data_catalog` to see which keys exist and which are public;
-`data_set_public` makes an item public. Private items are never returned.
+The page reads data items at view time, so when an admin changes a value the page shows it without a
+new version. Every item has a **visibility** (`data_catalog` shows it, `data_set_visibility` changes
+it):
+
+| Visibility | Who sees it on the site | How the page gets it |
+|---|---|---|
+| `public` | everyone, guests too | `fetch('/api/v1/public/data')` |
+| `residents` | signed-in residents and admins | a `homelander:data` message from our header |
+| `admins` | nobody on the site (admins see it in the panel) | never |
+
+The same page then shows more when a resident is logged in: for example "60% collected" for
+everyone and which apartments paid for residents. **Design for both states**: the page must look
+complete for a guest and add the resident details when they arrive.
+
+### Public data
 
 - `GET /api/v1/public/data` — every public item in one object keyed by item key:
 
@@ -65,7 +78,7 @@ it without a new version. Use `data_catalog` to see which keys exist and which a
 }
 ```
 
-- `GET /api/v1/public/data/<key>` — one item in the same shape; `404` when it is missing or private.
+- `GET /api/v1/public/data/<key>` — one item in the same shape; `404` when it is missing or not public.
 - Value types: `text`, `localized_text` (`{ "uk": ..., "en": ... }`, either may be missing),
   `number`, `bool`, `image` (a URL like `/api/v1/assets/<id>`), `url` (an `http(s)` link), `phone`
   (digits, spaces, `+ ( ) -`; link it as `tel:` with the spaces removed), `json`. Table column types:
@@ -82,6 +95,62 @@ async function loadData() {
   return res.json()
 }
 ```
+
+### Residents data: the `ready` and `data` messages
+
+The page cannot ask for residents data itself (it has no session), so our header sends it:
+
+1. When your script starts listening, post `{ type: 'homelander:ready' }` to the parent.
+2. The header answers with a `homelander:data` message — once after `ready`, and again when the
+   visitor switches language or the data is reloaded:
+   - signed in: `{ type: 'homelander:data', viewer: { signedIn: true, resident: true|false, admin: true|false }, items: { ... } }`
+     — `items` has the same shape as `/api/v1/public/data` and holds the public items **and**, for
+     a resident or an admin, the `residents` items;
+   - guest: `{ type: 'homelander:data', viewer: { signedIn: false }, items: null }` — stop waiting
+     and show the public view.
+3. Keep loading `/api/v1/public/data` yourself (it is the guest view and the fallback, for example
+   when the page is opened without our header), and merge `items` over it when the message comes.
+
+Images of `residents` items arrive as signed URLs (`/api/v1/assets/<id>?exp=…&sig=…`) that work for
+about an hour: use them as they are and do not store them in page files.
+
+```html
+<script>
+  let data = {}       // key → item, public first, then merged with residents items
+  let viewer = null   // null until the header answers
+  window.addEventListener('message', (e) => {
+    if (e.source !== parent || !e.data || e.data.type !== 'homelander:data') return
+    viewer = e.data.viewer
+    if (e.data.items) data = { ...data, ...e.data.items }
+    render()
+  })
+  parent.postMessage({ type: 'homelander:ready' }, '*')
+  fetch('/api/v1/public/data').then((r) => (r.ok ? r.json() : {})).then((pub) => {
+    data = { ...pub, ...data }
+    render()
+  })
+
+  function render() {
+    // Public summary: everyone sees it.
+    const share = data['dues.collected_percent']
+    document.getElementById('summary').textContent = share ? share.value + '% collected' : ''
+    // Resident detail: only when the header sent it.
+    const paid = data['dues.paid_apartments']
+    const detail = document.getElementById('detail')
+    if (paid && paid.kind === 'table') {
+      detail.textContent = 'Paid: ' + paid.rows.map((r) => r.apartment).join(', ')
+    } else if (viewer && !viewer.signedIn) {
+      detail.innerHTML = '<a href="/login" target="_top">Log in</a> to see which apartments paid.'
+    } else {
+      detail.textContent = ''
+    }
+  }
+</script>
+```
+
+The keys in the example are made up; read `data_catalog` for the real ones. Anything a page shows to
+a logged-in resident is visible to every logged-in resident, so keep personal data (phones of people,
+debts of one family) `admins` unless the community agreed to share it.
 
 ## 4. Height: tell the header how tall the page is
 

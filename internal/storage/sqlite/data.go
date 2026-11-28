@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
 )
@@ -13,24 +14,23 @@ type Data struct{ DB DB }
 
 var _ domain.DataRepo = Data{}
 
-const dataColumns = `i.id, i.key, i.kind, i.description, i.is_public, i.value_type, i.value_json, i.columns_json,
+const dataColumns = `i.id, i.key, i.kind, i.description, i.visibility, i.value_type, i.value_json, i.columns_json,
 	i.created_by, i.updated_by, i.created_at, i.updated_at,
 	(SELECT count(*) FROM data_rows r WHERE r.item_id = i.id)`
 
 func scanDataItem(s scanner) (domain.DataItem, error) {
 	var (
 		it                   domain.DataItem
-		kind                 string
-		public               int
+		kind, vis            string
 		vtype, value, cols   sql.NullString
 		createdBy, updatedBy sql.NullInt64
 		created, updated     string
 	)
-	if err := s.Scan(&it.ID, &it.Key, &kind, &it.Description, &public, &vtype, &value, &cols,
+	if err := s.Scan(&it.ID, &it.Key, &kind, &it.Description, &vis, &vtype, &value, &cols,
 		&createdBy, &updatedBy, &created, &updated, &it.RowCount); err != nil {
 		return domain.DataItem{}, mapErr(err)
 	}
-	it.Kind, it.Public = domain.DataKind(kind), public == 1
+	it.Kind, it.Visibility = domain.DataKind(kind), domain.Visibility(vis)
 	it.ValueType = domain.DataType(vtype.String)
 	if value.Valid {
 		it.Value = json.RawMessage(value.String)
@@ -68,9 +68,9 @@ func (r Data) Create(ctx context.Context, it *domain.DataItem) error {
 	if err != nil {
 		return err
 	}
-	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO data_items (key, kind, description, is_public, value_type,
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO data_items (key, kind, description, visibility, value_type,
 		value_json, columns_json, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		it.Key, string(it.Kind), it.Description, boolInt(it.Public), vtype, value, cols,
+		it.Key, string(it.Kind), it.Description, visArg(it.Visibility), vtype, value, cols,
 		nullInt(it.CreatedBy), nullInt(it.UpdatedBy), fmtTime(it.CreatedAt), fmtTime(it.UpdatedAt))
 	if err != nil {
 		return mapErr(err)
@@ -85,9 +85,9 @@ func (r Data) Update(ctx context.Context, it *domain.DataItem) error {
 	if err != nil {
 		return err
 	}
-	res, err := r.DB.Q(ctx).ExecContext(ctx, `UPDATE data_items SET description = ?, is_public = ?, value_type = ?,
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `UPDATE data_items SET description = ?, visibility = ?, value_type = ?,
 		value_json = ?, columns_json = ?, updated_by = ?, updated_at = ? WHERE id = ?`,
-		it.Description, boolInt(it.Public), vtype, value, cols, nullInt(it.UpdatedBy), fmtTime(it.UpdatedAt), it.ID)
+		it.Description, visArg(it.Visibility), vtype, value, cols, nullInt(it.UpdatedBy), fmtTime(it.UpdatedAt), it.ID)
 	if err != nil {
 		return mapErr(err)
 	}
@@ -114,13 +114,26 @@ func (r Data) GetByKey(ctx context.Context, key string) (domain.DataItem, error)
 	return scanDataItem(r.DB.Q(ctx).QueryRowContext(ctx, `SELECT `+dataColumns+` FROM data_items i WHERE i.key = ?`, key))
 }
 
-// List returns items ordered by key, only public ones when publicOnly.
-func (r Data) List(ctx context.Context, publicOnly bool) ([]domain.DataItem, error) {
-	q := `SELECT ` + dataColumns + ` FROM data_items i`
-	if publicOnly {
-		q += ` WHERE i.is_public = 1`
+// visArg stores an unset visibility as admins, the most private level.
+func visArg(v domain.Visibility) string {
+	if v == "" {
+		return string(domain.VisAdmins)
 	}
-	rows, err := r.DB.Q(ctx).QueryContext(ctx, q+` ORDER BY i.key`)
+	return string(v)
+}
+
+// List returns items ordered by key: those with one of the given
+// visibilities, or every item when only is empty.
+func (r Data) List(ctx context.Context, only ...domain.Visibility) ([]domain.DataItem, error) {
+	q := `SELECT ` + dataColumns + ` FROM data_items i`
+	args := make([]any, 0, len(only))
+	if len(only) > 0 {
+		q += ` WHERE i.visibility IN (?` + strings.Repeat(`, ?`, len(only)-1) + `)`
+		for _, v := range only {
+			args = append(args, string(v))
+		}
+	}
+	rows, err := r.DB.Q(ctx).QueryContext(ctx, q+` ORDER BY i.key`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,6 +239,6 @@ func (r Data) SetAssetRefs(ctx context.Context, itemID int64, assetIDs []int64) 
 func (r Data) AssetIsPublic(ctx context.Context, assetID int64) (bool, error) {
 	var n int
 	err := r.DB.Q(ctx).QueryRowContext(ctx, `SELECT count(*) FROM data_asset_refs a JOIN data_items i ON i.id = a.item_id
-		WHERE a.asset_id = ? AND i.is_public = 1`, assetID).Scan(&n)
+		WHERE a.asset_id = ? AND i.visibility = 'public'`, assetID).Scan(&n)
 	return n > 0, err
 }

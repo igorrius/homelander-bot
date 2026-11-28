@@ -52,6 +52,7 @@ func RegisterPublic(s *Server, api API) {
 	m.HandleFunc("POST /api/v1/auth/verify", h.authVerify)
 	m.HandleFunc("POST /api/v1/auth/logout", h.logout)
 	m.Handle("GET /api/v1/me", RequireUser(http.HandlerFunc(h.me)))
+	m.Handle("GET /api/v1/me/data", RequireUser(http.HandlerFunc(h.myData)))
 	m.HandleFunc("GET /api/v1/assets/{id}", h.asset)
 	m.HandleFunc("GET /api/v1/public/data", h.publicData)
 	m.HandleFunc("GET /api/v1/public/data/{key}", h.publicDataOne)
@@ -219,12 +220,19 @@ func (h handlerCtx) asset(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	if !ok {
-		WriteError(w, http.StatusNotFound, "not_found")
+	if ok {
+		// Short: an item made non-public must stop being served by caches soon.
+		h.serveAsset(w, r, id, "public, max-age=60")
 		return
 	}
-	// Short: an item set private must stop being served by caches soon.
-	h.serveAsset(w, r, id, "public, max-age=60")
+	// A signed URL from /me/data: a residents-level image for a page's frame,
+	// which sends no cookie.
+	q := r.URL.Query()
+	if h.api.Data.ValidAssetSig(id, q.Get("exp"), q.Get("sig")) {
+		h.serveAsset(w, r, id, "private, max-age=600")
+		return
+	}
+	WriteError(w, http.StatusNotFound, "not_found")
 }
 
 // serveAsset writes a stored file with headers that keep it from running as a page.

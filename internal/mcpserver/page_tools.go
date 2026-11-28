@@ -134,7 +134,7 @@ func (t tools) addPages(s *mcp.Server) {
 			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: GuideURI, MIMEType: "text/markdown", Text: Guide}}}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "page_guide", Description: "Read this before writing the site: the sandbox rules, several pages and links between them, how to read public data, the height and language messages with ready snippets, and file limits."},
+	mcp.AddTool(s, &mcp.Tool{Name: "page_guide", Description: "Read this before writing the site: the sandbox rules, several pages and links between them, how to read public and residents data, the ready, data, height and language messages with ready snippets, and file limits."},
 		func(context.Context, *mcp.CallToolRequest, noArgs) (*mcp.CallToolResult, any, error) {
 			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: Guide}}}, nil, nil
 		})

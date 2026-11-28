@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/igorrius/homelander-bot/internal/domain"
 )
@@ -162,7 +163,7 @@ func TestDataAudit(t *testing.T) {
 	if _, err := e.data.Patch(ctx, "contacts", domain.DataInput{Description: &desc}, a); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.data.Patch(ctx, "contacts", domain.DataInput{Public: ptr(true)}, a); err != nil {
+	if _, err := e.data.Patch(ctx, "contacts", domain.DataInput{Visibility: ptr(domain.VisResidents)}, a); err != nil {
 		t.Fatal(err)
 	}
 	rows, err := e.data.UpsertRows(ctx, "contacts", []domain.DataRow{{Cells: cells("name", `"a"`)}}, a)
@@ -188,9 +189,19 @@ func TestDataAudit(t *testing.T) {
 		if en.Target != "data:contacts" || en.ActorUserID == nil || *en.ActorUserID != *a.UserID {
 			t.Fatalf("entry %+v", en)
 		}
+		switch en.Action {
+		case domain.ActDataCreated:
+			if en.Details["visibility"] != "admins" {
+				t.Errorf("created details = %v", en.Details)
+			}
+		case domain.ActDataVisibilitySet:
+			if en.Details["from"] != "admins" || en.Details["to"] != "residents" {
+				t.Errorf("visibility_set details = %v", en.Details)
+			}
+		}
 		got = append(got, en.Action)
 	}
-	want := "data.created data.updated data.public_set data.rows_changed data.rows_changed data.deleted"
+	want := "data.created data.updated data.visibility_set data.rows_changed data.rows_changed data.deleted"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("actions = %v; want %s", got, want)
 	}
@@ -208,13 +219,19 @@ func TestDataPublic(t *testing.T) {
 	if _, err := e.data.PublicOne(ctx, "house.address", "1.1.1.1"); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("PublicOne private = %v", err)
 	}
-	if _, err := e.data.Patch(ctx, "house.address", domain.DataInput{Public: ptr(true)}, a); err != nil {
+	if _, err := e.data.Patch(ctx, "house.address", domain.DataInput{Visibility: ptr(domain.VisResidents)}, a); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.data.PublicOne(ctx, "house.address", "1.1.1.1"); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("PublicOne residents = %v", err)
+	}
+	if _, err := e.data.Patch(ctx, "house.address", domain.DataInput{Visibility: ptr(domain.VisPublic)}, a); err != nil {
 		t.Fatal(err)
 	}
 	if v, err := e.data.PublicOne(ctx, "house.address", "1.1.1.1"); err != nil || string(v.Item.Value) != `"x"` {
 		t.Fatalf("PublicOne = %+v, %v", v, err)
 	}
-	for i := 3; i < 120; i++ {
+	for i := 4; i < 120; i++ {
 		if _, err := e.data.Public(ctx, "1.1.1.1"); err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
@@ -242,7 +259,7 @@ func TestDataAssetRefs(t *testing.T) {
 		}
 	}
 	check(img1, false)
-	if _, err := e.data.Patch(ctx, "logo", domain.DataInput{Public: ptr(true)}, a); err != nil {
+	if _, err := e.data.Patch(ctx, "logo", domain.DataInput{Visibility: ptr(domain.VisPublic)}, a); err != nil {
 		t.Fatal(err)
 	}
 	check(img1, true)
@@ -253,7 +270,7 @@ func TestDataAssetRefs(t *testing.T) {
 	check(img2, true)
 
 	cols := []domain.DataColumn{{Name: "pic", Type: domain.DataImage}}
-	if _, err := e.data.Create(ctx, domain.DataInput{Key: "gallery", Kind: domain.DataTable, Columns: &cols, Public: ptr(true)}, a); err != nil {
+	if _, err := e.data.Create(ctx, domain.DataInput{Key: "gallery", Kind: domain.DataTable, Columns: &cols, Visibility: ptr(domain.VisPublic)}, a); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.data.UpsertRows(ctx, "gallery", []domain.DataRow{{Cells: cells("pic", fmt.Sprint(img1))}}, a); err != nil {
@@ -313,5 +330,147 @@ func TestDataValueURLPhone(t *testing.T) {
 		}
 		_, err := e.data.Patch(ctx, key, domain.DataInput{Value: raw(c.bad)}, a)
 		fieldErr(t, err, "value", "invalid")
+	}
+}
+
+func TestDataVisibility(t *testing.T) {
+	e := newEnv(t)
+	a := e.dataAdmin()
+	it, err := e.data.Create(ctx, textValue("plain"), a)
+	if err != nil || it.Visibility != domain.VisAdmins {
+		t.Fatalf("default visibility = %q, %v; want admins", it.Visibility, err)
+	}
+	bad := textValue("bad")
+	bad.Visibility = ptr(domain.Visibility("everyone"))
+	_, err = e.data.Create(ctx, bad, a)
+	fieldErr(t, err, "visibility", "invalid")
+	_, err = e.data.Patch(ctx, "plain", domain.DataInput{Visibility: ptr(domain.Visibility(""))}, a)
+	fieldErr(t, err, "visibility", "invalid")
+
+	// A patch that changes the description and the visibility writes both entries.
+	desc := "now for residents"
+	if _, err := e.data.Patch(ctx, "plain", domain.DataInput{Description: &desc, Visibility: ptr(domain.VisResidents)}, a); err != nil {
+		t.Fatal(err)
+	}
+	// The same visibility again is not a change.
+	if _, err := e.data.Patch(ctx, "plain", domain.DataInput{Visibility: ptr(domain.VisResidents)}, a); err != nil {
+		t.Fatal(err)
+	}
+	list, _, err := e.r.Audit.List(ctx, domain.AuditFilter{Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for i := len(list) - 1; i >= 0; i-- {
+		if strings.HasPrefix(list[i].Action, "data.") {
+			got = append(got, list[i].Action)
+		}
+	}
+	if strings.Join(got, " ") != "data.created data.updated data.visibility_set" {
+		t.Fatalf("actions = %v", got)
+	}
+	if v, _ := e.data.Get(ctx, "plain"); v.Item.Visibility != domain.VisResidents || v.Item.Description != desc {
+		t.Fatalf("item = %+v", v.Item)
+	}
+}
+
+func TestDataForUser(t *testing.T) {
+	e := newEnv(t)
+	a := e.dataAdmin()
+	for key, vis := range map[string]domain.Visibility{"pub": domain.VisPublic, "res": domain.VisResidents, "adm": domain.VisAdmins} {
+		in := textValue(key)
+		in.Visibility = ptr(vis)
+		if _, err := e.data.Create(ctx, in, a); err != nil {
+			t.Fatal(err)
+		}
+	}
+	keys := func(u domain.User) string {
+		t.Helper()
+		list, err := e.data.ForUser(ctx, u)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, v := range list {
+			out = append(out, v.Item.Key)
+		}
+		return strings.Join(out, " ")
+	}
+	resident := e.mkUser("+380500000001")
+	adminOnly := e.mkUser("+380500000002", admin, func(u *domain.User) { u.IsResident = false })
+	neither := e.mkUser("+380500000003", func(u *domain.User) { u.IsResident = false })
+	disabled := e.mkUser("+380500000004", func(u *domain.User) { u.Status = domain.StatusDisabled })
+	pending := e.mkUser("+380500000005", func(u *domain.User) { u.Status = domain.StatusPendingApproval })
+	for _, c := range []struct {
+		name string
+		u    domain.User
+		want string
+	}{
+		{"resident", resident, "pub res"},
+		{"admin", adminOnly, "pub res"},
+		{"neither", neither, "pub"},
+		{"disabled", disabled, "pub"},
+		{"pending", pending, "pub"},
+	} {
+		if got := keys(c.u); got != c.want {
+			t.Errorf("%s: %q; want %q", c.name, got, c.want)
+		}
+	}
+	for i := 0; i < 119; i++ {
+		if _, err := e.data.ForUser(ctx, resident); err != nil {
+			t.Fatalf("call %d: %v", i+2, err)
+		}
+	}
+	if _, err := e.data.ForUser(ctx, resident); !errors.Is(err, domain.ErrRateLimited) {
+		t.Fatalf("121st call = %v; want ErrRateLimited", err)
+	}
+}
+
+func TestSignedAssetURL(t *testing.T) {
+	e := newEnv(t)
+	parse := func(u string) (id, exp, sig string) {
+		t.Helper()
+		path, query, ok := strings.Cut(u, "?")
+		if !ok || !strings.HasPrefix(path, "/api/v1/assets/") {
+			t.Fatalf("url = %q", u)
+		}
+		var vals = map[string]string{}
+		for _, kv := range strings.Split(query, "&") {
+			k, v, _ := strings.Cut(kv, "=")
+			vals[k] = v
+		}
+		return strings.TrimPrefix(path, "/api/v1/assets/"), vals["exp"], vals["sig"]
+	}
+	id, exp, sig := parse(e.data.SignedAssetURL(7))
+	if id != "7" || exp == "" || sig == "" {
+		t.Fatalf("parts = %q %q %q", id, exp, sig)
+	}
+	if !e.data.ValidAssetSig(7, exp, sig) {
+		t.Fatal("fresh signature refused")
+	}
+	if e.data.ValidAssetSig(8, exp, sig) {
+		t.Error("signature accepted for another asset")
+	}
+	if e.data.ValidAssetSig(7, exp+"0", sig) {
+		t.Error("signature accepted with another expiry")
+	}
+	tampered := "A" + sig[1:]
+	if tampered == sig {
+		tampered = "B" + sig[1:]
+	}
+	if e.data.ValidAssetSig(7, exp, tampered) {
+		t.Error("tampered signature accepted")
+	}
+	if e.data.ValidAssetSig(7, "", "") || e.data.ValidAssetSig(7, "soon", sig) {
+		t.Error("empty or bad expiry accepted")
+	}
+	// Stable within the hour, so browsers can cache the image.
+	e.clock.Advance(20 * time.Minute)
+	if _, exp2, _ := parse(e.data.SignedAssetURL(7)); exp2 != exp {
+		t.Errorf("expiry moved within the hour: %s → %s", exp, exp2)
+	}
+	e.clock.Advance(100 * time.Minute) // 2 h after the URL was made
+	if e.data.ValidAssetSig(7, exp, sig) {
+		t.Error("expired signature accepted")
 	}
 }

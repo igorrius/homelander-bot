@@ -93,8 +93,10 @@ const (
 	ActDataCreated     = "data.created"
 	ActDataUpdated     = "data.updated"
 	ActDataDeleted     = "data.deleted"
-	ActDataPublicSet   = "data.public_set"
-	ActDataRowsChanged = "data.rows_changed"
+	ActDataVisibilitySet = "data.visibility_set"
+	ActDataRowsChanged   = "data.rows_changed"
+	// The public flag became a visibility; this stays for older audit entries.
+	ActDataPublicSet = "data.public_set"
 )
 
 // DataTarget is the audit target of a data item.

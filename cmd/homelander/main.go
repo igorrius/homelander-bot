@@ -98,7 +98,7 @@ func runWith(ctx context.Context, getenv func(string) string, stderr io.Writer, 
 		Secret: cfg.AppSecret, Notifier: notifier, I18n: tr, PublicURL: cfg.PublicURL.String(), DefaultLocale: siteLocale}
 	labels := &domain.LabelService{R: repos, Now: now}
 	catalog := &domain.CatalogService{R: repos, Now: now, Locales: config.SupportedLocales, DefaultLocale: cfg.DefaultLocale}
-	data := &domain.DataService{R: repos, Now: now, Limits: limits, Locales: config.SupportedLocales}
+	data := &domain.DataService{R: repos, Now: now, Limits: limits, Locales: config.SupportedLocales, Secret: cfg.AppSecret}
 	pages := &domain.PageService{R: repos, Now: now, Secret: cfg.AppSecret}
 	auth := &domain.AuthService{R: repos, Now: now, Limits: limits, Secret: cfg.AppSecret, Region: cfg.DefaultPhoneRegion,
 		I18n: tr, BootstrapPhone: cfg.BootstrapAdminPhone, CodeTTL: codeTTL, MaxAttempts: maxCodeAttempts,

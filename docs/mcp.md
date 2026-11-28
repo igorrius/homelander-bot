@@ -82,11 +82,24 @@ MCP_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api
 | `data_catalog`, `data_get` | read data items (values, tables with rows) |
 | `data_set_value`, `data_create_table`, `data_update_table_columns` | create and change items |
 | `data_rows_upsert`, `data_rows_delete` | change table rows |
-| `data_set_public`, `data_delete` | make an item public or private, delete it |
+| `data_set_visibility`, `data_delete` | set who reads an item (`public`, `residents`, `admins`), delete it |
 | `asset_upload` | upload an image for image values and cells |
 | `page_guide` | how a page is built here (also the resource `homelander://guide/page`) |
 | `page_list_versions`, `page_get_version` | read site versions, their pages (with addresses) and files |
 | `page_create_draft`, `page_update_draft`, `page_copy_to_draft` | write drafts |
+
+Every data item has a **visibility**:
+
+- `public` — anyone, guests too; pages read it from `/api/v1/public/data`.
+- `residents` — signed-in residents and admins. A page cannot ask for it (it runs in a sandbox
+  without the visitor's session): the site header sends it to the page in a `homelander:data`
+  message after the page posts `homelander:ready` (see `page_guide`, section 3). Images of such
+  items come as signed links that work for about an hour.
+- `admins` — only admins, in the panel and through MCP; never served to the site.
+
+New items are `admins` unless the agent or the admin sets another visibility. A published page can
+show `residents` data to any logged-in resident (and its script could pass it on, for example in a
+link it opens), so publish only pages you have looked at.
 
 There is no tool to publish, unpublish or delete a page version. Page names `admin`, `login`,
 `register`, `oauth`, `site`, `api`, `mcp`, `healthz`, `assets`, `telegram`, `favicon`, `robots` and
