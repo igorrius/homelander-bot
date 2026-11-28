@@ -14,8 +14,16 @@ var staticTypes = map[string]string{
 	".webmanifest": "application/manifest+json",
 }
 
-// newSPA serves files of the built web app. Paths without a file extension
-// that match no file get index.html, so client-side routes survive a reload.
+// fileExts are extensions of files a browser asks for; a missing one is a 404,
+// not the web app.
+var fileExts = map[string]bool{
+	".js": true, ".mjs": true, ".css": true, ".map": true, ".json": true, ".webmanifest": true, ".html": true, ".txt": true,
+	".xml": true, ".ico": true, ".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true, ".webp": true,
+	".avif": true, ".woff": true, ".woff2": true, ".ttf": true, ".otf": true, ".pdf": true, ".php": true, ".env": true,
+}
+
+// newSPA serves files of the built web app. Paths that match no file and do
+// not look like a file get index.html, so client-side routes survive a reload.
 func newSPA(static fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if static == nil {
@@ -44,7 +52,9 @@ func newSPA(static fs.FS) http.Handler {
 
 				return
 			}
-			if path.Ext(name) != "" {
+			// A missing file is 404; other dotted paths are app routes, such
+			// as /admin/data/feed.posts.
+			if fileExts[strings.ToLower(path.Ext(name))] || strings.HasPrefix(name, "assets/") {
 				http.NotFound(w, r)
 				return
 			}
