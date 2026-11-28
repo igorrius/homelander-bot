@@ -11,16 +11,18 @@ export function topicTitle(t: TFunction, tp: Topic): string {
   return tp.title || t('admin.chats.unnamedTopic', { id: tp.externalId })
 }
 
-/** Whether a label hangs on at least one place that receives messages. */
-export function reachesChat(l: Label, chats: Chat[]): boolean {
-  return l.targets.some((tg) =>
-    chats.some((c) => c.state === 'accepted' && (tg.type === 'chat' ? c.id === tg.id : c.topics.some((tp) => tp.id === tg.id && !tp.gone))),
+/** Whether messages sent to a label reach anyone now: an accepted chat or topic, or a person with the bot. */
+export function reachesSomeone(l: Label, chats: Chat[]): boolean {
+  const reachesChat = l.targets.some((tg) =>
+    chats.some((c) => c.state === 'accepted' && (tg.type === 'chat' ? c.id === tg.id : tg.type === 'chat_topic' && c.topics.some((tp) => tp.id === tg.id && !tp.gone))),
   )
+  return reachesChat || l.users.some((u) => u.reachable)
 }
 
-/** Readable names of the places a label hangs on ("Our yard › News"). */
+/** Readable names of the places and people a label hangs on ("Our yard › News", "Ann Lee"). */
 export function labelPlaces(t: TFunction, l: Label, chats: Chat[]): string[] {
   return l.targets.map((tg) => {
+    if (tg.type === 'user') return l.users.find((u) => u.id === tg.id)?.name || `#${tg.id}`
     for (const c of chats) {
       if (tg.type === 'chat' && c.id === tg.id) return c.title
       const tp = c.topics.find((x) => x.id === tg.id)

@@ -12,7 +12,7 @@ import type { AdminPost, DeliveryState, Label } from '../../api/types'
 import { BackLink } from '../../components/BackLink'
 import { ConfirmButton } from '../../components/ConfirmButton'
 import { PageHeader } from '../../components/PageHeader'
-import { reachesChat } from '../../lib/chats'
+import { reachesSomeone } from '../../lib/chats'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { PostCard } from '../cabinet/PostCard'
@@ -248,14 +248,14 @@ function EditorLoader({ id }: { id: number | null }) {
   const failed = queries.find((q) => q.isError)
   if (failed) return <Alert color="red">{errorText(t, failed.error)}</Alert>
   if (queries.some((q) => q.isPending) || !labels.data || !chats.data) return <Loader />
-  const reaching = labels.data.filter((l) => reachesChat(l, chats.data))
+  const reaching = labels.data.filter((l) => reachesSomeone(l, chats.data))
   if (id === null) {
     const defaults = (settings.data?.defaultLabelIds ?? []).filter((x) => reaching.some((l) => l.id === x))
     return <Editor key="new" initialLabels={defaults} offered={reaching} />
   }
   if (!post.data) return <Loader />
   const own = post.data.labelIds
-  const offered = labels.data.filter((l) => reachesChat(l, chats.data) || own.includes(l.id))
+  const offered = labels.data.filter((l) => reachesSomeone(l, chats.data) || own.includes(l.id))
   return <Editor key={post.data.id} post={post.data} initialLabels={own} offered={offered} />
 }
 

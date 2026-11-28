@@ -10,6 +10,7 @@ import { chatKind, topicTitle } from '../../lib/chats'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { ChatsTabs } from './ChatsTabs'
+import { LabelBadges } from './LabelBadges'
 import { LabelsModal } from './LabelsModal'
 import { TestSendButton } from './TestSendButton'
 
@@ -18,20 +19,6 @@ const setupGuideURL = 'https://github.com/igorrius/homelander-bot/blob/main/docs
 const stateColor = { new: 'yellow', accepted: 'teal', left: 'gray' } as const
 
 type Editing = { type: LabelTargetType; id: number; current: number[]; title: string }
-
-function LabelBadges({ ids, labels }: { ids: number[]; labels: Label[] }) {
-  const { t } = useTranslation()
-  if (ids.length === 0) return <Text size="xs" c="dimmed">{t('admin.chats.noLabels')}</Text>
-  return (
-    <Group gap={4}>
-      {ids.map((id) => (
-        <Badge key={id} variant="light" radius="sm" tt="none">
-          {labels.find((l) => l.id === id)?.name ?? `#${id}`}
-        </Badge>
-      ))}
-    </Group>
-  )
-}
 
 function RenameTopic({ topic, onClose }: { topic: Topic; onClose(): void }) {
   const { t } = useTranslation()
@@ -100,7 +87,7 @@ function ChatCard({ chat, labels, onLabels, onRename }: { chat: Chat; labels: La
         )}
         {action.isError && <Alert color="red" p="xs">{errorText(t, action.error)}</Alert>}
         <Group gap="xs">
-          <LabelBadges ids={chat.labelIds} labels={labels} />
+          <LabelBadges ids={chat.labelIds} labels={labels} empty={t('admin.chats.noLabels')} />
           <Button size="xs" variant="subtle" onClick={() => onLabels({ type: 'chat', id: chat.id, current: chat.labelIds, title: chat.title })}>
             {t('admin.chats.editLabels')}
           </Button>
@@ -113,7 +100,7 @@ function ChatCard({ chat, labels, onLabels, onRename }: { chat: Chat; labels: La
                 <Group gap="xs">
                   <Text size="sm" c={tp.title ? undefined : 'dimmed'}>{topicTitle(t, tp)}</Text>
                   {tp.gone && <Badge size="xs" color="gray">{t('admin.chats.gone')}</Badge>}
-                  <LabelBadges ids={tp.labelIds} labels={labels} />
+                  <LabelBadges ids={tp.labelIds} labels={labels} empty={t('admin.chats.noLabels')} />
                 </Group>
                 <Group gap={4}>
                   <Button size="xs" variant="subtle" onClick={() => onLabels({ type: 'chat_topic', id: tp.id, current: tp.labelIds, title: `${chat.title} › ${topicTitle(t, tp)}` })}>

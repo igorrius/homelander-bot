@@ -182,7 +182,11 @@
         "codeTitle": "Claude Code",
         "copyCommand": "Copy command",
         "docs": "More about MCP (documentation)"
-      }
+      },
+      "labels": "Labels",
+      "noLabels": "No labels",
+      "editLabels": "Edit labels",
+      "labelsHint": "Messages sent to these labels come to this person in the bot."
     },
     "audit": {
       "empty": "No entries.",
@@ -389,7 +393,7 @@
       "applicationsHint": "A short notice about each new application, without the phone number.",
       "off": "Turn off",
       "offPlaceholder": "Off",
-      "noChat": "This label is not on any accepted chat yet, so the notices will go nowhere."
+      "noChat": "This label does not reach an accepted chat or a person with the bot yet, so the notices will go nowhere."
     },
     "data": {
       "title": "Data",
@@ -632,7 +636,7 @@
     "unauthorized": "Please log in.",
     "internal": "Something went wrong on the server. Please try again.",
     "unknown": "Something went wrong. Please try again.",
-    "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
+    "chat_not_accepted": "Nobody here can receive messages yet: accept the chat, or check the person has the bot linked.",
     "token_invalid": "This link has expired or was already used.",
     "module_disabled": "This module is turned off.",
     "module_owned": "A module manages this data: only who can see it can be changed.",

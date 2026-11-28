@@ -4,7 +4,7 @@ import type { UserCard } from '../../api/types'
 import { i18n } from '../../i18n'
 import uk from '../../locales/uk.json'
 import { callsTo, mockApi, type Route } from '../../test/api'
-import { adminRoutes, houses, site, statuses, userCard } from '../../test/fixtures'
+import { adminRoutes, houses, labels, site, statuses, userCard } from '../../test/fixtures'
 import { currentLocation, renderApp } from '../../test/render'
 import { choose } from '../../test/select'
 
@@ -21,6 +21,21 @@ function routes(card: UserCard, extra: Record<string, Route> = {}) {
 describe('UserCardPage', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('uk')
+  })
+
+  it("shows and edits the person's labels", async () => {
+    const { calls } = mockApi(routes({ ...userCard(), labelIds: [1] }, {
+      'GET /admin/labels': { body: labels },
+      'PUT /admin/users/5/labels': { status: 204 },
+    }))
+    const { user } = renderApp('/admin/users/5')
+    const section = (await screen.findByRole('heading', { name: uk.admin.user.labels })).closest('.mantine-Card-root') as HTMLElement
+    expect(await within(section).findByText('residents')).toBeInTheDocument()
+    await user.click(within(section).getByRole('button', { name: uk.admin.user.editLabels }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('checkbox', { name: 'journal' }))
+    await user.click(within(dialog).getByRole('button', { name: uk.common.save }))
+    await waitFor(() => expect(callsTo(calls, 'PUT /admin/users/5/labels')[0]?.body).toEqual({ labelIds: [1, 2] }))
   })
 
   it('shows the card', async () => {
