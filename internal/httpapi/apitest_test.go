@@ -113,6 +113,7 @@ func newAPIEnv(t *testing.T) *apiEnv {
 	httpapi.RegisterPublic(s, e.api)
 	httpapi.RegisterAdmin(s, e.api)
 	httpapi.RegisterOAuth(s, e.api)
+	httpapi.RegisterCabinet(s, e.api)
 	s.MountPrefix("/site/", httpapi.SiteHandler(e.api))
 	e.h = s.Handler()
 	sts, _ := r.Statuses.List(ctx, false)
