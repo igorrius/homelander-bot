@@ -1,6 +1,7 @@
 import { AppShell, Box, Center, Container, Group, Loader, NavLink, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { IconWorld, type Icon } from '@tabler/icons-react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, Outlet, useLocation } from 'react-router'
 import { useMe, useSite } from '../../api/public'
@@ -87,6 +88,11 @@ export function CabinetLayout() {
   const { pathname, search } = useLocation()
   const wide = useMediaQuery(WIDE, false, { getInitialValueInEffect: false })
   const entries = useEntries()
+  const communityName = text(site.data?.communityName)
+  // iOS names a home-screen icon after this tag when the cabinet is added.
+  useEffect(() => {
+    if (communityName) document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', communityName)
+  }, [communityName])
   if (me.isPending) {
     return (
       <Center h="100vh">
@@ -95,7 +101,7 @@ export function CabinetLayout() {
     )
   }
   if (!me.data) return <Navigate to={'/login?next=' + encodeURIComponent(pathname + search)} replace />
-  const name = text(site.data?.communityName) || t('cabinet.title')
+  const name = communityName || t('cabinet.title')
   const navLabel = t('cabinet.nav.label')
   return (
     <AppShell
