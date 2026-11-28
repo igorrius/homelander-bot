@@ -17,6 +17,7 @@ type Label struct {
 const (
 	TargetChat  = "chat"
 	TargetTopic = "chat_topic"
+	TargetUser  = "user" // the user's own messenger account, see Notifier.target
 )
 
 // LabelTarget is something a label hangs on.
