@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { callsTo, mockApi } from '../test/api'
 import { admin, publicRoutes, resident } from '../test/fixtures'
 import { renderWithProviders } from '../test/render'
+import { useLogout } from '../api/public'
 import { isOurPageUrl } from '../lib/pageUrl'
+import { framedPage } from '../test/frame'
 import { PAGE_SANDBOX, PageFrame } from './PageFrame'
 
 const SANDBOX = 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation'
@@ -191,6 +193,29 @@ describe('PageFrame data', () => {
     await settle()
     expect(port.postMessage).not.toHaveBeenCalled()
     expect(callsTo(calls, 'GET /me/data')).toHaveLength(0)
+  })
+
+  it('reloads the frame with a new nonce when the viewer logs out', async () => {
+    const { calls } = mockApi({ ...publicRoutes, 'GET /me': { body: resident }, 'GET /me/data': { body: items }, 'POST /auth/logout': { status: 204 } })
+    function LogoutButton() {
+      const logout = useLogout()
+      return <button onClick={() => logout.mutate()}>out</button>
+    }
+    renderWithProviders(<><PageFrame src="/site/index.html" lang="uk" title="Page" /><LogoutButton /></>)
+    const first = nonce()
+    const port = ready()
+    await waitFor(() => expect(port.postMessage).toHaveBeenCalledWith(residentData))
+    // Learning who is looking on the first load is not a change: no reload.
+    expect(nonce()).toBe(first)
+    fireEvent.click(screen.getByRole('button', { name: 'out' }))
+    await waitFor(() => expect(nonce()).not.toBe(first))
+    expect(framedPage(frame())).toBe('/site/index.html?lang=uk')
+    expect(port.close).toHaveBeenCalled()
+    expect(callsTo(calls, 'POST /auth/logout')).toHaveLength(1)
+    // The fresh page learns it is a guest now.
+    const next = ready()
+    await waitFor(() => expect(next.postMessage).toHaveBeenCalledWith({ type: 'homelander:data', viewer: { signedIn: false }, items: null }))
+    expect(port.postMessage).toHaveBeenCalledTimes(1)
   })
 
   it('knows our page URLs', () => {

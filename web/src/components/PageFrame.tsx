@@ -62,6 +62,7 @@ function useFrameData(enabled: boolean): FrameData | null {
  * posted only through the port of a ready that came from this frame with the current nonce, and again on
  * a language change or a re-fetch. A port belongs to the document that made it, so a frame that navigated
  * elsewhere cannot receive data; besides, a second load event without a fresh ready drops the port.
+ * When the viewer changes (logout, login, another user) the frame is reloaded with a new nonce.
  */
 export function PageFrame({ src, lang, title, pages, onNavigate }: {
   src: string
@@ -73,8 +74,16 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
   const ref = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState(600)
   // The language goes into the URL only when the frame (re)loads; later switches are posted.
-  const [loaded, setLoaded] = useState(() => ({ src, lang, nonce: newNonce() }))
-  if (loaded.src !== src) setLoaded({ src, lang, nonce: newNonce() })
+  // A different viewer (logout, login, another user) gets a freshly loaded page: a page may keep what an
+  // earlier homelander:data gave it, so the old viewer's residents data must not stay on screen.
+  const me = useMe()
+  const viewer = me.isPending ? undefined : me.data ? `user:${me.data.id}` : 'guest'
+  const [loaded, setLoaded] = useState(() => ({ src, lang, nonce: newNonce(), viewer }))
+  if (loaded.src !== src) setLoaded({ src, lang, nonce: newNonce(), viewer })
+  else if (viewer !== undefined && loaded.viewer !== viewer) {
+    // Learning who is looking for the first time is not a change.
+    setLoaded(loaded.viewer === undefined ? { ...loaded, viewer } : { src, lang, nonce: newNonce(), viewer })
+  }
   const ours = isOurPageUrl(loaded.src)
   const nonce = ours ? loaded.nonce : null
   const url = frameUrl(loaded.src, loaded.lang, nonce)

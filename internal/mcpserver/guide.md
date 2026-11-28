@@ -114,7 +114,10 @@ code from the frame address and a private channel) once the document is parsed. 
    - guest: `{ type: 'homelander:data', viewer: { signedIn: false }, items: null }` — stop waiting
      and show the public view.
 3. Keep loading `/api/v1/public/data` yourself (it is the guest view and the fallback, for example
-   when the page is opened without our header), and merge `items` over it when the message comes.
+   when the page is opened without our header). Keep it apart from the message: each
+   `homelander:data` **replaces** the previous one, so rebuild the view from the public items plus
+   the latest message's `items` every time, never by adding to what an earlier message gave.
+   When the visitor logs out or another user logs in, the header reloads the page.
 4. Residents data reaches only the page our header opened. If the frame goes to another document
    (a link without `target="_top"`, a form, `location.href = …`), that document gets nothing — so
    link pages with `target="_top"` (section 6).
@@ -124,11 +127,12 @@ about an hour: use them as they are and do not store them in page files.
 
 ```html
 <script>
-  let data = {}       // key → item, public first, then merged with residents items
-  let viewer = null   // null until the header answers
+  // Keep the two sources apart and rebuild the view from both on every change: each
+  // homelander:data replaces the previous one, so nothing of an earlier viewer stays.
+  let publicItems = {}  // from /api/v1/public/data
+  let last = null       // the latest homelander:data message; null until the header answers
   function onData(msg) {
-    viewer = msg.viewer
-    if (msg.items) data = { ...data, ...msg.items }
+    last = msg
     render()
   }
   window.addEventListener('message', (e) => {
@@ -136,11 +140,13 @@ about an hour: use them as they are and do not store them in page files.
   })
   if (window.homelanderData) onData(window.homelanderData) // already arrived
   fetch('/api/v1/public/data').then((r) => (r.ok ? r.json() : {})).then((pub) => {
-    data = { ...pub, ...data }
+    publicItems = pub
     render()
   })
 
   function render() {
+    const viewer = last ? last.viewer : null
+    const data = { ...publicItems, ...((last && last.items) || {}) }
     // Public summary: everyone sees it.
     const share = data['dues.collected_percent']
     document.getElementById('summary').textContent = share ? share.value + '% collected' : ''
