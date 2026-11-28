@@ -30,7 +30,7 @@ export function FeedCard() {
         </Anchor>
       </Group>
       {latest.map((p) => (
-        <PostCard key={p.id} post={p} to={`/my/feed/${p.id}`} />
+        <PostCard key={p.id} post={p} to={`/my/feed/${p.id}`} compact />
       ))}
     </Stack>
   )

@@ -12,7 +12,7 @@ export type PostView = Pick<CabinetPost, 'body' | 'imageUrl' | 'publishedAt' | '
  * One feed post as residents read it: author and date, the image, then the
  * text with its line breaks and links. With to, the date links to the post's page.
  */
-export function PostCard({ post, to, testId }: { post: PostView; to?: string; testId?: string }) {
+export function PostCard({ post, to, testId, compact }: { post: PostView; to?: string; testId?: string; /** A shorter card for the home page. */ compact?: boolean }) {
   const { t, i18n } = useTranslation()
   const date = formatDateTime(post.publishedAt, i18n.language)
   const time: ReactNode = (
@@ -43,9 +43,9 @@ export function PostCard({ post, to, testId }: { post: PostView; to?: string; te
           </Stack>
         </Group>
         {post.imageUrl && (
-          <Image src={post.imageUrl} alt={t('cabinet.feed.image')} radius="md" w="100%" h="auto" mah={520} fit="cover" loading="lazy" decoding="async" />
+          <Image src={post.imageUrl} alt={t('cabinet.feed.image')} radius="md" w="100%" h="auto" mah={compact ? 240 : 520} fit="cover" loading="lazy" decoding="async" />
         )}
-        {post.body && <LinkifiedText text={post.body} />}
+        {post.body && <LinkifiedText text={post.body} lineClamp={compact ? 6 : undefined} />}
       </Stack>
     </Card>
   )

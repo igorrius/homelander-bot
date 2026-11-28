@@ -37,22 +37,20 @@ function ModuleCard({ module: m }: { module: AdminModule }) {
   return (
     <Card withBorder padding="lg" data-testid={`module-${m.code}`}>
       <Stack gap="md">
-        <Group justify="space-between" align="flex-start" wrap="nowrap" gap="md">
-          <Group gap="sm" wrap="nowrap" align="flex-start" style={{ minWidth: 0 }}>
+        <Group justify="space-between" align="center" gap="sm">
+          <Group gap="sm" wrap="nowrap" align="center" style={{ minWidth: 0 }}>
             <ThemeIcon variant="light" size={40} radius="md" color={m.enabled ? 'teal' : 'gray'} aria-hidden>
               <IconC size={22} stroke={1.6} />
             </ThemeIcon>
-            <Stack gap={4} style={{ minWidth: 0 }}>
-              <Title order={3} size="h4">
-                {t(m.nameKey)}
-              </Title>
-              <Text size="sm" c="dimmed" maw={560}>
-                {t(m.descriptionKey)}
-              </Text>
-            </Stack>
+            <Title order={3} size="h4">
+              {t(m.nameKey)}
+            </Title>
           </Group>
           <ModuleSwitch module={m} />
         </Group>
+        <Text size="sm" c="dimmed" maw={620}>
+          {t(m.descriptionKey)}
+        </Text>
         <Group justify="space-between" align="center" gap="xs">
           <LastChange module={m} />
           {page && (
