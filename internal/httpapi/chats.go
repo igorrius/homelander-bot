@@ -15,6 +15,7 @@ func registerChats(h handlerCtx, routes map[string]http.HandlerFunc) {
 	routes["POST /api/v1/admin/chats/{id}/leave"] = h.chatAction(h.api.Chats.Leave)
 	routes["PUT /api/v1/admin/chats/{id}/labels"] = h.setLabels(domain.TargetChat)
 	routes["PUT /api/v1/admin/topics/{id}/labels"] = h.setLabels(domain.TargetTopic)
+	routes["PUT /api/v1/admin/users/{id}/labels"] = h.setLabels(domain.TargetUser)
 	routes["PATCH /api/v1/admin/topics/{id}"] = h.renameTopic
 	routes["POST /api/v1/admin/chats/{id}/test"] = h.testSend(h.api.Notifier.TestChat)
 	routes["POST /api/v1/admin/topics/{id}/test"] = h.testSend(h.api.Notifier.TestTopic)
@@ -184,18 +185,32 @@ type labelTargetDTO struct {
 	ID   int64  `json:"id"`
 }
 
+// labelUserDTO is a user a label hangs on; reachable when messages to the
+// label would reach them now.
+type labelUserDTO struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Reachable bool   `json:"reachable"`
+}
+
 type labelDTO struct {
 	ID                 int64            `json:"id"`
 	Name               string           `json:"name"`
 	Description        string           `json:"description"`
 	Targets            []labelTargetDTO `json:"targets"`
+	Users              []labelUserDTO   `json:"users"`
 	UsedByApplications bool             `json:"usedByApplications"`
 }
 
-func toLabel(v domain.LabelView) labelDTO {
-	out := labelDTO{ID: v.ID, Name: v.Name, Description: v.Description, Targets: []labelTargetDTO{}, UsedByApplications: v.UsedByApplications}
+// toLabel converts a label view; userName names its users (nil when it has none).
+func toLabel(v domain.LabelView, userName func(id int64) string) labelDTO {
+	out := labelDTO{ID: v.ID, Name: v.Name, Description: v.Description, Targets: []labelTargetDTO{}, Users: []labelUserDTO{},
+		UsedByApplications: v.UsedByApplications}
 	for _, t := range v.Targets {
 		out.Targets = append(out.Targets, labelTargetDTO(t))
+	}
+	for _, u := range v.Users {
+		out.Users = append(out.Users, labelUserDTO{ID: u.ID, Name: userName(u.ID), Reachable: u.Reachable})
 	}
 	return out
 }
@@ -206,9 +221,14 @@ func (h handlerCtx) listLabels(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
+	n, err := newNamer(r.Context(), h.api)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
 	out := make([]labelDTO, 0, len(list))
 	for _, v := range list {
-		out = append(out, toLabel(v))
+		out = append(out, toLabel(v, func(id int64) string { return n.userName(r.Context(), id) }))
 	}
 	WriteJSON(w, http.StatusOK, out)
 }
@@ -229,7 +249,7 @@ func (h handlerCtx) createLabel(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	WriteJSON(w, http.StatusCreated, toLabel(domain.LabelView{Label: l}))
+	WriteJSON(w, http.StatusCreated, toLabel(domain.LabelView{Label: l}, nil))
 }
 
 func (h handlerCtx) updateLabel(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +268,7 @@ func (h handlerCtx) updateLabel(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	WriteJSON(w, http.StatusOK, toLabel(domain.LabelView{Label: l}))
+	WriteJSON(w, http.StatusOK, toLabel(domain.LabelView{Label: l}, nil))
 }
 
 func (h handlerCtx) deleteLabel(w http.ResponseWriter, r *http.Request) {
