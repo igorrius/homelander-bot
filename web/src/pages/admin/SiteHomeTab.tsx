@@ -15,9 +15,9 @@ import { supportedLocales } from '../../i18n'
 import { useApiErrors } from '../../lib/errors'
 import { cleanLocalized, localized } from '../../lib/localized'
 
-/** Items that can be a card: public, and not raw JSON. */
+/** Items that can be a card: seen by everyone, and not raw JSON. */
 function cardable(it: DataItem): boolean {
-  return it.public && !(it.kind === 'value' && it.valueType === 'json')
+  return it.visibility === 'public' && !(it.kind === 'value' && it.valueType === 'json')
 }
 
 const PREVIEW_WIDTH = 1180

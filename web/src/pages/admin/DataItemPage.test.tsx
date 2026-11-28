@@ -22,7 +22,7 @@ describe('DataItemPage', () => {
     await i18n.changeLanguage('uk')
   })
 
-  it('edits a text value and makes it public', async () => {
+  it('edits a text value and shows it to residents', async () => {
     const { calls } = mockApi({ ...itemRoutes(address), 'PATCH /admin/data/house.address': { body: address } })
     const { user } = renderApp('/admin/data/house.address')
     const field = await screen.findByLabelText(uk.admin.data.value)
@@ -30,8 +30,17 @@ describe('DataItemPage', () => {
     await user.type(field, 'Main st 2')
     await user.click(screen.getByRole('button', { name: uk.admin.data.saveValue }))
     await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/house.address')[0]?.body).toEqual({ valueType: 'text', value: 'Main st 2' }))
-    await user.click(screen.getByLabelText(uk.admin.data.publicSwitch))
-    await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/house.address')[1]?.body).toEqual({ public: true }))
+    expect(screen.getByText(uk.admin.data.visibilityHint)).toBeInTheDocument()
+    const control = screen.getByRole('radiogroup', { name: uk.admin.data.access })
+    expect(within(control).getByLabelText(uk.admin.data.visibility.admins)).toBeChecked()
+    await user.click(within(control).getByText(uk.admin.data.visibility.residents))
+    await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/house.address')[1]?.body).toEqual({ visibility: 'residents' }))
+  })
+
+  it('shows the public address only for an item everyone sees', async () => {
+    mockApi(itemRoutes(contacts))
+    renderApp('/admin/data/contacts')
+    expect(await screen.findByText('/api/v1/public/data/contacts')).toBeInTheDocument()
   })
 
   it('edits a phone value in a text input', async () => {

@@ -383,7 +383,7 @@
     },
     "data": {
       "title": "Data",
-      "description": "Values and tables the site shows and modules use. Anyone can read the public ones.",
+      "description": "Values and tables the site shows and modules use. Each item says who sees it: everyone, residents or only admins.",
       "add": "New data",
       "create": "Create",
       "key": "Key",
@@ -406,10 +406,15 @@
       },
       "descriptionField": "Description",
       "descriptionHint": "What this data is. Admins and the AI agent see it.",
-      "publicSwitch": "Public — show on the site",
-      "access": "Access",
-      "public": "Public",
-      "private": "Private",
+      "access": "Who sees it",
+      "visibility": {
+        "public": "Everyone",
+        "residents": "Residents",
+        "admins": "Admins"
+      },
+      "visibilityHint": "Everyone: guests too. Residents: logged-in residents and admins. Admins: only admins, here and through the AI agent; never on the site. Pages published on the site can show residents-level data to logged-in residents.",
+      "filterLabel": "Show",
+      "filterAll": "All",
       "rows": "Rows",
       "updated": "Updated",
       "empty": "No data yet.",
@@ -621,6 +626,7 @@
         "updated": "Data changed",
         "deleted": "Data deleted",
         "public_set": "Data access changed",
+        "visibility_set": "Data visibility changed",
         "rows_changed": "Table rows changed"
       },
       "page": {

@@ -93,10 +93,10 @@ export const labels: Label[] = [
 ]
 
 export const dataItems: DataItem[] = [
-  { key: 'contacts', kind: 'table', description: 'Important phones', public: true, rowCount: 2,
+  { key: 'contacts', kind: 'table', description: 'Important phones', visibility: 'public', rowCount: 2,
     columns: [{ name: 'name', label: 'Name', type: 'text' }, { name: 'phone', label: 'Phone', type: 'phone' }],
     updatedAt: '2026-11-27T10:00:00Z', updatedBy: { id: 1, name: 'Admin A' } },
-  { key: 'house.address', kind: 'value', description: '', public: false, valueType: 'text', value: 'Main st 1', rowCount: 0,
+  { key: 'house.address', kind: 'value', description: '', visibility: 'admins', valueType: 'text', value: 'Main st 1', rowCount: 0,
     updatedAt: '2026-11-27T10:00:00Z', updatedBy: null },
 ]
 

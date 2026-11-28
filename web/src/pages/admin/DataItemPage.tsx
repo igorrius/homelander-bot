@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Code, Group, Loader, Stack, Switch, Text, Textarea } from '@mantine/core'
+import { Alert, Button, Card, Code, Group, Loader, Stack, Text, Textarea } from '@mantine/core'
 import { IconDatabase } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { errorText, useApiErrors } from '../../lib/errors'
 import { DataTableEditor } from './DataTableEditor'
 import { DataValueEditor } from './DataValueEditor'
+import { VisibilityControl } from './VisibilityControl'
 
 function Settings({ item }: { item: DataItem }) {
   const { t } = useTranslation()
@@ -22,15 +23,14 @@ function Settings({ item }: { item: DataItem }) {
       <Stack>
         <Textarea label={t('admin.data.descriptionField')} description={t('admin.data.descriptionHint')} value={description}
           onChange={(e) => setDescription(e.currentTarget.value)} error={fields.description} autosize minRows={2} />
-        <Group justify="space-between">
-          <Switch label={t('admin.data.publicSwitch')} checked={item.public} disabled={patch.isPending}
-            onChange={(e) => patch.mutate({ public: e.currentTarget.checked })} />
+        <Group justify="flex-end">
           <Button variant="default" loading={patch.isPending} disabled={description.trim() === item.description}
             onClick={() => patch.mutate({ description: description.trim() })}>
             {t('admin.data.saveDescription')}
           </Button>
         </Group>
-        {item.public && (
+        <VisibilityControl value={item.visibility} disabled={patch.isPending} onChange={(visibility) => patch.mutate({ visibility })} />
+        {item.visibility === 'public' && (
           <Text size="sm">
             {t('admin.data.publicUrl')} <Code>{publicDataUrl(item.key)}</Code>
           </Text>

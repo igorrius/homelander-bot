@@ -91,12 +91,12 @@ asset URLs; our `PageFrame` fetches it and posts it into the sandboxed page afte
 ### Task 5: Web
 
 **Files:**
-- Create: `web/src/pages/admin/VisibilityControl.tsx`, `web/src/api/myData.ts`
-- Modify: `web/src/api/types.ts`, `web/src/api/data.ts`, `web/src/api/public.ts` (logout drops `meData`), `web/src/components/PageFrame.tsx`, `web/src/pages/admin/DataPage.tsx`, `DataItemPage.tsx`, `DataCreateModal.tsx`, `SiteHomeTab.tsx`, `web/src/test/fixtures.ts`, `web/src/locales/{uk,en}.json`
+- Create: `web/src/pages/admin/VisibilityControl.tsx` (control + badge), `web/src/lib/pageUrl.ts` (`isOurPageUrl`)
+- Modify: `web/src/api/types.ts`, `web/src/api/data.ts`, `web/src/api/publicData.ts` (`useMyData`, `myDataKey`), `web/src/api/public.ts` (logout drops `meData`), `web/src/components/PageFrame.tsx`, `web/src/pages/admin/DataPage.tsx`, `DataItemPage.tsx`, `DataCreateModal.tsx`, `SiteHomeTab.tsx`, `web/src/test/fixtures.ts`, `web/src/test/render.tsx` (rerender keeps providers), `web/src/locales/{uk,en}.json`
 - Test: `PageFrame.test.tsx`, `DataPage.test.tsx`, `DataItemPage.test.tsx`
 
 **Interfaces:**
-- Produces: `type Visibility = 'public' | 'residents' | 'admins'`, `visibilities`; `useMyData(enabled)` → `Record<string, PublicItem>`;
+- Produces: `type Visibility = 'public' | 'residents' | 'admins'`, `visibilities`; `useMyData(userId?: number)` → `Record<string, PublicItem>`;
   `isOurPageUrl(src: string): boolean` (relative `/site/…`).
 - PageFrame posts `{ type: 'homelander:data', viewer, items }` to its own frame after `homelander:ready` from that frame, again on language change and on re-fetch; guest → `viewer: { signedIn: false }, items: null`.
 
