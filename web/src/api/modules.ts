@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { api, ApiError } from './client'
 import type { AdminModule, CabinetModule } from './types'
 
@@ -22,6 +23,13 @@ export function useAdminModules() {
 export function useModuleEnabled(code: string): boolean | undefined {
   const q = useAdminModules()
   return q.data?.find((m) => m.code === code)?.enabled
+}
+
+/** A module's localized name by its code; the code itself until the list loads. */
+export function useModuleName(code: string): string {
+  const { t } = useTranslation()
+  const m = useAdminModules().data?.find((x) => x.code === code)
+  return m ? t(m.nameKey) : code
 }
 
 /** Turns a module on or off. */

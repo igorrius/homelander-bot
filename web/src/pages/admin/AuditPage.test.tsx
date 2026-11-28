@@ -66,6 +66,21 @@ describe('AuditPage', () => {
     expect(screen.getByRole('link', { name: 'news' })).toHaveAttribute('href', '/admin/chats/labels')
   })
 
+  it('names modules and links modules and feed posts to their pages', async () => {
+    const named = [
+      { ...base, id: 8, at: '2026-11-21T09:00:00Z', action: 'module.disabled', target: 'module:feed' },
+      { ...base, id: 9, at: '2026-11-21T09:00:00Z', action: 'feed.post_published', target: 'feed_post:12' },
+      { ...base, id: 10, at: '2026-11-21T09:00:00Z', action: 'feed.post_updated', target: 'feed_post:13', targetName: 'Water is off' },
+    ]
+    mockApi({ ...adminRoutes, 'GET /admin/audit': { body: { items: named, total: 3 } } })
+    renderApp('/admin/audit')
+    expect(await screen.findByText(uk.audit.action.module.disabled)).toBeInTheDocument()
+    expect(screen.getByText(uk.audit.action.feed.post_published)).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: uk.modules.feed.name })).toHaveAttribute('href', '/admin/modules/feed')
+    expect(screen.getByRole('link', { name: 'feed_post:12' })).toHaveAttribute('href', '/admin/modules/feed/posts/12')
+    expect(screen.getByRole('link', { name: 'Water is off' })).toHaveAttribute('href', '/admin/modules/feed/posts/13')
+  })
+
   it('pages', async () => {
     const { calls } = mockApi({ ...adminRoutes, 'GET /admin/audit': { body: { items: entries, total: 60 } } })
     const { user } = renderApp('/admin/audit')

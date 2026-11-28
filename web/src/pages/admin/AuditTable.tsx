@@ -2,6 +2,7 @@ import { Anchor, Table, Text } from '@mantine/core'
 import { IconHistory } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { useModuleName } from '../../api/modules'
 import type { AuditEntry } from '../../api/types'
 import { EmptyState } from '../../components/EmptyState'
 import { useAuditAction } from '../../lib/audit'
@@ -10,9 +11,12 @@ import { useLocalized } from '../../lib/localized'
 
 /** Where an audit target links to, by its kind ("user:5" → that user's card). */
 function targetHref(target: string): string | null {
-  const m = /^(user|house|status|chat|topic|label):(\d+)$/.exec(target)
+  if (target === 'module:feed') return '/admin/modules/feed'
+  const m = /^(user|house|status|chat|topic|label|feed_post):(\d+)$/.exec(target)
   if (!m) return null
   switch (m[1]) {
+    case 'feed_post':
+      return `/admin/modules/feed/posts/${m[2]}`
     case 'user':
       return `/admin/users/${m[2]}`
     case 'house':
@@ -30,8 +34,12 @@ function targetHref(target: string): string | null {
  * A target by name when the API sent one, linked to its page; otherwise the raw target.
  * People's names are not unique (residents choose their own), so their number stays visible.
  */
-function Target({ target, name }: { target: string; name: string }) {
+function Target({ target, name: given }: { target: string; name: string }) {
   const href = targetHref(target)
+  const moduleCode = /^module:(.+)$/.exec(target)?.[1] ?? ''
+  const moduleName = useModuleName(moduleCode)
+  // A module is named by its own title; a feed post is linked even without a name (its text may be long).
+  const name = given || (moduleCode ? moduleName : target.startsWith('feed_post:') ? target : '')
   if (!name || !href) return <>{target}</>
   const user = /^user:(\d+)$/.exec(target)
   return (

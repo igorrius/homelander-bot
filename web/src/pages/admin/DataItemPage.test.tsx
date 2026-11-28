@@ -168,4 +168,47 @@ describe('DataItemPage', () => {
     await waitFor(() => expect(callsTo(calls, 'DELETE /admin/data/contacts')).toHaveLength(1))
     await waitFor(() => expect(currentLocation()).toBe('/admin/data'))
   })
+
+  describe('an item a module manages', () => {
+    const posts: DataItem = { ...contacts, key: 'feed.posts', description: 'Latest feed posts', visibility: 'residents', owner: 'feed', ownerEnabled: true }
+
+    it('shows the table read-only and changes only who sees it', async () => {
+      const { calls } = mockApi({ ...itemRoutes(posts), 'PATCH /admin/data/feed.posts': (req) => ({ body: { ...posts, ...(req.body as object) } }) })
+      const { user } = renderApp('/admin/data/feed.posts')
+      expect(await screen.findByText(i18n.t('admin.data.ownedAlert', { name: uk.modules.feed.name }))).toBeInTheDocument()
+      // The rows are readable as text, not as inputs.
+      expect(screen.getByText('Office')).toBeInTheDocument()
+      expect(screen.getByText('+380 44 000 00 00')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(screen.getByText('Latest feed posts')).toBeInTheDocument()
+      for (const name of [uk.admin.data.deleteItem, uk.admin.data.saveDescription, uk.admin.data.addRow, uk.admin.data.saveRows, uk.admin.data.addColumn,
+        uk.admin.data.saveColumns, uk.common.delete, uk.admin.data.moveUp]) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+      }
+      const control = screen.getByRole('radiogroup', { name: uk.admin.data.access })
+      await user.click(within(control).getByText(uk.admin.data.visibility.public))
+      await waitFor(() => expect(callsTo(calls, 'PATCH /admin/data/feed.posts')[0]?.body).toEqual({ visibility: 'public' }))
+    })
+
+    it('shows a value read-only and says when its module is off', async () => {
+      const value = valueItem({ key: 'feed.title', owner: 'feed', ownerEnabled: false, value: 'News' })
+      mockApi(itemRoutes(value))
+      renderApp('/admin/data/feed.title')
+      expect(await screen.findByText(i18n.t('admin.data.ownedAlert', { name: uk.modules.feed.name }))).toBeInTheDocument()
+      expect(screen.getByText(uk.admin.data.ownedOffAlert)).toBeInTheDocument()
+      expect(screen.getByText('News')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: uk.admin.data.saveValue })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: uk.admin.data.deleteItem })).not.toBeInTheDocument()
+    })
+
+    it('shows an image value without upload controls', async () => {
+      const image = valueItem({ key: 'feed.cover', valueType: 'image', value: 5, owner: 'feed', ownerEnabled: true })
+      mockApi(itemRoutes(image))
+      const { container } = renderApp('/admin/data/feed.cover')
+      await waitFor(() => expect(container.querySelector('img[src="/api/v1/admin/assets/5"]')).not.toBeNull())
+      expect(container.querySelector('input[type="file"]')).toBeNull()
+      expect(screen.queryByRole('button', { name: uk.admin.data.clearImage })).not.toBeInTheDocument()
+    })
+  })
 })
