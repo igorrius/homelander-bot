@@ -51,7 +51,10 @@
     "resend": "Send again",
     "linkExpired": "This login link has expired or was already used.",
     "linkHint": "Send /cabinet to the bot for a new link, or log in with your phone number below.",
-    "linkOpening": "Logging you in…"
+    "linkOpening": "Logging you in…",
+    "linkOtherUser": "You are signed in as {{name}}. Sign in with this link instead, as the account it belongs to?",
+    "linkContinue": "Continue",
+    "linkStay": "Stay"
   },
   "admin": {
     "title": "Admin panel",
@@ -530,7 +533,8 @@
     "internal": "Something went wrong on the server. Please try again.",
     "unknown": "Something went wrong. Please try again.",
     "chat_not_accepted": "Nothing here can receive messages yet: accept the chat first.",
-    "token_invalid": "This link has expired or was already used."
+    "token_invalid": "This link has expired or was already used.",
+    "link_other_user": "You are signed in to another account."
   },
   "validation": {
     "required": "Required",

@@ -34,7 +34,7 @@ func TestLoginLinkSingleUse(t *testing.T) {
 		t.Fatalf("CreateLoginLink = %q, %v", link, err)
 	}
 	tok := linkToken(t, link)
-	got, session, next, err := a.auth.UseLoginLink(ctx, tok, "test-agent", public)
+	got, session, next, err := a.auth.UseLoginLink(ctx, tok, "test-agent", public, false)
 	if err != nil || got.ID != u.ID || session == "" || next != "/my/feed/3" {
 		t.Fatalf("UseLoginLink = %+v %q %q %v", got, session, next, err)
 	}
@@ -49,15 +49,47 @@ func TestLoginLinkSingleUse(t *testing.T) {
 	if !strings.Contains(details, `"via":"bot_link"`) {
 		t.Errorf("audit details = %q", details)
 	}
-	if _, _, _, err := a.auth.UseLoginLink(ctx, tok, "", public); !errors.Is(err, domain.ErrTokenInvalid) {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, tok, "", public, false); !errors.Is(err, domain.ErrTokenInvalid) {
 		t.Errorf("second use err = %v", err)
 	}
-	if _, _, _, err := a.auth.UseLoginLink(ctx, "nonsense", "", public); !errors.Is(err, domain.ErrTokenInvalid) {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, "nonsense", "", public, false); !errors.Is(err, domain.ErrTokenInvalid) {
 		t.Errorf("unknown token err = %v", err)
 	}
-	if _, _, _, err := a.auth.UseLoginLink(ctx, "", "", public); !errors.Is(err, domain.ErrTokenInvalid) {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, "", "", public, false); !errors.Is(err, domain.ErrTokenInvalid) {
 		t.Errorf("empty token err = %v", err)
 	}
+}
+
+// A link opened in a browser signed in as someone else is left unspent until
+// the person confirms the switch: a forwarded link must not quietly move the
+// victim into the sender's account.
+func TestLoginLinkOtherSignedInUser(t *testing.T) {
+	a := newLinkEnv(t)
+	owner := a.mkUser("+380500000001")
+	other := a.mkUser("+380500000002")
+	tok := linkToken(t, must(a.auth.CreateLoginLink(ctx, owner.ID, "/my")))
+	if _, _, _, err := a.auth.UseLoginLink(ctx, tok, "", actor(other), false); !errors.Is(err, domain.ErrLinkOtherUser) {
+		t.Fatalf("other user without switch: err = %v", err)
+	}
+	if a.sessions(owner) != 0 || a.auditCount("auth.login") != 0 {
+		t.Error("a session was opened without the switch")
+	}
+	got, _, _, err := a.auth.UseLoginLink(ctx, tok, "", actor(other), true)
+	if err != nil || got.ID != owner.ID {
+		t.Fatalf("switch = %+v, %v (link must still be unspent)", got, err)
+	}
+	// The link's own user, signed in already, goes straight through.
+	tok = linkToken(t, must(a.auth.CreateLoginLink(ctx, owner.ID, "/my")))
+	if _, _, _, err := a.auth.UseLoginLink(ctx, tok, "", actor(owner), false); err != nil {
+		t.Errorf("same user: %v", err)
+	}
+}
+
+func must(s string, err error) string {
+	if err != nil {
+		panic(err)
+	}
+	return s
 }
 
 func TestLoginLinkExpires(t *testing.T) {
@@ -66,11 +98,11 @@ func TestLoginLinkExpires(t *testing.T) {
 	early, _ := a.auth.CreateLoginLink(ctx, u.ID, "/my")
 	late, _ := a.auth.CreateLoginLink(ctx, u.ID, "/my")
 	a.clock.Advance(domain.LoginLinkTTL - time.Second)
-	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, early), "", public); err != nil {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, early), "", public, false); err != nil {
 		t.Fatalf("link a second before expiry: %v", err)
 	}
 	a.clock.Advance(time.Second)
-	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, late), "", public); !errors.Is(err, domain.ErrTokenInvalid) {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, late), "", public, false); !errors.Is(err, domain.ErrTokenInvalid) {
 		t.Errorf("expired link err = %v", err)
 	}
 	if n, err := a.auth.CleanLoginLinks(ctx); err != nil || n != 0 {
@@ -108,7 +140,7 @@ func TestLoginLinkUserDisabledAfterMint(t *testing.T) {
 	if err := a.r.Users.Update(ctx, &u); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, link), "", public); !errors.Is(err, domain.ErrTokenInvalid) {
+	if _, _, _, err := a.auth.UseLoginLink(ctx, linkToken(t, link), "", public, false); !errors.Is(err, domain.ErrTokenInvalid) {
 		t.Errorf("disabled user err = %v", err)
 	}
 	if a.sessions(u) != 0 {
@@ -146,7 +178,7 @@ func TestCabinetLink(t *testing.T) {
 	if err != nil || got.ID != u.ID {
 		t.Fatalf("CabinetLink = %+v %q %v", got, link, err)
 	}
-	if _, _, next, err := a.auth.UseLoginLink(ctx, linkToken(t, link), "", public); err != nil || next != "/my" {
+	if _, _, next, err := a.auth.UseLoginLink(ctx, linkToken(t, link), "", public, false); err != nil || next != "/my" {
 		t.Errorf("UseLoginLink next %q err %v", next, err)
 	}
 	for _, ext := range []string{"222", "333"} {

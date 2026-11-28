@@ -33,18 +33,21 @@ func RegisterCabinet(s *Server, api API) {
 func (h handlerCtx) authLink(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Token string `json:"token"`
+		// Switch confirms signing out of the current account: without it a
+		// browser signed in as someone else gets 409 link_other_user.
+		Switch bool `json:"switch"`
 	}
 	if err := decode(r, &in); err != nil {
 		h.fail(w, err)
 		return
 	}
-	u, token, next, err := h.api.Auth.UseLoginLink(r.Context(), in.Token, r.UserAgent(), h.actor(r))
+	u, token, next, err := h.api.Auth.UseLoginLink(r.Context(), in.Token, r.UserAgent(), h.actor(r), in.Switch)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
-	// A browser signed in as someone else switches to the link's user; its
-	// old session is closed rather than left behind.
+	// The browser's old session (the same user, or one the person chose to
+	// leave) is closed rather than left behind.
 	if old := sessionToken(r); old != "" {
 		if err := h.api.Auth.Logout(r.Context(), old, h.actor(r)); err != nil {
 			h.fail(w, err)

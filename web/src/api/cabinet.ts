@@ -11,7 +11,7 @@ export function useMyHome() {
 /** Spends a login link from the bot: opens a session and says which cabinet page to open. */
 export function useLoginLink() {
   const qc = useQueryClient()
-  return useMutation<{ user: Me; next: string }, ApiError, { token: string }>({
+  return useMutation<{ user: Me; next: string }, ApiError, { token: string; switch?: boolean }>({
     mutationFn: (body) => api<{ user: Me; next: string }>('/auth/link', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: ({ user }) => {
       // Another account may have been signed in before: drop what it loaded.

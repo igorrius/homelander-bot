@@ -107,7 +107,12 @@ func (s *AuthService) CabinetLink(ctx context.Context, channelType, externalID s
 // UseLoginLink spends a login link and opens a session. It returns the user,
 // the raw session token and the cabinet path to open. A link that is unknown,
 // used, expired or whose user is no longer active gives ErrTokenInvalid.
-func (s *AuthService) UseLoginLink(ctx context.Context, token, userAgent string, actor Actor) (User, string, string, error) {
+//
+// When actor is signed in as another user, the link is left unspent and
+// ErrLinkOtherUser is returned unless switchUser says the person confirmed
+// the switch: a forwarded link must not quietly move someone into the
+// sender's account (login CSRF).
+func (s *AuthService) UseLoginLink(ctx context.Context, token, userAgent string, actor Actor, switchUser bool) (User, string, string, error) {
 	if !s.Limits.Allow("linkip:"+actor.IP, linkIPLimit, codeWindow) {
 		return User{}, "", "", ErrRateLimited
 	}
@@ -129,6 +134,9 @@ func (s *AuthService) UseLoginLink(ctx context.Context, token, userAgent string,
 		now := s.Now()
 		if l.UsedAt != nil || !now.Before(l.ExpiresAt) {
 			return ErrTokenInvalid
+		}
+		if actor.UserID != nil && *actor.UserID != l.UserID && !switchUser {
+			return ErrLinkOtherUser
 		}
 		if ok, err := s.R.LoginLinks.MarkUsed(ctx, l.ID, now); err != nil {
 			return err

@@ -56,6 +56,8 @@ func writeDomainError(w http.ResponseWriter, log *slog.Logger, err error) {
 		WriteError(w, http.StatusServiceUnavailable, "try_later")
 	case errors.Is(err, domain.ErrInvalidCode):
 		WriteError(w, http.StatusUnauthorized, "invalid_code")
+	case errors.Is(err, domain.ErrLinkOtherUser):
+		WriteError(w, http.StatusConflict, "link_other_user")
 	case errors.Is(err, domain.ErrTokenInvalid):
 		WriteError(w, http.StatusUnprocessableEntity, "token_invalid")
 	case errors.Is(err, domain.ErrChatNotAccepted):

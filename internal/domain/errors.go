@@ -20,6 +20,9 @@ var (
 	ErrLastAdmin    = errors.New("last_admin")
 	ErrFirstAdmin   = errors.New("first_admin")
 	ErrTokenInvalid = errors.New("token_invalid")
+	// ErrLinkOtherUser: a login link was opened in a browser signed in as
+	// someone else; the link is still unspent.
+	ErrLinkOtherUser = errors.New("link_other_user")
 )
 
 // ValidationError maps field names to reason codes such as "required",

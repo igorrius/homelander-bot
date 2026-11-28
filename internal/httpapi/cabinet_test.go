@@ -58,12 +58,22 @@ func TestLoginLinkRedeem(t *testing.T) {
 	}
 }
 
-func TestLoginLinkSwitchesUser(t *testing.T) {
+func TestLoginLinkOtherUserNeedsConfirmation(t *testing.T) {
 	e := newAPIEnv(t)
 	a := e.mkUser("+380500000001", admin)
 	b := e.mkUser("+380500000002")
 	old := e.login(a)
-	r := e.do("POST", "/api/v1/auth/link", map[string]string{"token": e.loginLink(b, "/my")}, old, "")
+	tok := e.loginLink(b, "/my")
+	// A forwarded link must not quietly move A into B's account.
+	r := e.do("POST", "/api/v1/auth/link", map[string]string{"token": tok}, old, "")
+	if r.Code != 409 || r.errCode() != "link_other_user" || sessionCookie(r) != "" {
+		t.Fatalf("without switch: %d %s cookie %q", r.Code, r.Body, sessionCookie(r))
+	}
+	if me := e.do("GET", "/api/v1/me", nil, old, ""); me.Code != 200 || me.json()["phone"] != "+380500000001" {
+		t.Errorf("A's session changed: %d %s", me.Code, me.Body)
+	}
+	// Confirmed: the still unspent link signs B in.
+	r = e.do("POST", "/api/v1/auth/link", map[string]any{"token": tok, "switch": true}, old, "")
 	if r.Code != 200 {
 		t.Fatalf("redeem %d %s", r.Code, r.Body)
 	}
@@ -74,6 +84,16 @@ func TestLoginLinkSwitchesUser(t *testing.T) {
 	// The session the browser had before is closed, not left behind.
 	if e.do("GET", "/api/v1/me", nil, old, "").Code != 401 {
 		t.Error("previous session still works")
+	}
+}
+
+func TestLoginLinkSameUserSignedIn(t *testing.T) {
+	e := newAPIEnv(t)
+	u := e.mkUser("+380500000002")
+	old := e.login(u)
+	r := e.do("POST", "/api/v1/auth/link", map[string]string{"token": e.loginLink(u, "/my")}, old, "")
+	if r.Code != 200 || sessionCookie(r) == "" {
+		t.Fatalf("same user %d %s", r.Code, r.Body)
 	}
 }
 
