@@ -3,7 +3,6 @@
 - **Date:** 2026-11-28
 - **Status:** Direction agreed with the owner in a brainstorm (2026-11-28); the owner delegated the technical
   calls ("decide on best practice"), which are listed in §8
-  to the builder session ("decide on best practice")
 - **Owner:** Igor Artasevych
 - **Builds on:** [M0 + M1 design](2026-11-27-m0-m1-foundation-and-identity-design.md),
   [M2 design](2026-11-27-m2-chats-labels-and-bot-registration-design.md),
