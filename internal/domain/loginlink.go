@@ -33,18 +33,27 @@ type LoginLinkRepo interface {
 }
 
 // ValidCabinetPath reports whether p is a same-site path inside the resident
-// cabinet: "/my", "/my/…", "/my?…" or "/my#…", with no double slash that
-// could make it an address on another host, no backslash and no spaces or
-// control characters.
+// cabinet: "/my", "/my/…", "/my?…" or "/my#…". Anything that could lead out
+// of /my once a browser resolves or decodes it is refused: a double slash
+// (another host), a backslash, "." or ".." segments, percent-encoding, and
+// spaces or control characters. Callers may build paths like
+// "/my/feed/<id>" from their own values.
 func ValidCabinetPath(p string) bool {
 	if p != "/my" && !strings.HasPrefix(p, "/my/") && !strings.HasPrefix(p, "/my?") && !strings.HasPrefix(p, "/my#") {
 		return false
 	}
-	if strings.Contains(p, "//") || strings.Contains(p, `\`) {
+	if strings.Contains(p, "//") || strings.ContainsAny(p, `\%`) {
 		return false
 	}
 	for _, r := range p {
 		if r <= ' ' || r == 0x7f {
+			return false
+		}
+	}
+	path, _, _ := strings.Cut(p, "?")
+	path, _, _ = strings.Cut(path, "#")
+	for _, seg := range strings.Split(path, "/") {
+		if seg == "." || seg == ".." {
 			return false
 		}
 	}

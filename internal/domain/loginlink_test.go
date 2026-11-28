@@ -117,13 +117,16 @@ func TestLoginLinkExpires(t *testing.T) {
 func TestLoginLinkNextValidation(t *testing.T) {
 	a := newLinkEnv(t)
 	u := a.mkUser("+380500000001")
-	for _, next := range []string{"/my", "/my/", "/my/feed/3", "/my?tab=1", "/my/feed?x=%2F"} {
+	for _, next := range []string{"/my", "/my/", "/my/feed/3", "/my/feed/42?x=1", "/my?tab=1", "/my#top", "/my/a.b", "/my/feed/..x"} {
 		if _, err := a.auth.CreateLoginLink(ctx, u.ID, next); err != nil {
 			t.Errorf("%q refused: %v", next, err)
 		}
 	}
 	for _, next := range []string{"", "/", "/admin", "/myfoo", "/my//evil.example", "//evil.example/my", "/my\\x", "/my/a b",
-		"https://evil.example/my", "my", "/my/\nx"} {
+		"https://evil.example/my", "my", "/my/\nx",
+		// Dot segments and percent-encoding could climb out of /my once resolved or decoded.
+		"/my/..", "/my/../admin", "/my/./x", "/my/feed/../../admin", "/my/.", "/my/%2e%2e/admin", "/my/feed/%2F",
+		"/my?x=%2F", "/my/feed\\..\\admin"} {
 		_, err := a.auth.CreateLoginLink(ctx, u.ID, next)
 		var ve *domain.ValidationError
 		if !errors.As(err, &ve) || ve.Fields["next"] != "invalid" {

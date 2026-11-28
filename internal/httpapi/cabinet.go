@@ -47,11 +47,12 @@ func (h handlerCtx) authLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The browser's old session (the same user, or one the person chose to
-	// leave) is closed rather than left behind.
+	// leave) is closed rather than left behind. The link is spent and the new
+	// session open by now, so a failure here must not fail the login: the old
+	// session only lingers until it expires.
 	if old := sessionToken(r); old != "" {
 		if err := h.api.Auth.Logout(r.Context(), old, h.actor(r)); err != nil {
-			h.fail(w, err)
-			return
+			h.s.deps.Log.Warn("previous session not closed after a login link", "user", u.ID, "err", err)
 		}
 	}
 	SetSessionCookie(w, token, h.api.Cfg.SessionMaxTTL)
