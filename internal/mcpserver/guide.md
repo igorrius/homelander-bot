@@ -101,13 +101,13 @@ async function loadData() {
 The page cannot ask for residents data itself (it has no session), so our header sends it.
 **You do not send anything for it**: Homelander adds a small script to every page it serves
 (published and drafts) that tells the header the page is ready (`homelander:ready`, with a one-time
-code from the frame address and a private channel) once the document is parsed. Do not post
-`homelander:ready` yourself and do not remove the `hl` parameter from the address.
+code from the frame address and a private channel) once the page has loaded (its `load` event). Do
+not post `homelander:ready` yourself and do not remove the `hl` parameter from the address.
 
 1. Listen for `message` events from `parent` with `type: 'homelander:data'`. The script also keeps
    the latest one in `window.homelanderData`, for code that starts later (an `async` script).
-2. The message comes once the page is parsed, and again when the visitor switches language or the
-   data is reloaded:
+2. The message comes after the page has loaded (images and scripts included), and again when the
+   visitor switches language or the data is reloaded:
    - signed in: `{ type: 'homelander:data', viewer: { signedIn: true, resident: true|false, admin: true|false }, items: { ... } }`
      — `items` has the same shape as `/api/v1/public/data` and holds the public items **and**, for
      a resident or an admin, the `residents` items;

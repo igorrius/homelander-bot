@@ -17,7 +17,10 @@
     };
     parent.postMessage({ type: 'homelander:ready', nonce: nonce }, '*', [ch.port2]);
   }
-  // After the page's own scripts, so their listeners are in place.
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
-  else ready();
+  // After this document's load event and a task more: the header drops its
+  // port on every load of the frame and accepts only a ready that comes
+  // after it, so the ready must never overtake the frame's load event.
+  function later() { setTimeout(ready, 0); }
+  if (document.readyState === 'complete') later();
+  else window.addEventListener('load', later);
 })();

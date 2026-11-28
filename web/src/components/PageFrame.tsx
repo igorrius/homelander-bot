@@ -61,7 +61,8 @@ function useFrameData(enabled: boolean): FrameData | null {
  * script into every page that posts { type: 'homelander:ready', nonce } with a MessagePort; the data is
  * posted only through the port of a ready that came from this frame with the current nonce, and again on
  * a language change or a re-fetch. A port belongs to the document that made it, so a frame that navigated
- * elsewhere cannot receive data; besides, a second load event without a fresh ready drops the port.
+ * elsewhere cannot receive data; besides, every load event of the frame drops the port, and only a ready
+ * that comes after the latest load is taken.
  * When the viewer changes (logout, login, another user) the frame is reloaded with a new nonce.
  */
 export function PageFrame({ src, lang, title, pages, onNavigate }: {
@@ -95,7 +96,8 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
 
   const data = useFrameData(ours)
   const dataRef = useRef(data)
-  const link = useRef<{ port: Port | null; fresh: boolean; loadedOnce: boolean }>({ port: null, fresh: false, loadedOnce: false })
+  // awaiting: the frame has loaded a document and no ready was taken since; only then is a ready taken.
+  const link = useRef<{ port: Port | null; awaiting: boolean }>({ port: null, awaiting: false })
   const postData = useCallback(() => {
     const message = dataRef.current
     if (message) link.current.port?.postMessage(message)
@@ -106,7 +108,7 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
   }, [])
   // A new frame URL is a new load: nothing is ready until its page says so.
   useEffect(() => {
-    link.current = { port: null, fresh: false, loadedOnce: false }
+    link.current = { port: null, awaiting: false }
     return dropPort
   }, [url, dropPort])
   useEffect(() => {
@@ -121,10 +123,9 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
       const msg = e.data as { type?: unknown; height?: unknown; path?: unknown; nonce?: unknown } | null
       if (msg?.type === 'homelander:ready') {
         const port = e.ports?.[0] as Port | undefined
-        if (!nonce || msg.nonce !== nonce || !port) return
-        dropPort()
+        if (!nonce || msg.nonce !== nonce || !port || !link.current.awaiting) return
         link.current.port = port
-        link.current.fresh = true
+        link.current.awaiting = false
         postData()
         return
       }
@@ -140,13 +141,12 @@ export function PageFrame({ src, lang, title, pages, onNavigate }: {
     return () => window.removeEventListener('message', onMessage)
   }, [nonce, postData, dropPort])
 
-  // The first load is the page we set; a later one is another document (a link without target, a reload).
-  // Its page must say ready again; a ready that came since the last load is that new page's own.
+  // Every load is a new document in the frame (ours, a reload, or wherever a link took it): the old port
+  // goes, and only a ready that comes after this load is taken. The bridge posts ready a task after its
+  // own load event, so it always comes after this one.
   const onLoad = () => {
-    const l = link.current
-    if (l.loadedOnce && !l.fresh) dropPort()
-    l.loadedOnce = true
-    l.fresh = false
+    dropPort()
+    link.current.awaiting = true
   }
 
   useEffect(() => {
