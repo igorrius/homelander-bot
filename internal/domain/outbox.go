@@ -14,10 +14,21 @@ type Destination struct {
 // LinkButton is a URL button under a message.
 type LinkButton struct{ Text, URL string }
 
-// OutMessage is a message to send, already localized.
+// OutMessage is a message to send, already localized. With an image it is a
+// photo and Text is its caption.
 type OutMessage struct {
 	Text    string
 	Buttons []LinkButton
+	// ImageAssetID is the asset sent as a photo (0: none); it is what the
+	// outbox keeps, the worker loads Image from it at send time.
+	ImageAssetID int64
+	Image        *OutImage
+}
+
+// OutImage is the file of a photo message, loaded from the asset store.
+type OutImage struct {
+	Data        []byte
+	ContentType string
 }
 
 // OutboxState is where a queued message stands.
@@ -53,6 +64,8 @@ type OutboxRepo interface {
 	// Due returns the oldest pending row of each chat whose next attempt has
 	// come, oldest first: one chat's messages go out in order.
 	Due(ctx context.Context, now time.Time, limit int) ([]OutboxItem, error)
+	// ListByOrigin returns the rows of one origin (e.g. "feed:3") by id.
+	ListByOrigin(ctx context.Context, origin string) ([]OutboxItem, error)
 	Update(ctx context.Context, it *OutboxItem) error
 	// RepointChat moves pending rows from a chat's old id to its new one.
 	RepointChat(ctx context.Context, messenger, oldChatID, newChatID string) error

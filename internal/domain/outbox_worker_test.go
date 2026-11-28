@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -289,5 +290,33 @@ func TestWorkerBacklogDoesNotStarveOtherChats(t *testing.T) {
 	c.runOnce(w)
 	if got := c.row(other.ID); got.State != domain.OutboxSent {
 		t.Fatalf("other chat starved: %+v", got)
+	}
+}
+
+func TestWorkerSendsPhotoFromAsset(t *testing.T) {
+	c := newChatEnv(t)
+	pic := c.asset("image/png")
+	it := domain.OutboxItem{Messenger: "telegram", To: domain.Destination{ChatID: superGroup},
+		Msg: domain.OutMessage{Text: "caption", ImageAssetID: pic}, State: domain.OutboxPending, NextAttemptAt: c.clock.t, CreatedAt: c.clock.t}
+	c.must(c.r.Outbox.Add(ctx, &it))
+	c.runOnce(c.worker())
+	d := c.msgr.delivered()
+	if len(d) != 1 || d[0].Msg.Image == nil || d[0].Msg.Image.ContentType != "image/png" || len(d[0].Msg.Image.Data) != 1 {
+		t.Fatalf("delivered = %+v", d)
+	}
+	if got := c.row(it.ID); got.State != domain.OutboxSent {
+		t.Errorf("row = %+v", got)
+	}
+}
+
+func TestWorkerMissingPhotoFailsAtOnce(t *testing.T) {
+	c := newChatEnv(t)
+	it := domain.OutboxItem{Messenger: "telegram", To: domain.Destination{ChatID: superGroup},
+		Msg: domain.OutMessage{Text: "caption", ImageAssetID: 4242}, State: domain.OutboxPending, NextAttemptAt: c.clock.t, CreatedAt: c.clock.t}
+	c.must(c.r.Outbox.Add(ctx, &it))
+	c.runOnce(c.worker())
+	got := c.row(it.ID)
+	if got.State != domain.OutboxFailed || !strings.Contains(got.LastError, "image asset 4242") || len(c.msgr.delivered()) != 0 {
+		t.Fatalf("row = %+v", got)
 	}
 }

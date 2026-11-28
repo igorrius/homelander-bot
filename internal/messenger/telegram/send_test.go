@@ -115,3 +115,29 @@ func TestLeaveChatAlreadyGoneIsNil(t *testing.T) {
 		t.Error("LeaveChat must report a server error")
 	}
 }
+
+func TestSendPhotoWithCaptionAndButton(t *testing.T) {
+	r := newRig(t)
+	m := domain.OutMessage{Text: "caption <b>plain</b>", Buttons: []domain.LinkButton{{Text: "Open", URL: "https://example.com/my/feed/1"}},
+		ImageAssetID: 3, Image: &domain.OutImage{Data: []byte{1, 2}, ContentType: "image/png"}}
+	if err := r.bot.Send(ctx, domain.Destination{ChatID: "-1001000000001", ThreadID: "7"}, m); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.api.messages()) != 0 {
+		t.Fatalf("sendMessage used: %+v", r.api.messages())
+	}
+	r.api.mu.Lock()
+	defer r.api.mu.Unlock()
+	if len(r.api.photos) != 1 {
+		t.Fatalf("photos = %+v", r.api.photos)
+	}
+	p := r.api.photos[0]
+	if p.chatID != -1001000000001 || p.name != "photo.png" || string(p.data) != "\x01\x02" || p.opts.Caption != m.Text ||
+		p.opts.ParseMode != "" || p.opts.MessageThreadId != 7 {
+		t.Errorf("photo = %+v", p)
+	}
+	kb, ok := p.opts.ReplyMarkup.(gotgbot.InlineKeyboardMarkup)
+	if !ok || kb.InlineKeyboard[0][0].Url != "https://example.com/my/feed/1" {
+		t.Errorf("markup = %#v", p.opts.ReplyMarkup)
+	}
+}

@@ -25,6 +25,7 @@ type API interface {
 	GetMe(opts *gotgbot.GetMeOpts) (*gotgbot.User, error)
 	GetUpdates(opts *gotgbot.GetUpdatesOpts) ([]gotgbot.Update, error)
 	SendMessage(chatID int64, text string, opts *gotgbot.SendMessageOpts) (*gotgbot.Message, error)
+	SendPhoto(chatID int64, photo gotgbot.InputFileOrString, opts *gotgbot.SendPhotoOpts) (*gotgbot.Message, error)
 	SetWebhook(url string, opts *gotgbot.SetWebhookOpts) (bool, error)
 	DeleteWebhook(opts *gotgbot.DeleteWebhookOpts) (bool, error)
 	SetMyCommands(commands []gotgbot.BotCommand, opts *gotgbot.SetMyCommandsOpts) (bool, error)
