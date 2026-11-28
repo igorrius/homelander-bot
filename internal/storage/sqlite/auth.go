@@ -120,3 +120,55 @@ func (r Sessions) DeleteExpired(ctx context.Context, now time.Time) (int, error)
 	n, err := res.RowsAffected()
 	return int(n), err
 }
+
+// LoginLinks implements domain.LoginLinkRepo.
+type LoginLinks struct{ DB DB }
+
+var _ domain.LoginLinkRepo = LoginLinks{}
+
+// Create inserts l and sets its ID.
+func (r LoginLinks) Create(ctx context.Context, l *domain.LoginLink) error {
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `INSERT INTO login_links (token_hash, user_id, next, expires_at, used_at, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, l.TokenHash, l.UserID, l.Next, fmtTime(l.ExpiresAt), fmtTimePtr(l.UsedAt), fmtTime(l.CreatedAt))
+	if err != nil {
+		return mapErr(err)
+	}
+	l.ID, err = res.LastInsertId()
+	return err
+}
+
+// GetByHash finds a link by its token hash.
+func (r LoginLinks) GetByHash(ctx context.Context, hash []byte) (domain.LoginLink, error) {
+	var (
+		l                domain.LoginLink
+		expires, created string
+		used             sql.NullString
+	)
+	err := r.DB.Q(ctx).QueryRowContext(ctx, `SELECT id, token_hash, user_id, next, expires_at, used_at, created_at
+		FROM login_links WHERE token_hash = ?`, hash).Scan(&l.ID, &l.TokenHash, &l.UserID, &l.Next, &expires, &used, &created)
+	if err != nil {
+		return domain.LoginLink{}, mapErr(err)
+	}
+	l.ExpiresAt, l.UsedAt, l.CreatedAt = parseTime(expires), parseTimePtr(used), parseTime(created)
+	return l, nil
+}
+
+// MarkUsed stamps a link used; false when it already was.
+func (r LoginLinks) MarkUsed(ctx context.Context, id int64, at time.Time) (bool, error) {
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `UPDATE login_links SET used_at = ? WHERE id = ? AND used_at IS NULL`, fmtTime(at), id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
+}
+
+// DeleteExpiredBefore removes links that expired before t.
+func (r LoginLinks) DeleteExpiredBefore(ctx context.Context, t time.Time) (int, error) {
+	res, err := r.DB.Q(ctx).ExecContext(ctx, `DELETE FROM login_links WHERE expires_at < ?`, fmtTime(t))
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	return int(n), err
+}
